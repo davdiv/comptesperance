@@ -1,0 +1,32 @@
+http:
+  routers:
+    comptes-app:
+      rule: HostRegexp(`^comptes\.localhost(:\d+)?$`)
+      entryPoints:
+        - web
+      service: comptes-app
+      middlewares:
+        - authelia-forwardauth
+    authelia-portal:
+      rule: HostRegexp(`^auth\.localhost(:\d+)?$`)
+      entryPoints:
+        - web
+      service: authelia
+  services:
+    comptes-app:
+      loadBalancer:
+        servers:
+          - url: http://app:3000
+    authelia:
+      loadBalancer:
+        servers:
+          - url: http://authelia:9091
+  middlewares:
+    authelia-forwardauth:
+      forwardAuth:
+        address: http://authelia:9091/api/verify
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Name
+          - Remote-Email

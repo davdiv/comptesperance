@@ -1,0 +1,13 @@
+users:
+  alice:
+    displayname: Alice Read-write
+    password: $2b$10$7WWgBRAPChWNkEdv8Fa55.CtXyL6VxOIrxvbPhUyK6IHFIzbGZV1W
+    email: alice@example.local
+    groups:
+      - comptes-readwrite
+  bob:
+    displayname: Bob Read-only
+    password: $2b$10$KTRuzLrPSk.wF4TvVtce0eNxEJ1upvgt7dvOKrpHHPuhmaNWAKlwO
+    email: bob@example.local
+    groups:
+      - comptes-readonly

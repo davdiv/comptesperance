@@ -1,56 +1,39 @@
-# sv
+# Comptes d’espérance
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Bilingual accounting app backed by a local git data repository, with a disposable SQLite cache.
 
-## Creating a project
+## Local development
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@1.3.0 create --template minimal --types ts --add prettier eslint vitest="usages:unit" playwright="demo:no" tailwindcss="plugins:forms" --install npm .
-```
-
-## Adding features
-
-Add features to your project with `sv add`:
-
-```sh
-npx sv add
-```
-
-For example, to add Tailwind CSS:
-
-```sh
-npx sv add tailwindcss
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```bash
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Copy `.env.example` to `.env` if you want to change `DATA_REPO_PATH`, `CACHE_DB_PATH`, or disable auth locally.
 
-To create a production version of your app:
+## Tests and checks
 
-```sh
+```bash
+npm run check
+npm run lint
+npm run test:unit -- --run
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+## Docker Compose with Traefik + Authelia
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```bash
+docker compose up --build
+```
+
+Open:
+
+- App: http://comptes.localhost:8080
+- Authelia portal: http://auth.localhost:8080
+
+Ready-to-use local users:
+
+- `alice` / `alice` — `comptes-readwrite`
+- `bob` / `bob` — `comptes-readonly`
+
+Compose mounts the data git repo at `/data` and the disposable SQLite cache at `/cache`.

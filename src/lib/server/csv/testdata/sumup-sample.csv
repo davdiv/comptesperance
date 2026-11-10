@@ -1,0 +1,4 @@
+Email,Date,Réf. transaction,Type de transaction,Status,Type de carte,4 derniers chiffres,Traiter en tant que,Méthode de paiement,Mode de saisie,Code d'authentification,Description,Montant total,Prix net,Montant des taxes,Montant du pourboire,Frais,Virement,Date du virement,ID du versement,Référence
+t.duval@example.com,2026-09-27 13:11:36,TZZZ90001,Vente,Accepté,MASTERCARD,**** **** **** 4242,DEBIT,POS,CONTACTLESS,123456,1 x Montant personnalisé,23.0,19.0,4.0,0.0,0.44,22.56,,,
+,2026-09-27 13:11:49,TZZZ90001,Virement,Payé,,,,,,,,23.0,,,,0.44,22.56,2026-09-28,SUMUP PID9000007 PAYOUT 280926,
+t.duval@example.com,2026-09-27 12:18:44,TZZZ88002,Vente,Annulé,UNKNOWN,,UNKNOWN,N/A,N/A,,1 x Montant personnalisé,12.0,9.92,2.08,0.0,0.0,,,,
