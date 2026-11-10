@@ -8,55 +8,40 @@
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-2xl font-semibold">{m.transactions_title()}</h1>
+		<h1 class="page-title">{m.transactions_title()}</h1>
 		<p class="text-slate-600">{m.projects_subtitle()}</p>
 	</div>
-	<form
-		method="GET"
-		class="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-6"
-	>
+	<form method="GET" class="card grid gap-3 p-4 md:grid-cols-6">
 		<input
 			name="search"
 			value={data.filters.search ?? ''}
 			placeholder={m.common_search()}
-			class="rounded border border-slate-300 px-3 py-2 md:col-span-2"
+			class="control md:col-span-2"
 		/>
-		<select name="account_id" class="rounded border border-slate-300 px-3 py-2">
+		<select name="account_id" class="control">
 			<option value="">{m.import_account()}: {m.common_all()}</option>
 			{#each data.accounts as account}<option
 					value={account.account_id}
 					selected={data.filters.account_id === account.account_id}>{account.name}</option
 				>{/each}
 		</select>
-		<select name="third_party_id" class="rounded border border-slate-300 px-3 py-2">
+		<select name="third_party_id" class="control">
 			<option value="">{m.common_third_party}: {m.common_all()}</option>
 			{#each data.thirdParties as party}<option
 					value={party.id}
 					selected={data.filters.third_party_id === party.id}>{party.name}</option
 				>{/each}
 		</select>
-		<input
-			name="date_from"
-			type="date"
-			value={data.filters.date_from ?? ''}
-			class="rounded border border-slate-300 px-3 py-2"
-		/>
-		<input
-			name="date_to"
-			type="date"
-			value={data.filters.date_to ?? ''}
-			class="rounded border border-slate-300 px-3 py-2"
-		/>
+		<input name="date_from" type="date" value={data.filters.date_from ?? ''} class="control" />
+		<input name="date_to" type="date" value={data.filters.date_to ?? ''} class="control" />
 		<label class="flex items-center gap-2 text-sm md:col-span-6">
 			<input type="checkbox" name="include_transfers" value="1" checked={data.includeTransfers} />
 			{m.common_include_transfers()}
 		</label>
-		<button class="rounded bg-slate-900 px-3 py-2 text-white md:col-span-6 md:w-fit"
-			>{m.common_search()}</button
-		>
+		<button class="btn md:col-span-6 md:w-fit">{m.common_search()}</button>
 	</form>
-	<div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-		<table class="min-w-full divide-y divide-slate-200 text-sm">
+	<div class="table-wrap">
+		<table class="table">
 			<thead class="bg-slate-50 text-left text-slate-500">
 				<tr>
 					<th class="px-4 py-3">{m.common_date()}</th>
@@ -71,9 +56,7 @@
 				{#each data.transactions as transaction}
 					<tr class="hover:bg-slate-50">
 						<td class="px-4 py-3 whitespace-nowrap"
-							><a
-								class="text-blue-700 hover:underline"
-								href="/transactions/{transaction.account_id}/{transaction.id}"
+							><a class="link" href="/transactions/{transaction.account_id}/{transaction.id}"
 								>{formatDate(transaction.date)}</a
 							></td
 						>
