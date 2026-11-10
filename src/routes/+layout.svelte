@@ -28,14 +28,20 @@
 			<a href="/" class="flex items-center gap-2 font-semibold text-slate-950">
 				<span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white shadow-sm">
 					<svg
+						width="18"
+						height="18"
 						viewBox="0 0 24 24"
-						class="h-5 w-5"
+						class="h-5 w-5 shrink-0"
 						fill="none"
 						stroke="currentColor"
 						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
 					>
-						<path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14" />
-						<path d="M8 7h8M8 11h8M8 15h5" />
+						<path d="M4 19V5" />
+						<path d="M4 19h16" />
+						<path d="M8 15v-4M12 15V8M16 15v-6" />
 					</svg>
 				</span>
 				<span>{m.app_title()}</span>
