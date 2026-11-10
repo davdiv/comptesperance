@@ -383,6 +383,26 @@ export async function linkTransfer(
 	root?: string
 ): Promise<string> {
 	const repo = await repoRoot(root);
+	const [firstCounterpart, secondCounterpart] = await Promise.all([
+		readTransferCounterpart(repo, first),
+		readTransferCounterpart(repo, second)
+	]);
+	const clearCounterpart = async (
+		counterpart: { account_id: string; transaction_id: string } | null,
+		keep: TransactionRef
+	) => {
+		if (
+			counterpart &&
+			!(
+				counterpart.account_id === keep.account_id &&
+				counterpart.transaction_id === keep.transaction_id
+			)
+		) {
+			await applyTransferFields(repo, counterpart, EMPTY_TRANSFER);
+		}
+	};
+	await clearCounterpart(firstCounterpart, second);
+	await clearCounterpart(secondCounterpart, first);
 	await applyTransferFields(repo, first, {
 		transfer_id: transferId,
 		counterpart_account_id: second.account_id,
@@ -616,8 +636,14 @@ export async function saveDocument(
 
 export async function deleteDocument(documentPath: string, root?: string): Promise<void> {
 	const repo = await repoRoot(root);
-	if (!documentPath.startsWith('documents/')) throw new Error('Invalid document path');
-	const fullPath = safeJoin(repo, documentPath);
+	const normalizedPath = documentPath.split(path.sep).join('/');
+	if (
+		path.posix.normalize(normalizedPath) !== normalizedPath ||
+		!normalizedPath.startsWith('documents/')
+	) {
+		throw new Error('Invalid document path');
+	}
+	const fullPath = safeJoin(repo, normalizedPath);
 	await removeFile(fullPath);
 	await commitData(repo, `data: delete document ${documentPath}`);
 }

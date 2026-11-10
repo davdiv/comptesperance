@@ -14,9 +14,12 @@ const CONTENT_TYPES: Record<string, string> = {
 
 export const GET: RequestHandler = async ({ url }) => {
 	const documentPath = url.searchParams.get('path') ?? '';
-	if (!documentPath.startsWith('documents/')) error(400, 'Invalid document path');
+	const normalizedPath = path.posix.normalize(documentPath);
+	if (normalizedPath !== documentPath || !normalizedPath.startsWith('documents/')) {
+		error(400, 'Invalid document path');
+	}
 	const root = await ensureDataRepo();
-	const filePath = safeJoin(root, documentPath);
+	const filePath = safeJoin(root, normalizedPath);
 	try {
 		const data = await readBinaryFile(filePath);
 		const extension = path.extname(filePath).toLowerCase();

@@ -46,6 +46,7 @@ export function parseCcpReport(input: string): CcpParseResult {
 	const errors: string[] = [];
 	let account: CcpAccountMeta | null = null;
 	const transactions: ParsedTransaction[] = [];
+	const seen = new Map<string, number>();
 
 	if (records.length === 0) {
 		return { account, transactions, errors: ['File is empty.'] };
@@ -88,8 +89,13 @@ export function parseCcpReport(input: string): CcpParseResult {
 			return;
 		}
 
+		const baseId = fingerprint(raw);
+		const occurrence = (seen.get(baseId) ?? 0) + 1;
+		seen.set(baseId, occurrence);
+		const id = occurrence === 1 ? baseId : `${baseId}-${occurrence}`;
+
 		transactions.push({
-			id: fingerprint(raw),
+			id,
 			raw,
 			date,
 			value_date: value ?? undefined,
