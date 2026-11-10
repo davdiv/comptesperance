@@ -12,53 +12,44 @@
 <div class="space-y-6">
 	<div class="flex flex-wrap items-start justify-between gap-4">
 		<div>
-			<h1 class="text-2xl font-semibold">{data.party.name}</h1>
+			<h1 class="page-title">{data.party.name}</h1>
 			<p class="text-slate-600">{data.party.aliases.join(', ') || m.third_parties_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-3 text-sm">
-			<a class="text-blue-700 hover:underline" href="/third-parties">← {m.common_back()}</a>
-			{#if data.includeTransfers}<a
-					class="text-blue-700 hover:underline"
-					href="/third-parties/{data.party.id}">{m.common_hide_transfers()}</a
-				>{:else}<a
-					class="text-blue-700 hover:underline"
-					href="/third-parties/{data.party.id}?include_transfers=1"
+			<a class="link" href="/third-parties">← {m.common_back()}</a>
+			{#if data.includeTransfers}<a class="link" href="/third-parties/{data.party.id}"
+					>{m.common_hide_transfers()}</a
+				>{:else}<a class="link" href="/third-parties/{data.party.id}?include_transfers=1"
 					>{m.common_include_transfers()}</a
 				>{/if}
 		</div>
 	</div>
-	{#if form?.error}<p class="rounded bg-red-50 p-3 text-red-700">{form.error}</p>{/if}
+	{#if form?.error}<p class="alert-error">{form.error}</p>{/if}
 
 	{#if data.user.canWrite}
-		<form
-			method="POST"
-			action="?/update"
-			class="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-4"
-		>
+		<form method="POST" action="?/update" class="card grid gap-3 p-4 md:grid-cols-4">
 			<input
 				name="name"
 				value={data.party.name}
 				required
 				placeholder={m.third_party_name()}
-				class="rounded border border-slate-300 px-3 py-2 md:col-span-2"
+				class="control md:col-span-2"
 			/>
 			<input
 				name="aliases"
 				value={data.party.aliases.join(', ')}
 				placeholder={m.third_party_aliases()}
-				class="rounded border border-slate-300 px-3 py-2 md:col-span-2"
+				class="control md:col-span-2"
 			/>
-			<button class="rounded bg-slate-900 px-3 py-2 text-white md:col-span-4 md:w-fit"
-				>{m.common_save()}</button
-			>
+			<button class="btn md:col-span-4 md:w-fit">{m.common_save()}</button>
 		</form>
 	{/if}
 
-	<section class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+	<section class="table-wrap">
 		<h2 class="border-b border-slate-200 px-4 py-3 font-semibold">
 			{m.third_party_transactions()}
 		</h2>
-		<table class="min-w-full divide-y divide-slate-200 text-sm">
+		<table class="table">
 			<thead class="bg-slate-50 text-left text-slate-500">
 				<tr>
 					<th class="px-4 py-3">{m.common_date()}</th>
@@ -71,9 +62,7 @@
 				{#each data.transactions as transaction}
 					<tr class="hover:bg-slate-50">
 						<td class="px-4 py-3 whitespace-nowrap"
-							><a
-								class="text-blue-700 hover:underline"
-								href="/transactions/{transaction.account_id}/{transaction.id}"
+							><a class="link" href="/transactions/{transaction.account_id}/{transaction.id}"
 								>{formatDate(transaction.date)}</a
 							></td
 						>

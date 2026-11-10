@@ -8,33 +8,24 @@
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-2xl font-semibold">{m.third_parties_title()}</h1>
+		<h1 class="page-title">{m.third_parties_title()}</h1>
 		<p class="text-slate-600">{m.third_parties_subtitle()}</p>
 	</div>
 	{#if data.user.canWrite}
-		<form
-			method="POST"
-			class="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-3"
-		>
+		<form method="POST" class="card grid gap-3 p-4 md:grid-cols-3">
 			<input
 				name="name"
 				required
 				placeholder={m.third_party_name()}
-				class="rounded border border-slate-300 px-3 py-2 md:col-span-2"
+				class="control md:col-span-2"
 			/>
-			<input
-				name="aliases"
-				placeholder={m.third_party_aliases()}
-				class="rounded border border-slate-300 px-3 py-2"
-			/>
-			<button class="rounded bg-slate-900 px-3 py-2 text-white md:col-span-3 md:w-fit"
-				>{m.third_party_new()}</button
-			>
+			<input name="aliases" placeholder={m.third_party_aliases()} class="control" />
+			<button class="btn md:col-span-3 md:w-fit">{m.third_party_new()}</button>
 		</form>
 	{/if}
-	{#if form?.error}<p class="rounded bg-red-50 p-3 text-red-700">{form.error}</p>{/if}
-	<div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-		<table class="min-w-full divide-y divide-slate-200 text-sm">
+	{#if form?.error}<p class="alert-error">{form.error}</p>{/if}
+	<div class="table-wrap">
+		<table class="table">
 			<thead class="bg-slate-50 text-left text-slate-500">
 				<tr>
 					<th class="px-4 py-3">{m.third_party_name()}</th>
@@ -47,9 +38,7 @@
 				{#each data.thirdParties as party}
 					<tr class="hover:bg-slate-50">
 						<td class="px-4 py-3"
-							><a class="font-medium text-blue-700 hover:underline" href="/third-parties/{party.id}"
-								>{party.name}</a
-							></td
+							><a class="link font-medium" href="/third-parties/{party.id}">{party.name}</a></td
 						>
 						<td class="px-4 py-3 text-slate-600">{party.aliases.join(', ') || '—'}</td>
 						<td class="px-4 py-3 text-right">{party.transaction_count}</td>
