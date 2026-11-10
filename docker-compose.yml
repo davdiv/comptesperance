@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: docker.io/traefik:v3.1
+    image: docker.io/traefik:v3.7.18
     command:
       - --providers.file.directory=/etc/traefik/dynamic
       - --entrypoints.web.address=:80
@@ -13,7 +13,7 @@ services:
       - comptes
 
   authelia:
-    image: docker.io/authelia/authelia:latest
+    image: docker.io/authelia/authelia:4.39.28
     environment:
       AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET:-change-me-local-only}
     volumes:
