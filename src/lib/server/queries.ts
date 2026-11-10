@@ -286,7 +286,7 @@ export async function getProjectDetails(
 			`SELECT
 				pa.project_id, pa.account_id, pa.transaction_id, pa.amount_cents, pa.note,
 				a.name AS account_name,
-				t.date, t.value_date, t.amount_cents AS transaction_amount_cents, t.currency,
+				t.id, t.date, t.value_date, t.amount_cents AS transaction_amount_cents, t.currency,
 				t.label, t.description, t.record_type, t.status, t.third_party_id,
 				tp.name AS third_party_name, t.transfer_id, t.counterpart_account_id,
 				t.counterpart_transaction_id, t.notes, t.category, t.evidence_json,

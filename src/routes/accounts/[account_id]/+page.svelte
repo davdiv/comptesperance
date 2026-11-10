@@ -1,150 +1,160 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate, formatMoney } from '$lib/format';
+	import { formatMoney } from '$lib/format';
 	import { accountSourceLabel, accountTypeLabel } from '$lib/labels';
+	import Alert from '$lib/components/Alert.svelte';
+	import FormPanel from '$lib/components/FormPanel.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import StatCard from '$lib/components/StatCard.svelte';
+	import TransactionTable from '$lib/components/TransactionTable.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();
 	const account = $derived(data.account);
 </script>
 
-<div class="space-y-6">
-	<div class="flex flex-wrap items-start justify-between gap-4">
-		<div>
-			<h1 class="page-title">{account.name}</h1>
-			<p class="text-slate-600">
-				{accountTypeLabel(account.type)} · {accountSourceLabel(account.source)}
-			</p>
-		</div>
-		<a class="link text-sm" href="/accounts">← {m.common_back()}</a>
+<PageHeader title={account.name} back={{ href: '/accounts', label: m.accounts_title() }}>
+	{#snippet meta()}
+		<span class="badge badge-neutral">{accountTypeLabel(account.type)}</span>
+		<span class="badge {account.source === 'csv' ? 'badge-blue' : 'badge-neutral'}"
+			>{accountSourceLabel(account.source)}</span
+		>
+		<span class="badge badge-neutral">{account.currency}</span>
+	{/snippet}
+	{#snippet actions()}
+		{#if data.user.canWrite && account.source === 'csv'}
+			<a href="/import" class="btn-secondary">{m.nav_import()}</a>
+		{/if}
+	{/snippet}
+</PageHeader>
+
+{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
+
+<section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+	<StatCard
+		label={m.account_current_balance()}
+		value={formatMoney(account.current_balance_cents, account.currency)}
+		tone={account.current_balance_cents < 0 ? 'negative' : 'brand'}
+	/>
+	<StatCard
+		label={m.account_opening_balance()}
+		value={formatMoney(account.opening_balance_cents, account.currency)}
+	/>
+	<StatCard
+		label={m.account_incoming()}
+		value={formatMoney(account.incoming_cents, account.currency)}
+		tone="positive"
+	/>
+	<StatCard
+		label={m.account_outgoing()}
+		value={formatMoney(account.outgoing_cents, account.currency)}
+	/>
+</section>
+
+{#if data.issues.length}
+	<Alert tone="warning">
+		<p class="font-medium">{m.import_errors()}</p>
+		<ul class="mt-1 list-disc pl-4">
+			{#each data.issues as issue (issue.id)}<li>{issue.message}</li>{/each}
+		</ul>
+	</Alert>
+{/if}
+
+{#if data.user.canWrite}
+	{#if account.source === 'manual'}
+		<FormPanel label={m.transaction_new()}>
+			<form
+				method="POST"
+				action="?/add_transaction"
+				class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+			>
+				<label class="field">
+					<span class="field-label">{m.transaction_date()}</span>
+					<input name="date" type="date" required class="control" />
+				</label>
+				<label class="field">
+					<span class="field-label">{m.transaction_value_date()}</span>
+					<input name="value_date" type="date" class="control" />
+				</label>
+				<label class="field">
+					<span class="field-label">{m.transaction_amount()}</span>
+					<input name="amount" required inputmode="decimal" placeholder="-12.50" class="control" />
+				</label>
+				<label class="field">
+					<span class="field-label">{m.common_category()}</span>
+					<input name="category" class="control" />
+				</label>
+				<label class="field sm:col-span-2">
+					<span class="field-label">{m.common_label()}</span>
+					<input name="label" class="control" />
+				</label>
+				<label class="field sm:col-span-2">
+					<span class="field-label">{m.common_description()}</span>
+					<input name="description" class="control" />
+				</label>
+				<label class="field sm:col-span-2 lg:col-span-4">
+					<span class="field-label">{m.common_notes()}</span>
+					<input name="notes" class="control" />
+				</label>
+				<div class="flex flex-wrap items-center gap-4 sm:col-span-2 lg:col-span-4">
+					<button class="btn">{m.common_create()}</button>
+					<label class="flex items-center gap-2 text-sm text-stone-700">
+						<input name="counts_in_total" type="checkbox" checked class="checkbox" />
+						{m.transaction_counts_in_total()}
+					</label>
+				</div>
+			</form>
+		</FormPanel>
+	{/if}
+{/if}
+
+<section class="table-wrap mb-6">
+	<div class="card-header">
+		<h2 class="card-title">{m.transactions_title()}</h2>
+		<span class="text-xs text-stone-500">{data.transactions.length}</span>
 	</div>
-	{#if form?.error}<p class="alert-error">{form.error}</p>{/if}
+	<TransactionTable transactions={data.transactions} />
+</section>
 
-	<section class="grid gap-4 md:grid-cols-4">
-		<div class="card p-4">
-			<div class="text-sm text-slate-500">{m.account_opening_balance()}</div>
-			<div class="text-xl font-semibold">
-				{formatMoney(account.opening_balance_cents, account.currency)}
-			</div>
-		</div>
-		<div class="card p-4">
-			<div class="text-sm text-slate-500">{m.account_incoming()}</div>
-			<div class="text-xl font-semibold text-emerald-700">
-				{formatMoney(account.incoming_cents, account.currency)}
-			</div>
-		</div>
-		<div class="card p-4">
-			<div class="text-sm text-slate-500">{m.account_outgoing()}</div>
-			<div class="text-xl font-semibold text-red-700">
-				{formatMoney(account.outgoing_cents, account.currency)}
-			</div>
-		</div>
-		<div class="card p-4">
-			<div class="text-sm text-slate-500">{m.account_current_balance()}</div>
-			<div class="text-xl font-semibold">
-				{formatMoney(account.current_balance_cents, account.currency)}
-			</div>
-		</div>
-	</section>
-
-	{#if data.user.canWrite}
-		<section class="grid gap-4 lg:grid-cols-2">
-			<form method="POST" action="?/update" class="card space-y-3 p-4">
-				<h2 class="font-semibold">{m.account_edit()}</h2>
-				<input
-					name="name"
-					value={account.name}
-					placeholder={m.account_name()}
-					class="control w-full"
-				/>
-				<select name="type" class="control w-full">
-					{#each data.accountTypes as type}<option value={type} selected={type === account.type}
-							>{accountTypeLabel(type)}</option
+{#if data.user.canWrite}
+	<details class="card group">
+		<summary
+			class="cursor-pointer list-none px-5 py-3.5 text-sm font-medium text-stone-600 hover:text-stone-900 [&::-webkit-details-marker]:hidden"
+		>
+			{m.account_edit()}
+		</summary>
+		<form
+			method="POST"
+			action="?/update"
+			class="grid gap-4 border-t border-stone-100 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4"
+		>
+			<label class="field">
+				<span class="field-label">{m.account_name()}</span>
+				<input name="name" value={account.name} class="control" />
+			</label>
+			<label class="field">
+				<span class="field-label">{m.account_type()}</span>
+				<select name="type" class="control">
+					{#each data.accountTypes as type (type)}<option
+							value={type}
+							selected={type === account.type}>{accountTypeLabel(type)}</option
 						>{/each}
 				</select>
-				<input
-					name="currency"
-					value={account.currency}
-					placeholder={m.account_currency()}
-					class="control w-full"
-				/>
+			</label>
+			<label class="field">
+				<span class="field-label">{m.account_currency()}</span>
+				<input name="currency" value={account.currency} class="control" />
+			</label>
+			<label class="field">
+				<span class="field-label">{m.account_opening_balance()}</span>
 				<input
 					name="opening_balance"
+					inputmode="decimal"
 					value={(account.opening_balance_cents / 100).toFixed(2)}
-					placeholder={m.account_opening_balance()}
-					class="control w-full"
+					class="control"
 				/>
-				<button class="btn">{m.common_save()}</button>
-			</form>
-			{#if account.source === 'manual'}
-				<form method="POST" action="?/add_transaction" class="card space-y-3 p-4">
-					<h2 class="font-semibold">{m.transaction_new()}</h2>
-					<div class="grid gap-3 sm:grid-cols-2">
-						<input name="date" type="date" required class="control" />
-						<input name="value_date" type="date" class="control" />
-						<input name="amount" required placeholder={m.transaction_amount()} class="control" />
-						<input name="label" placeholder={m.common_label()} class="control" />
-						<input name="category" placeholder={m.common_category()} class="control" />
-						<input name="description" placeholder={m.common_description()} class="control" />
-						<input name="notes" placeholder={m.common_notes()} class="control" />
-					</div>
-					<label class="flex items-center gap-2 text-sm"
-						><input name="counts_in_total" type="checkbox" checked />
-						{m.transaction_counts_in_total()}</label
-					>
-					<button class="btn">{m.common_create()}</button>
-				</form>
-			{/if}
-		</section>
-	{/if}
-
-	{#if data.issues.length}
-		<section class="rounded-xl border border-amber-200 bg-amber-50 p-4">
-			<h2 class="font-semibold text-amber-900">{m.import_errors()}</h2>
-			<ul class="mt-2 list-disc pl-5 text-sm text-amber-900">
-				{#each data.issues as issue}<li>{issue.message}</li>{/each}
-			</ul>
-		</section>
-	{/if}
-
-	<section class="table-wrap">
-		<table class="table">
-			<thead class="bg-slate-50 text-left text-slate-500">
-				<tr>
-					<th class="px-4 py-3">{m.common_date()}</th>
-					<th class="px-4 py-3">{m.common_label()}</th>
-					<th class="px-4 py-3">{m.common_third_party()}</th>
-					<th class="px-4 py-3 text-right">{m.common_amount()}</th>
-					<th class="px-4 py-3">{m.transaction_record_type()}</th>
-					<th class="px-4 py-3">{m.common_evidence()}</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each data.transactions as transaction}
-					<tr class="hover:bg-slate-50">
-						<td class="px-4 py-3 whitespace-nowrap"
-							><a class="link" href="/transactions/{account.account_id}/{transaction.id}"
-								>{formatDate(transaction.date)}</a
-							></td
-						>
-						<td class="px-4 py-3">{transaction.label}</td>
-						<td class="px-4 py-3">{transaction.third_party_name ?? '—'}</td>
-						<td
-							class="px-4 py-3 text-right font-medium {transaction.amount_cents >= 0
-								? 'text-emerald-700'
-								: 'text-red-700'}">{formatMoney(transaction.amount_cents, transaction.currency)}</td
-						>
-						<td class="px-4 py-3">{transaction.record_type}</td>
-						<td class="px-4 py-3">{transaction.evidence.length}</td>
-					</tr>
-				{:else}
-					<tr
-						><td colspan="6" class="px-4 py-8 text-center text-slate-500"
-							>{m.account_no_transactions()}</td
-						></tr
-					>
-				{/each}
-			</tbody>
-		</table>
-	</section>
-</div>
+			</label>
+			<div class="sm:col-span-2 lg:col-span-4"><button class="btn">{m.common_save()}</button></div>
+		</form>
+	</details>
+{/if}

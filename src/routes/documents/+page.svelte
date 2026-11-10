@@ -1,5 +1,9 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import Alert from '$lib/components/Alert.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();
@@ -11,11 +15,8 @@
 </script>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="page-title">{m.documents_title()}</h1>
-		<p class="text-slate-600">{m.documents_subtitle()}</p>
-	</div>
-	{#if form?.error}<p class="alert-error">{form.error}</p>{/if}
+	<PageHeader title={m.documents_title()} subtitle={m.documents_subtitle()} />
+	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 	{#if data.user.canWrite}
 		<form
 			method="POST"
@@ -23,31 +24,40 @@
 			enctype="multipart/form-data"
 			class="card flex flex-wrap items-center gap-3 p-4"
 		>
-			<input type="file" name="file" required class="text-sm" />
+			<label class="field"
+				><span class="field-label">{m.common_evidence()}</span><input
+					type="file"
+					name="file"
+					required
+					class="file-input"
+				/></label
+			>
 			<button class="btn">{m.document_upload()}</button>
 		</form>
 	{/if}
 	<div class="table-wrap">
 		<table class="table">
-			<thead class="bg-slate-50 text-left text-slate-500">
+			<thead>
 				<tr>
-					<th class="px-4 py-3">{m.account_name()}</th>
-					<th class="px-4 py-3">{m.document_size()}</th>
-					<th class="px-4 py-3">{m.document_type()}</th>
-					<th class="px-4 py-3"></th>
+					<th>{m.account_name()}</th>
+					<th>{m.document_size()}</th>
+					<th>{m.document_type()}</th>
+					<th></th>
 				</tr>
 			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each data.documents as document}
-					<tr class="hover:bg-slate-50">
-						<td class="px-4 py-3"
-							><a class="link" href="/documents/download?path={encodeURIComponent(document.path)}"
-								>{document.name}</a
+			<tbody class="divide-y divide-stone-100">
+				{#each data.documents as document (document.path)}
+					<tr class="hover:bg-stone-50">
+						<td
+							><a
+								class="link inline-flex items-center gap-2"
+								href="/documents/download?path={encodeURIComponent(document.path)}"
+								><Icon name="file" />{document.name}</a
 							></td
 						>
-						<td class="px-4 py-3">{formatSize(document.size)}</td>
-						<td class="px-4 py-3">{document.path.split('.').pop()}</td>
-						<td class="px-4 py-3 text-right"
+						<td>{formatSize(document.size)}</td>
+						<td><span class="badge badge-neutral">{document.path.split('.').pop()}</span></td>
+						<td class="num"
 							>{#if data.user.canWrite}<form
 									method="POST"
 									action="?/delete"
@@ -56,17 +66,14 @@
 									}}
 								>
 									<input type="hidden" name="path" value={document.path} /><button
-										class="text-red-700 hover:underline">{m.common_delete()}</button
+										class="btn-icon text-red-700"
+										aria-label={m.common_delete()}><Icon name="trash" /></button
 									>
 								</form>{/if}</td
 						>
 					</tr>
 				{:else}
-					<tr
-						><td colspan="4" class="px-4 py-8 text-center text-slate-500"
-							>{m.document_no_documents()}</td
-						></tr
-					>
+					<tr><td colspan="4"><EmptyState message={m.document_no_documents()} /></td></tr>
 				{/each}
 			</tbody>
 		</table>

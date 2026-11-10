@@ -1,52 +1,59 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatMoney } from '$lib/format';
+
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import Alert from '$lib/components/Alert.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
+	import FormPanel from '$lib/components/FormPanel.svelte';
+	import Amount from '$lib/components/Amount.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();
 </script>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="page-title">{m.projects_title()}</h1>
-		<p class="text-slate-600">{m.projects_subtitle()}</p>
-	</div>
+	<PageHeader title={m.projects_title()} subtitle={m.projects_subtitle()} />
 	{#if data.user.canWrite}
-		<form method="POST" class="card grid gap-3 p-4 md:grid-cols-4">
-			<input name="name" required placeholder={m.project_name()} class="control md:col-span-2" />
-			<input
-				name="description"
-				placeholder={m.project_description()}
-				class="control md:col-span-2"
-			/>
-			<button class="btn md:col-span-4 md:w-fit">{m.project_new()}</button>
-		</form>
+		<FormPanel label={m.project_new()} open={!!form?.error}
+			><form method="POST" class="grid gap-4 sm:grid-cols-2">
+				<label class="field"
+					><span class="field-label">{m.project_name()}</span><input
+						name="name"
+						required
+						class="control"
+					/></label
+				>
+				<label class="field"
+					><span class="field-label">{m.common_description()}</span><input
+						name="description"
+						class="control"
+					/></label
+				>
+				<button class="btn sm:col-span-2 sm:w-fit">{m.project_new()}</button>
+			</form></FormPanel
+		>
 	{/if}
-	{#if form?.error}<p class="alert-error">{form.error}</p>{/if}
+	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 	<div class="table-wrap">
 		<table class="table">
-			<thead class="bg-slate-50 text-left text-slate-500">
+			<thead>
 				<tr>
-					<th class="px-4 py-3">{m.project_name()}</th>
-					<th class="px-4 py-3">{m.project_description()}</th>
-					<th class="px-4 py-3 text-right">{m.project_total()}</th>
-					<th class="px-4 py-3 text-right">{m.project_allocations()}</th>
+					<th>{m.project_name()}</th>
+					<th>{m.project_description()}</th>
+					<th class="num">{m.project_total()}</th>
+					<th class="num">{m.project_allocations()}</th>
 				</tr>
 			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each data.projects as project}
-					<tr class="hover:bg-slate-50">
-						<td class="px-4 py-3"
-							><a class="link font-medium" href="/projects/{project.id}">{project.name}</a></td
-						>
-						<td class="px-4 py-3 text-slate-600">{project.description ?? '—'}</td>
-						<td class="px-4 py-3 text-right font-semibold">{formatMoney(project.total_cents)}</td>
-						<td class="px-4 py-3 text-right">{project.allocation_count}</td>
+			<tbody class="divide-y divide-stone-100">
+				{#each data.projects as project (project.id)}
+					<tr class="hover:bg-stone-50">
+						<td><a class="link font-medium" href="/projects/{project.id}">{project.name}</a></td>
+						<td class="px-4 py-3 text-stone-600">{project.description ?? '—'}</td>
+						<td class="num"><Amount cents={project.total_cents} signed={false} /></td>
+						<td class="num">{project.allocation_count}</td>
 					</tr>
 				{:else}
-					<tr
-						><td colspan="4" class="px-4 py-8 text-center text-slate-500">{m.empty_state()}</td></tr
-					>
+					<tr><td colspan="4"><EmptyState message={m.empty_state()} /></td></tr>
 				{/each}
 			</tbody>
 		</table>
