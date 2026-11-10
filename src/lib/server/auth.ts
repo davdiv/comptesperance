@@ -19,6 +19,7 @@ export function getSessionUser(event: RequestEvent): SessionUser | null {
 		.split(',')
 		.map((group) => group.trim())
 		.filter(Boolean);
+	if (!groups.includes(env.readwriteGroup) && !groups.includes(env.readonlyGroup)) return null;
 	const canWrite = groups.includes(env.readwriteGroup);
 	return {
 		name: remoteUser,

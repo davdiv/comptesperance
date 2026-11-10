@@ -15,6 +15,7 @@ import {
 import {
 	deleteManualTransaction,
 	linkTransfer,
+	listProjects,
 	readProject,
 	saveDocument,
 	unlinkTransfer,
@@ -233,6 +234,18 @@ export const actions: Actions = {
 		}
 		const project = await readProject(projectId);
 		if (!project) return fail(400, { error: 'Project not found' });
+		const allocatedElsewhere = (await listProjects())
+			.filter((item) => item.id !== projectId)
+			.flatMap((item) => item.allocations)
+			.filter(
+				(allocation) =>
+					allocation.account_id === transaction.account_id &&
+					allocation.transaction_id === transaction.id
+			)
+			.reduce((sum, allocation) => sum + allocation.amount_cents, 0);
+		if (Math.abs(allocatedElsewhere + amount) > Math.abs(transaction.amount_cents)) {
+			return fail(400, { error: 'Allocations exceed transaction amount' });
+		}
 		const allocations = project.allocations.filter(
 			(allocation) =>
 				!(

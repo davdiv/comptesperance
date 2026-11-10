@@ -61,9 +61,10 @@ export async function currentHead(root: string): Promise<string | null> {
 }
 
 export async function statusFingerprint(root: string): Promise<string> {
-	const [head, status] = await Promise.all([
-		currentHead(root),
-		git(root, ['status', '--porcelain'])
+	const head = await currentHead(root);
+	const [status, diff] = await Promise.all([
+		git(root, ['status', '--porcelain']),
+		head ? git(root, ['diff', '--binary', 'HEAD']) : git(root, ['diff', '--binary'])
 	]);
-	return `${head ?? 'unborn'}\n${status.stdout}`;
+	return `${head ?? 'unborn'}\n${status.stdout}\n${diff.stdout}`;
 }
