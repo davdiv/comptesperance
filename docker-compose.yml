@@ -1,0 +1,48 @@
+services:
+  traefik:
+    image: docker.io/traefik:v3.1
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --entrypoints.web.address=:80
+      - --log.level=INFO
+    ports:
+      - '8080:80'
+    volumes:
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+    networks:
+      - comptes
+
+  authelia:
+    image: docker.io/authelia/authelia:latest
+    environment:
+      AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET:-change-me-local-only}
+    volumes:
+      - ./deploy/authelia/configuration.yml:/config/configuration.yml:ro
+      - ./deploy/authelia/users_database.yml:/config/users_database.yml:ro
+      - authelia-data:/data
+    networks:
+      - comptes
+
+  app:
+    build: .
+    environment:
+      DATA_REPO_PATH: /data
+      CACHE_DB_PATH: /cache/comptes.sqlite
+      AUTH_DISABLED: 'false'
+      AUTH_READWRITE_GROUP: comptes-readwrite
+      AUTH_READONLY_GROUP: comptes-readonly
+    volumes:
+      - comptes-data:/data
+      - comptes-cache:/cache
+    networks:
+      - comptes
+    depends_on:
+      - authelia
+
+volumes:
+  comptes-data:
+  comptes-cache:
+  authelia-data:
+
+networks:
+  comptes:

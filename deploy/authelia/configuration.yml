@@ -1,0 +1,33 @@
+theme: dark
+
+log:
+  level: info
+
+server:
+  address: 'tcp://0.0.0.0:9091'
+
+authentication_backend:
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: bcrypt
+
+session:
+  secret: ${AUTHELIA_SESSION_SECRET}
+  cookies:
+    - domain: localhost
+      authelia_url: http://auth.localhost
+      name: authelia_session
+      same_site: lax
+      expiration: 8h
+      inactivity: 30m
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: auth.localhost
+      policy: allow
