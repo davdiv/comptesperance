@@ -28,8 +28,10 @@ docker compose up --build
 
 Open:
 
-- App: http://comptes.localhost:8080
-- Authelia portal: http://auth.localhost:8080
+- App: https://comptes.lvh.me:8443
+- Authelia portal: https://auth.comptes.lvh.me:8443
+
+Authelia 4.39 requires HTTPS and a non-localhost cookie domain, so local testing uses `lvh.me` with Traefik TLS on port 8443. The first certificate is self-signed; accept the browser warning, sign in at the Authelia portal, then open the app.
 
 Ready-to-use local users:
 
