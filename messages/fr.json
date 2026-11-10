@@ -64,6 +64,15 @@
 	"account_source_csv": "Imports CSV",
 	"account_source_manual": "Saisies manuelles",
 	"nav_transactions": "Transactions",
+	"transactions_subtitle": "Recherchez et consultez les opérations de vos comptes.",
+	"common_reset": "Réinitialiser",
+	"date_from": "Du",
+	"date_to": "Au",
+	"transaction_details": "Détails",
+	"raw_csv": "CSV brut",
+	"danger_zone": "Zone de danger",
+	"import_format": "Format",
+	"import_auto_detect": "Détection automatique",
 	"transactions_title": "Transactions",
 	"transaction_new": "Nouvelle transaction",
 	"transaction_edit": "Modifier la transaction",
@@ -123,5 +132,6 @@
 	"auth_forbidden": "Vous n’avez pas accès à cette application.",
 	"auth_read_only_notice": "Vous avez un accès en lecture seule.",
 	"error_not_found": "Page introuvable.",
-	"error_generic": "Une erreur est survenue."
+	"error_generic": "Une erreur est survenue.",
+	"dashboard_recent": "Transactions récentes"
 }

@@ -2,78 +2,120 @@
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatMoney } from '$lib/format';
 	import { accountSourceLabel, accountTypeLabel } from '$lib/labels';
+	import Alert from '$lib/components/Alert.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
+	import FormPanel from '$lib/components/FormPanel.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();
+	const total = $derived(data.accounts.reduce((sum, a) => sum + a.current_balance_cents, 0));
 </script>
 
-<div class="space-y-6">
-	<div class="flex items-center justify-between gap-4">
-		<div>
-			<h1 class="page-title">{m.accounts_title()}</h1>
-			<p class="text-slate-600">{m.accounts_subtitle()}</p>
-		</div>
-	</div>
-	{#if data.user.canWrite}
-		<form method="POST" class="card grid gap-3 p-4 md:grid-cols-6">
-			<input name="name" required placeholder={m.account_name()} class="control md:col-span-2" />
-			<select name="type" class="control">
-				{#each data.accountTypes as type}<option value={type}>{accountTypeLabel(type)}</option
-					>{/each}
-			</select>
-			<select name="source" class="control">
-				{#each data.sources as source}<option value={source}>{accountSourceLabel(source)}</option
-					>{/each}
-			</select>
-			<input name="currency" value="EUR" placeholder={m.account_currency()} class="control" />
-			<input name="opening_balance" placeholder={m.account_opening_balance()} class="control" />
-			<button class="btn md:col-span-6 md:w-fit">{m.account_new()}</button>
+<PageHeader title={m.accounts_title()} subtitle={m.accounts_subtitle()} />
+
+{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
+
+{#if data.user.canWrite}
+	<FormPanel label={m.account_new()} open={!!form?.error}>
+		<form method="POST" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+			<label class="field lg:col-span-2">
+				<span class="field-label">{m.account_name()}</span>
+				<input name="name" required class="control" />
+			</label>
+			<label class="field">
+				<span class="field-label">{m.account_type()}</span>
+				<select name="type" class="control">
+					{#each data.accountTypes as type (type)}<option value={type}
+							>{accountTypeLabel(type)}</option
+						>{/each}
+				</select>
+			</label>
+			<label class="field">
+				<span class="field-label">{m.account_source()}</span>
+				<select name="source" class="control">
+					{#each data.sources as source (source)}<option value={source}
+							>{accountSourceLabel(source)}</option
+						>{/each}
+				</select>
+			</label>
+			<label class="field">
+				<span class="field-label">{m.account_currency()}</span>
+				<input name="currency" value="EUR" class="control" />
+			</label>
+			<label class="field">
+				<span class="field-label">{m.account_opening_balance()}</span>
+				<input name="opening_balance" inputmode="decimal" placeholder="0.00" class="control" />
+			</label>
+			<div class="lg:col-span-6"><button class="btn">{m.common_create()}</button></div>
 		</form>
-	{/if}
-	{#if form?.error}<p class="alert-error">{form.error}</p>{/if}
-	<div class="table-wrap">
+	</FormPanel>
+{/if}
+
+<div class="table-wrap">
+	{#if data.accounts.length}
 		<table class="table">
-			<thead class="bg-slate-50 text-left text-slate-500">
+			<thead>
 				<tr>
-					<th class="px-4 py-3">{m.account_name()}</th>
-					<th class="px-4 py-3">{m.account_type()}</th>
-					<th class="px-4 py-3">{m.account_source()}</th>
-					<th class="px-4 py-3 text-right">{m.account_opening_balance()}</th>
-					<th class="px-4 py-3 text-right">{m.account_incoming()}</th>
-					<th class="px-4 py-3 text-right">{m.account_outgoing()}</th>
-					<th class="px-4 py-3 text-right">{m.account_current_balance()}</th>
-					<th class="px-4 py-3 text-right">{m.account_transaction_count()}</th>
+					<th>{m.account_name()}</th>
+					<th>{m.account_source()}</th>
+					<th class="num">{m.account_opening_balance()}</th>
+					<th class="num">{m.account_incoming()}</th>
+					<th class="num">{m.account_outgoing()}</th>
+					<th class="num">{m.account_current_balance()}</th>
 				</tr>
 			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each data.accounts as account}
-					<tr class="hover:bg-slate-50">
-						<td class="px-4 py-3"
-							><a class="link font-medium" href="/accounts/{account.account_id}">{account.name}</a
-							></td
-						>
-						<td class="px-4 py-3">{accountTypeLabel(account.type as never)}</td>
-						<td class="px-4 py-3">{accountSourceLabel(account.source)}</td>
-						<td class="px-4 py-3 text-right"
+			<tbody>
+				{#each data.accounts as account (account.account_id)}
+					<tr>
+						<td>
+							<a href="/accounts/{account.account_id}" class="flex items-center gap-3">
+								<span
+									class="grid size-8 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-500"
+								>
+									<Icon name={account.type === 'cash' ? 'wallet' : 'accounts'} />
+								</span>
+								<span>
+									<span class="row-link block">{account.name}</span>
+									<span class="text-xs text-stone-500"
+										>{accountTypeLabel(account.type)} · {account.transaction_count}
+										{m.account_transaction_count().toLowerCase()}</span
+									>
+								</span>
+							</a>
+						</td>
+						<td>
+							<span class="badge {account.source === 'csv' ? 'badge-blue' : 'badge-neutral'}"
+								>{accountSourceLabel(account.source)}</span
+							>
+						</td>
+						<td class="num text-stone-500"
 							>{formatMoney(account.opening_balance_cents, account.currency)}</td
 						>
-						<td class="px-4 py-3 text-right text-emerald-700"
+						<td class="num text-emerald-700"
 							>{formatMoney(account.incoming_cents, account.currency)}</td
 						>
-						<td class="px-4 py-3 text-right text-red-700"
+						<td class="num text-stone-600"
 							>{formatMoney(account.outgoing_cents, account.currency)}</td
 						>
-						<td class="px-4 py-3 text-right font-semibold"
+						<td
+							class="num font-semibold {account.current_balance_cents < 0
+								? 'text-red-700'
+								: 'text-stone-900'}"
 							>{formatMoney(account.current_balance_cents, account.currency)}</td
 						>
-						<td class="px-4 py-3 text-right">{account.transaction_count}</td>
 					</tr>
-				{:else}
-					<tr
-						><td colspan="8" class="px-4 py-8 text-center text-slate-500">{m.empty_state()}</td></tr
-					>
 				{/each}
 			</tbody>
+			<tfoot>
+				<tr>
+					<td colspan="5" class="text-stone-500">{m.stat_balance()}</td>
+					<td class="num {total < 0 ? 'text-red-700' : 'text-stone-900'}">{formatMoney(total)}</td>
+				</tr>
+			</tfoot>
 		</table>
-	</div>
+	{:else}
+		<EmptyState message={m.empty_state()} icon="accounts" />
+	{/if}
 </div>

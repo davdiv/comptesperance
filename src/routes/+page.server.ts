@@ -2,14 +2,16 @@ import type { PageServerLoad } from './$types';
 import {
 	listAccountsWithTotals,
 	listProjectsWithTotals,
-	listThirdPartiesWithCounts
+	listThirdPartiesWithCounts,
+	listTransactions
 } from '$lib/server/queries';
 
 export const load: PageServerLoad = async () => {
-	const [accounts, projects, thirdParties] = await Promise.all([
+	const [accounts, projects, thirdParties, recent] = await Promise.all([
 		listAccountsWithTotals(),
 		listProjectsWithTotals(),
-		listThirdPartiesWithCounts()
+		listThirdPartiesWithCounts(),
+		listTransactions({ limit: 8, include_transfers: true })
 	]);
-	return { accounts, projects, thirdParties };
+	return { accounts, projects, thirdParties, recent: recent.transactions };
 };

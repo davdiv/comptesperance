@@ -64,6 +64,15 @@
 	"account_source_csv": "CSV imports",
 	"account_source_manual": "Manual entries",
 	"nav_transactions": "Transactions",
+	"transactions_subtitle": "Search and review transactions across your accounts.",
+	"common_reset": "Reset",
+	"date_from": "From date",
+	"date_to": "To date",
+	"transaction_details": "Details",
+	"raw_csv": "Raw CSV",
+	"danger_zone": "Danger zone",
+	"import_format": "Format",
+	"import_auto_detect": "Auto-detect",
 	"transactions_title": "Transactions",
 	"transaction_new": "New transaction",
 	"transaction_edit": "Edit transaction",
@@ -123,5 +132,6 @@
 	"auth_forbidden": "You do not have access to this application.",
 	"auth_read_only_notice": "You have read-only access.",
 	"error_not_found": "Page not found.",
-	"error_generic": "Something went wrong."
+	"error_generic": "Something went wrong.",
+	"dashboard_recent": "Recent transactions"
 }
