@@ -18,6 +18,7 @@ import { listFilesRecursive, readTextFile, safeJoin } from './store';
 let database: DatabaseSync | null = null;
 let databasePath: string | null = null;
 let databaseFingerprint: string | null = null;
+let databasePromise: Promise<DatabaseSync> | null = null;
 
 export async function getDatabase(): Promise<DatabaseSync> {
 	const env = getEnv();
@@ -26,8 +27,15 @@ export async function getDatabase(): Promise<DatabaseSync> {
 	if (database && databasePath === env.cacheDbPath && databaseFingerprint === fingerprint) {
 		return database;
 	}
-	await rebuildDatabase(root, env.cacheDbPath, fingerprint);
-	return database as DatabaseSync;
+	if (databasePromise) {
+		return databasePromise;
+	}
+	databasePromise = rebuildDatabase(root, env.cacheDbPath, fingerprint)
+		.then(() => database as DatabaseSync)
+		.finally(() => {
+			databasePromise = null;
+		});
+	return databasePromise;
 }
 
 export async function rebuildCache(): Promise<void> {
