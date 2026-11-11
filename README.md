@@ -1,4 +1,4 @@
-# Comptes d’espérance
+# comptesperance
 
 Bilingual accounting app backed by a local git data repository, with a disposable SQLite cache.
 
