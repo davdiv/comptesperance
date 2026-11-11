@@ -202,5 +202,6 @@
 	"transfers_no_suggestions": "Aucune suggestion équilibrée disponible.",
 	"transfers_groups": "Groupes de virements",
 	"transfers_create": "Créer un groupe de virements",
-	"transfer_remove_member": "Retirer du groupe"
+	"transfer_remove_member": "Retirer du groupe",
+	"transfer_group_title": "Virement"
 }
