@@ -316,7 +316,7 @@ describe('unallocated pseudo-project', () => {
 				incoming_cents: 700,
 				outgoing_cents: -300,
 				transaction_count: 2,
-				by_account: [{ amount_cents: 400 }]
+				by_account: [{ amount_cents: 400, incoming_cents: 700, outgoing_cents: -300 }]
 			});
 			expect(unallocated.transactions).toHaveLength(1);
 			const list = await listTransactions(filters);
@@ -417,9 +417,32 @@ describe('unallocated pseudo-project', () => {
 				outgoing_cents: -12000,
 				total_cents: 4000,
 				transaction_count: 4,
-				by_account: [{ account_id: 'cash', account_name: 'Cash', amount_cents: 4000, count: 2 }]
+				by_account: [
+					{
+						account_id: 'bank',
+						account_name: 'Bank',
+						amount_cents: 0,
+						incoming_cents: 9000,
+						outgoing_cents: -9000,
+						count: 2
+					},
+					{
+						account_id: 'cash',
+						account_name: 'Cash',
+						amount_cents: 4000,
+						incoming_cents: 7000,
+						outgoing_cents: -3000,
+						count: 2
+					}
+				]
 			});
 			expect(result.transactions).toHaveLength(included ? 4 : 2);
+			expect(result.by_account.reduce((sum, a) => sum + a.incoming_cents, 0)).toBe(
+				result.incoming_cents
+			);
+			expect(result.by_account.reduce((sum, a) => sum + a.outgoing_cents, 0)).toBe(
+				result.outgoing_cents
+			);
 			expect(result.transactions.find((item) => item.id === 'partial')?.unallocated_cents).toBe(
 				7000
 			);

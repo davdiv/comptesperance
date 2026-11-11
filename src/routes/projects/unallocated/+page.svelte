@@ -6,8 +6,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import FinancialSummary from '#lib/components/FinancialSummary.svelte';
-	import Amount from '#lib/components/Amount.svelte';
-	import EmptyState from '#lib/components/EmptyState.svelte';
+	import AccountBreakdown from '#lib/components/AccountBreakdown.svelte';
 	import type { PageProps } from './$types';
 	const { data }: PageProps = $props();
 </script>
@@ -33,18 +32,7 @@
 		totalLabel={m.unallocated_net()}
 		totalLast
 	/>
-	<section class="card p-5">
-		<h2 class="card-title">{m.project_by_account()}</h2>
-		<ul class="mt-3 divide-y divide-stone-100">
-			{#each data.by_account as account (account.account_id)}
-				<li class="flex items-center justify-between gap-3 py-3">
-					<a class="link" href="/accounts/{account.account_id}">{account.account_name}</a><Amount
-						cents={account.amount_cents}
-					/>
-				</li>
-			{:else}<li><EmptyState message={m.empty_state()} /></li>{/each}
-		</ul>
-	</section>
+	<AccountBreakdown accounts={data.by_account} emptyMessage={m.empty_state()} />
 	<section class="table-wrap">
 		<div class="flex items-center justify-between gap-3 border-b border-stone-200 p-4">
 			<h2 class="card-title">{m.stat_transactions()}</h2>

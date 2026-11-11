@@ -6,10 +6,9 @@
 
 	import { m } from '#lib/paraglide/messages.js';
 	import Alert from '#lib/components/Alert.svelte';
-	import EmptyState from '#lib/components/EmptyState.svelte';
+	import AccountBreakdown from '#lib/components/AccountBreakdown.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import FormPanel from '#lib/components/FormPanel.svelte';
-	import Amount from '#lib/components/Amount.svelte';
 	import FinancialSummary from '#lib/components/FinancialSummary.svelte';
 	import type { PageProps } from './$types';
 
@@ -48,37 +47,7 @@
 		outgoing={data.outgoing_cents}
 		totalLabel={m.project_total()}
 	/>
-	<section class="card p-5">
-		<h2 class="font-semibold">{m.project_by_account()}</h2>
-		<ul class="mt-3 divide-y divide-stone-100 text-sm">
-			{#each data.by_account as item (item.account_id)}
-				<li class="flex flex-wrap items-center justify-between gap-4 py-3">
-					<div class="min-w-0">
-						<a class="link font-medium" href="/accounts/{item.account_id}"
-							>{item.account_name ?? item.account_id}</a
-						>
-						<div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-							<span
-								>{m.account_incoming()}: <Amount
-									cents={item.incoming_cents}
-									signed={false}
-									class="text-emerald-700"
-								/></span
-							>
-							<span
-								>{m.account_outgoing()}: <Amount cents={item.outgoing_cents} signed={false} /></span
-							>
-						</div>
-					</div>
-					<Amount
-						cents={item.amount_cents}
-						signed={false}
-						class="shrink-0 text-right font-medium tabular-nums"
-					/>
-				</li>
-			{:else}<li><EmptyState message={m.project_no_allocations()} /></li>{/each}
-		</ul>
-	</section>
+	<AccountBreakdown accounts={data.by_account} />
 
 	<section class="table-wrap">
 		<h2 class="card-header card-title">{m.project_allocations()}</h2>
