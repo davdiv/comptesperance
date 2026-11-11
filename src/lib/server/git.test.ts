@@ -33,3 +33,25 @@ it('records request authors and a fixed app committer, without leaking into late
 		'Accounting app <app@example.local>|Accounting app <app@example.local>'
 	);
 });
+
+it('shares initialization across concurrent first requests to a fresh repository', async () => {
+	const root = await mkdtemp(path.join(tmpdir(), 'comptes-git-init-'));
+	roots.push(root);
+	const initializations = Array.from({ length: 20 }, () => ensureGitRepo(root));
+	expect(new Set(initializations).size).toBe(1);
+	await Promise.all(initializations);
+	expect((await git(root, ['symbolic-ref', 'HEAD'])).stdout).toBe('refs/heads/main');
+	await ensureGitRepo(root);
+	expect((await git(root, ['status', '--porcelain'])).stdout).toBe('');
+});
+
+it('allows initialization to be retried after failure', async () => {
+	const root = await mkdtemp(path.join(tmpdir(), 'comptes-git-retry-'));
+	roots.push(root);
+	const target = path.join(root, 'repo');
+	await writeFile(target, 'not a directory');
+	await expect(ensureGitRepo(target)).rejects.toThrow();
+	await rm(target);
+	await ensureGitRepo(target);
+	expect((await git(target, ['symbolic-ref', 'HEAD'])).stdout).toBe('refs/heads/main');
+});
