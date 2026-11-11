@@ -259,9 +259,9 @@ export async function listTransactions(
 	if (filters.search?.trim()) {
 		const search = `%${filters.search.trim()}%`;
 		where.push(
-			`(t.label LIKE ? OR COALESCE(t.description, '') LIKE ? OR t.notes LIKE ? OR t.category_id LIKE ? OR COALESCE(tp.name, '') LIKE ?)`
+			`(t.label LIKE ? OR COALESCE(t.description, '') LIKE ? OR t.notes LIKE ? OR COALESCE(c.name, '') LIKE ? OR COALESCE(pm.name, '') LIKE ? OR COALESCE(tp.name, '') LIKE ?)`
 		);
-		params.push(search, search, search, search, search);
+		params.push(search, search, search, search, search, search);
 	}
 
 	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -269,7 +269,10 @@ export async function listTransactions(
 		(
 			db
 				.prepare(
-					`SELECT COUNT(*) AS count FROM transactions t LEFT JOIN third_parties tp ON tp.id = t.third_party_id ${whereSql}`
+					`SELECT COUNT(*) AS count FROM transactions t
+					 LEFT JOIN third_parties tp ON tp.id = t.third_party_id
+					 LEFT JOIN categories c ON c.id = t.category_id
+					 LEFT JOIN payment_modes pm ON pm.id = t.payment_mode_id ${whereSql}`
 				)
 				.get(...params) as { count: number }
 		).count

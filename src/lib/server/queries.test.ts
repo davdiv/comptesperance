@@ -52,6 +52,26 @@ function addAllocation(id: string, transferId: string | null = null) {
 	).run(id, transferId);
 }
 
+it('searches category and payment mode display names rather than opaque ids', async () => {
+	addAllocation('sale');
+	db.exec(`
+		INSERT INTO categories VALUES ('category-uuid', 'Fundraising');
+		INSERT INTO payment_modes VALUES ('mode-uuid', 'Bank card');
+		UPDATE transactions SET category_id = 'category-uuid', payment_mode_id = 'mode-uuid';
+	`);
+	for (const search of ['Fundraising', 'raising', 'Bank card', 'card']) {
+		const result = await listTransactions({ search });
+		expect(result.total).toBe(1);
+		expect(result.transactions.map((transaction) => transaction.id)).toEqual(['sale']);
+	}
+	for (const search of ['category-uuid', 'mode-uuid', 'missing']) {
+		expect(await listTransactions({ search })).toEqual({ transactions: [], total: 0 });
+	}
+	db.exec('DELETE FROM categories; DELETE FROM payment_modes;');
+	expect((await listTransactions({ search: 'Fundraising' })).total).toBe(0);
+	expect((await listTransactions({ search: 'Vente' })).total).toBe(1);
+});
+
 describe('getProjectDetails', () => {
 	it('joins transactions and third parties without replacing the allocated amount', async () => {
 		addAllocation('sale');
