@@ -72,6 +72,23 @@ it('resets only allowed keys for writers and rejects unauthorized resets and sug
 		[{ project_id: 'p', amount_cents: -1200 }]
 	);
 });
+it('rejects zero-amount project suggestions without writing and handles allocation failures', async () => {
+	vi.mocked(getTransaction).mockResolvedValue({
+		...transaction,
+		suggested_project_id: 'p',
+		amount_cents: 0
+	} as never);
+	expect(await submit('apply_suggested_project', {})).toMatchObject({ status: 400 });
+	expect(setTransactionAllocations).not.toHaveBeenCalled();
+	vi.mocked(getTransaction).mockResolvedValue({
+		...transaction,
+		suggested_project_id: 'p',
+		amount_cents: 1200
+	} as never);
+	vi.mocked(setTransactionAllocations).mockRejectedValue(new Error('Invalid allocation'));
+	expect(await submit('apply_suggested_project', {})).toMatchObject({ status: 400 });
+});
+
 it('does not persist guesses when editing only notes or unlinking evidence', async () => {
 	expect(
 		await submit('save', {

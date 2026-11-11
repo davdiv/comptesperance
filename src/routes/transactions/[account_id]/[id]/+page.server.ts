@@ -128,10 +128,16 @@ export const actions: Actions = {
 	apply_suggested_project: async ({ locals, params }) => {
 		requireWrite(locals.user);
 		const transaction = await getTransaction(params.account_id, params.id);
-		if (!transaction?.suggested_project_id) return fail(400, { error: m.allocation_invalid() });
-		await setTransactionAllocations({ account_id: params.account_id, transaction_id: params.id }, [
-			{ project_id: transaction.suggested_project_id, amount_cents: transaction.amount_cents }
-		]);
+		if (!transaction?.suggested_project_id || transaction.amount_cents === 0)
+			return fail(400, { error: m.allocation_invalid() });
+		try {
+			await setTransactionAllocations(
+				{ account_id: params.account_id, transaction_id: params.id },
+				[{ project_id: transaction.suggested_project_id, amount_cents: transaction.amount_cents }]
+			);
+		} catch {
+			return fail(400, { error: m.allocation_invalid() });
+		}
 		return { ok: true };
 	},
 	link_group_suggestion: linkBalancedSuggestions,

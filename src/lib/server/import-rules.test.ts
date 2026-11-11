@@ -159,6 +159,21 @@ it('explicit empty values beat rules, including null and false; explicit allocat
 	expect(Object.values(result.sources).every((source) => source.source === 'explicit')).toBe(true);
 	expect(result.suggested_project_id).toBeNull();
 });
+
+it('does not suggest a project for zero-amount CSV transactions', () => {
+	const result = resolveImport(
+		{ ...transaction, amount_cents: 0 },
+		{},
+		'a',
+		'ccp',
+		{ ...config, rules: [rule({ text: 'ecole' }, { project_id: 'p', category_id: 'income' })] },
+		parties,
+		projects
+	);
+	expect(result.suggested_project_id).toBeNull();
+	expect(result.suggested_project_rule).toBeNull();
+	expect(result.values.category_id).toBe('income');
+});
 it('uses name-ordered aliases then built-in guesses and none', () => {
 	const result = resolveImport(transaction, {}, 'a', 'ccp', config, parties, projects);
 	expect(result.values).toEqual({

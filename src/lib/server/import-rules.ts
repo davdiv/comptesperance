@@ -118,7 +118,9 @@ export function resolveImport(
 		sources[field] = source;
 	}
 	const suggestion =
-		!Object.hasOwn(annotation, 'allocations') && !annotation.allocations?.length
+		transaction.amount_cents !== 0 &&
+		!Object.hasOwn(annotation, 'allocations') &&
+		!annotation.allocations?.length
 			? matching.find((rule) => valid('project_id', rule.set.project_id))
 			: undefined;
 	return {
