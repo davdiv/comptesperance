@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		filterFields,
 		resetFilterHref,
 		type TransactionFilters,
 		type FixedFilters,
 		type FilterField
-	} from '$lib/transaction-filters';
+	} from '#lib/transaction-filters.ts';
 	import ReferenceFields from './ReferenceFields.svelte';
 	let {
 		filters = {},
@@ -23,8 +23,8 @@
 			projects: { id: string; name: string }[];
 		};
 		config?: {
-			categories: import('$lib/types').Category[];
-			paymentModes: import('$lib/types').PaymentMode[];
+			categories: import('#lib/types.ts').Category[];
+			paymentModes: import('#lib/types.ts').PaymentMode[];
 		};
 		current?: string;
 		fixed?: FixedFilters;

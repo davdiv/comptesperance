@@ -1,5 +1,5 @@
 import { parse } from 'csv-parse/sync';
-import type { ParsedTransaction } from '$lib/types';
+import type { ParsedTransaction } from '#lib/types.ts';
 import { fingerprint } from './fingerprint';
 import { decodeHtmlEntities, parseAmountToCents, parseFrenchDate, text } from './values';
 import type { ParsedStatement } from './types';

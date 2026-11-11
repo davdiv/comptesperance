@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ensureDataRepo } from '$lib/server/repository';
-import { readBinaryFile, safeJoin } from '$lib/server/store';
+import { ensureDataRepo } from '#lib/server/repository.ts';
+import { readBinaryFile, safeJoin } from '#lib/server/store.ts';
 
 const CONTENT_TYPES: Record<string, string> = {
 	'.pdf': 'application/pdf',

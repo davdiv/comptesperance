@@ -2,7 +2,7 @@ import { render } from 'svelte/server';
 import { expect, it } from 'vitest';
 import ReferenceFields from './ReferenceFields.svelte';
 import Settings from '../../routes/settings/+page.svelte';
-import type { DataConfig } from '$lib/types';
+import type { DataConfig } from '#lib/types.ts';
 
 const config: DataConfig = {
 	app: { name: 'Custom name' },

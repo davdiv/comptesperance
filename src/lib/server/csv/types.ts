@@ -1,4 +1,4 @@
-import type { ParsedTransaction } from '$lib/types';
+import type { ParsedTransaction } from '#lib/types.ts';
 
 export interface ParsedStatement {
 	transactions: ParsedTransaction[];

@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { readUploadFiles } from './uploads';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 afterEach(() => vi.unstubAllEnvs());
 
 function request(files: File[]) {

@@ -1,4 +1,4 @@
-import { getLocale } from '$lib/paraglide/runtime';
+import { getLocale } from '#lib/paraglide/runtime.js';
 
 function locale(): string {
 	return getLocale() === 'fr' ? 'fr-FR' : 'en-GB';

@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import { listThirdPartiesWithCounts } from '$lib/server/queries';
-import { createThirdParty } from '$lib/server/repository';
+import { requireWrite } from '#lib/server/auth.ts';
+import { listThirdPartiesWithCounts } from '#lib/server/queries.ts';
+import { createThirdParty } from '#lib/server/repository.ts';
 
 export const load: PageServerLoad = async () => ({
 	thirdParties: await listThirdPartiesWithCounts()

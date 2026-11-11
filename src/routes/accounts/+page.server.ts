@@ -1,11 +1,11 @@
-import { m } from '$lib/paraglide/messages.js';
-import { parseDecimalToCents } from '$lib/server/money';
+import { m } from '#lib/paraglide/messages.js';
+import { parseDecimalToCents } from '#lib/server/money.ts';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import { listAccountsWithTotals } from '$lib/server/queries';
-import { createAccount } from '$lib/server/repository';
-import type { AccountSource } from '$lib/types';
+import { requireWrite } from '#lib/server/auth.ts';
+import { listAccountsWithTotals } from '#lib/server/queries.ts';
+import { createAccount } from '#lib/server/repository.ts';
+import type { AccountSource } from '#lib/types.ts';
 
 const SOURCES: AccountSource[] = ['csv', 'manual'];
 

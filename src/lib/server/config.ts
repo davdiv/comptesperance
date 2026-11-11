@@ -8,7 +8,7 @@ import type {
 	PaymentMode,
 	AccountFile,
 	TransactionAnnotation
-} from '$lib/types';
+} from '#lib/types.ts';
 import { getEnv } from './env';
 import { commitAll } from './git';
 import { detectCsvFormat, parseCsvStatement } from './csv';

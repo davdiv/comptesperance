@@ -1,15 +1,15 @@
-import { annotationFromTransaction, editedClassification } from '$lib/server/annotations';
-import { suggestTransferGroups } from '$lib/server/transfer-matcher';
-import { linkBalancedSuggestions } from '$lib/server/transfer-suggestions';
-import { m } from '$lib/paraglide/messages.js';
-import { editAllocation } from '$lib/server/allocation-editor';
-import { rankTransferCandidates } from '$lib/server/transfer-matcher';
-import { listTransferPool } from '$lib/server/queries';
+import { annotationFromTransaction, editedClassification } from '#lib/server/annotations.ts';
+import { suggestTransferGroups } from '#lib/server/transfer-matcher.ts';
+import { linkBalancedSuggestions } from '#lib/server/transfer-suggestions.ts';
+import { m } from '#lib/paraglide/messages.js';
+import { editAllocation } from '#lib/server/allocation-editor.ts';
+import { rankTransferCandidates } from '#lib/server/transfer-matcher.ts';
+import { listTransferPool } from '#lib/server/queries.ts';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import { readUploadFiles } from '$lib/server/uploads';
-import { parseDecimalToCents } from '$lib/server/money';
+import { requireWrite } from '#lib/server/auth.ts';
+import { readUploadFiles } from '#lib/server/uploads.ts';
+import { parseDecimalToCents } from '#lib/server/money.ts';
 import {
 	listTransferGroups,
 	getAccountWithTotals,
@@ -17,7 +17,7 @@ import {
 	listAccountsWithTotals,
 	listProjectsWithTotals,
 	listThirdPartiesWithCounts
-} from '$lib/server/queries';
+} from '#lib/server/queries.ts';
 import {
 	addTransferMember,
 	deleteManualTransaction,
@@ -30,7 +30,7 @@ import {
 	updateManualTransaction,
 	setTransactionAllocations,
 	upsertAnnotation
-} from '$lib/server/repository';
+} from '#lib/server/repository.ts';
 async function setEvidence(
 	source: 'csv' | 'manual',
 	accountId: string,

@@ -1,17 +1,17 @@
 <script lang="ts">
-	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
-	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
+	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
 
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatMoney, formatDate } from '$lib/format';
-	import { accountSourceLabel, checkpointSourceLabel } from '$lib/labels';
-	import CheckpointPanel from '$lib/components/CheckpointPanel.svelte';
-	import Alert from '$lib/components/Alert.svelte';
-	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
-	import FormPanel from '$lib/components/FormPanel.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import StatCard from '$lib/components/StatCard.svelte';
-	import TransactionTable from '$lib/components/TransactionTable.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatMoney, formatDate } from '#lib/format.ts';
+	import { accountSourceLabel, checkpointSourceLabel } from '#lib/labels.ts';
+	import CheckpointPanel from '#lib/components/CheckpointPanel.svelte';
+	import Alert from '#lib/components/Alert.svelte';
+	import ReferenceFields from '#lib/components/ReferenceFields.svelte';
+	import FormPanel from '#lib/components/FormPanel.svelte';
+	import PageHeader from '#lib/components/PageHeader.svelte';
+	import StatCard from '#lib/components/StatCard.svelte';
+	import TransactionTable from '#lib/components/TransactionTable.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();

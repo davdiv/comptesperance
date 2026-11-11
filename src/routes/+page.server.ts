@@ -1,11 +1,11 @@
-import { transactionFilterState } from '$lib/server/transaction-list';
+import { transactionFilterState } from '#lib/server/transaction-list.ts';
 import type { PageServerLoad } from './$types';
 import {
 	listAccountsWithTotals,
 	listProjectsWithTotals,
 	listThirdPartiesWithCounts,
 	listTransactions
-} from '$lib/server/queries';
+} from '#lib/server/queries.ts';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const state = await transactionFilterState(url, {}, { include_transfers: true, limit: 8 });

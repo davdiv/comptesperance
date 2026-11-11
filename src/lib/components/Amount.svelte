@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatMoney } from '$lib/format';
+	import { formatMoney } from '#lib/format.ts';
 
 	const {
 		cents,

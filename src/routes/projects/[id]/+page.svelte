@@ -1,16 +1,16 @@
 <script lang="ts">
-	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
-	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
-	import TransactionTable from '$lib/components/TransactionTable.svelte';
+	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
+	import TransactionTable from '#lib/components/TransactionTable.svelte';
 
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatMoney } from '$lib/format';
-	import Alert from '$lib/components/Alert.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import FormPanel from '$lib/components/FormPanel.svelte';
-	import Amount from '$lib/components/Amount.svelte';
-	import StatCard from '$lib/components/StatCard.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatMoney } from '#lib/format.ts';
+	import Alert from '#lib/components/Alert.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
+	import PageHeader from '#lib/components/PageHeader.svelte';
+	import FormPanel from '#lib/components/FormPanel.svelte';
+	import Amount from '#lib/components/Amount.svelte';
+	import StatCard from '#lib/components/StatCard.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();

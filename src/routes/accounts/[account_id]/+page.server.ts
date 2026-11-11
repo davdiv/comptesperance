@@ -1,16 +1,16 @@
-import { transactionFilterState } from '$lib/server/transaction-list';
-import { m } from '$lib/paraglide/messages.js';
+import { transactionFilterState } from '#lib/server/transaction-list.ts';
+import { m } from '#lib/paraglide/messages.js';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import { parseDecimalToCents } from '$lib/server/money';
-import { getAccountWithTotals, listIssues, listTransactions } from '$lib/server/queries';
+import { requireWrite } from '#lib/server/auth.ts';
+import { parseDecimalToCents } from '#lib/server/money.ts';
+import { getAccountWithTotals, listIssues, listTransactions } from '#lib/server/queries.ts';
 import {
 	createManualTransaction,
 	updateAccount,
 	addManualCheckpoint,
 	deleteManualCheckpoint
-} from '$lib/server/repository';
+} from '#lib/server/repository.ts';
 
 export const load: PageServerLoad = async ({ params, url }) => {
 	const account = await getAccountWithTotals(params.account_id);

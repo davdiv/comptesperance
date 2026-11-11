@@ -1,7 +1,7 @@
 import { render } from 'svelte/server';
 import { expect, it } from 'vitest';
 import CheckpointPanel from './CheckpointPanel.svelte';
-import { calculateBalance } from '$lib/server/balances';
+import { calculateBalance } from '#lib/server/balances.ts';
 const checkpoints = calculateBalance(
 	[
 		{

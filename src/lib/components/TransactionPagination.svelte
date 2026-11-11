@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { filterHref, type TransactionFilters } from '$lib/transaction-filters';
+	import { m } from '#lib/paraglide/messages.js';
+	import { filterHref, type TransactionFilters } from '#lib/transaction-filters.ts';
 	let {
 		filters = {},
 		current = '/transactions',

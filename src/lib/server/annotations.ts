@@ -1,4 +1,4 @@
-import type { TransactionAnnotation } from '$lib/types';
+import type { TransactionAnnotation } from '#lib/types.ts';
 import type { TransactionView } from './queries';
 
 export function annotationFromTransaction(

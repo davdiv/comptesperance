@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { EDIT_MODE_COOKIE } from '$lib/server/auth';
+import { EDIT_MODE_COOKIE } from '#lib/server/auth.ts';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals, cookies, url }) => {

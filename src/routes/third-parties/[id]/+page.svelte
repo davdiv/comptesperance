@@ -1,15 +1,15 @@
 <script lang="ts">
-	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
-	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
-	import Amount from '$lib/components/Amount.svelte';
-	import StatCard from '$lib/components/StatCard.svelte';
+	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
+	import Amount from '#lib/components/Amount.svelte';
+	import StatCard from '#lib/components/StatCard.svelte';
 
-	import { m } from '$lib/paraglide/messages.js';
+	import { m } from '#lib/paraglide/messages.js';
 
-	import Alert from '$lib/components/Alert.svelte';
-	import TransactionTable from '$lib/components/TransactionTable.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import FormPanel from '$lib/components/FormPanel.svelte';
+	import Alert from '#lib/components/Alert.svelte';
+	import TransactionTable from '#lib/components/TransactionTable.svelte';
+	import PageHeader from '#lib/components/PageHeader.svelte';
+	import FormPanel from '#lib/components/FormPanel.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();

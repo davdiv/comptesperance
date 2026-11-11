@@ -1,7 +1,7 @@
 import type { Handle } from '@sveltejs/kit/hooks';
-import { paraglideMiddleware } from '$lib/paraglide/server';
-import { getTextDirection } from '$lib/paraglide/runtime';
-import { getSessionUser } from '$lib/server/auth';
+import { paraglideMiddleware } from '#lib/paraglide/server.js';
+import { getTextDirection } from '#lib/paraglide/runtime.js';
+import { getSessionUser } from '#lib/server/auth.ts';
 
 const PUBLIC_PATHS = new Set(['/healthz', '/robots.txt', '/favicon.svg']);
 

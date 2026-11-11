@@ -4,7 +4,7 @@ import { getSessionUser, requireWrite, EDIT_MODE_COOKIE, authRedirectUrl } from 
 import { handle } from '../../hooks.server';
 import { POST } from '../../routes/edit-mode/+server';
 
-vi.mock('$lib/paraglide/server', () => ({
+vi.mock('#lib/paraglide/server.js', () => ({
 	paraglideMiddleware: (request: Request, next: (value: unknown) => unknown) =>
 		next({ request, locale: 'en' })
 }));

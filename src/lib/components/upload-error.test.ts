@@ -1,6 +1,6 @@
 import { render } from 'svelte/server';
 import { expect, it, vi } from 'vitest';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import ErrorPage from '../../routes/+error.svelte';
 vi.mock('$app/state', () => ({
 	page: { status: 413, error: { message: 'Raw internal upload limit error' } }

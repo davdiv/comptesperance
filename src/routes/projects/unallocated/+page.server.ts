@@ -1,5 +1,5 @@
-import { transactionFilterState } from '$lib/server/transaction-list';
-import { getUnallocatedDetails } from '$lib/server/queries';
+import { transactionFilterState } from '#lib/server/transaction-list.ts';
+import { getUnallocatedDetails } from '#lib/server/queries.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ url }) => {

@@ -1,4 +1,4 @@
-import type { ParsedTransaction, PaymentMode } from '$lib/types';
+import type { ParsedTransaction, PaymentMode } from '#lib/types.ts';
 const rules: [RegExp, string][] = [
 	[/^(VIREMENT|VIR)\b/, 'virement'],
 	[/^(VERSEMENT ESPECES|RETRAIT)\b/, 'especes'],

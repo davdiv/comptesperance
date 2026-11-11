@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate } from '$lib/format';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
-	import Alert from '$lib/components/Alert.svelte';
-	import Amount from '$lib/components/Amount.svelte';
-	import TransferGroupCard from '$lib/components/TransferGroupCard.svelte';
-	import TransferGroupSuggestion from '$lib/components/TransferGroupSuggestion.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/format.ts';
+	import PageHeader from '#lib/components/PageHeader.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
+	import Alert from '#lib/components/Alert.svelte';
+	import Amount from '#lib/components/Amount.svelte';
+	import TransferGroupCard from '#lib/components/TransferGroupCard.svelte';
+	import TransferGroupSuggestion from '#lib/components/TransferGroupSuggestion.svelte';
 	import type { PageProps } from './$types';
 	const { data, form }: PageProps = $props();
 	const accountNames = $derived(

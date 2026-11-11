@@ -1,10 +1,14 @@
 import { fail } from '@sveltejs/kit';
-import { m } from '$lib/paraglide/messages.js';
-import { requireWrite } from '$lib/server/auth';
-import { listAccountsWithTotals, listTransferGroups, listTransferPool } from '$lib/server/queries';
-import { createTransferGroup, unlinkTransfer } from '$lib/server/repository';
-import { suggestTransferGroups } from '$lib/server/transfer-matcher';
-import { linkBalancedSuggestions } from '$lib/server/transfer-suggestions';
+import { m } from '#lib/paraglide/messages.js';
+import { requireWrite } from '#lib/server/auth.ts';
+import {
+	listAccountsWithTotals,
+	listTransferGroups,
+	listTransferPool
+} from '#lib/server/queries.ts';
+import { createTransferGroup, unlinkTransfer } from '#lib/server/repository.ts';
+import { suggestTransferGroups } from '#lib/server/transfer-matcher.ts';
+import { linkBalancedSuggestions } from '#lib/server/transfer-suggestions.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {

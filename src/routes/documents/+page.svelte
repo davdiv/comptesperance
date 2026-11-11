@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { documentDisplayName } from '$lib/documents';
-	import { m } from '$lib/paraglide/messages.js';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import Alert from '$lib/components/Alert.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { documentDisplayName } from '#lib/documents.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import PageHeader from '#lib/components/PageHeader.svelte';
+	import Alert from '#lib/components/Alert.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();

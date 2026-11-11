@@ -1,8 +1,8 @@
-import { readConfig } from '$lib/server/config';
-import { ensureDataRepo } from '$lib/server/repository';
+import { readConfig } from '#lib/server/config.ts';
+import { ensureDataRepo } from '#lib/server/repository.ts';
 import type { LayoutServerLoad } from './$types';
-import { getEnv } from '$lib/server/env';
-import { authRedirectUrl } from '$lib/server/auth';
+import { getEnv } from '#lib/server/env.ts';
+import { authRedirectUrl } from '#lib/server/auth.ts';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => ({
 	user: locals.user,
