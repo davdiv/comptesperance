@@ -23,6 +23,7 @@ import {
 } from './queries';
 import { parseCsvStatement } from './csv';
 import { mutateConfig } from './config';
+import { annotationFromTransaction, editedClassification } from './annotations';
 
 vi.mock('./git', () => ({
 	commitAll: vi.fn().mockResolvedValue(true),
@@ -260,4 +261,62 @@ it('deduplicates SumUp sales and derived fees across statement sets and supports
 		notes: 'Fee override'
 	});
 	expect((await getAccountWithTotals(account.id))?.current_balance_cents).toBe(44);
+});
+
+it('keeps CSV classification defaults dynamic across unrelated annotation saves and preserves explicit clears', async () => {
+	const account = await createAccount({ name: 'Dynamic defaults', source: 'csv' }, root);
+	const content = await readFile(
+		new URL('./csv/testdata/sumup-sample.csv', import.meta.url),
+		'utf8'
+	);
+	await writeFile(path.join(root, 'accounts', account.id, 'statements/sample.csv'), content);
+	const { transactions } = await listTransactions({ account_id: account.id });
+	const sale = transactions.find((item) => item.record_type === 'vente' && !item.excluded)!;
+	const fee = transactions.find((item) => item.record_type === 'fee')!;
+	expect(sale).toMatchObject({ payment_mode_id: 'carte', payment_mode_is_guessed: true });
+	expect(fee).toMatchObject({ category_id: 'frais-bancaires', category_is_guessed: true });
+	for (const transaction of [sale, fee]) {
+		const form = new FormData();
+		form.set('category_id', transaction.category_id);
+		form.set('payment_mode_id', transaction.payment_mode_id);
+		await upsertAnnotation(
+			account.id,
+			transaction.id,
+			annotationFromTransaction(transaction, {
+				...editedClassification(transaction, form),
+				notes: 'Updated note',
+				evidence: []
+			}),
+			root
+		);
+	}
+	const stored = JSON.parse(
+		await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8')
+	);
+	for (const annotation of Object.values(stored)) {
+		expect(annotation).not.toHaveProperty('payment_mode_id');
+		expect(annotation).not.toHaveProperty('category_id');
+	}
+	await mutateConfig('paymentModes', { id: 'carte', name: 'Carte bancaire', archived: true }, root);
+	await mutateConfig(
+		'categories',
+		{ id: 'frais-bancaires', name: 'Frais bancaires', kind: 'expense', archived: true },
+		root
+	);
+	vi.mocked(statusFingerprint).mockResolvedValue('archived-defaults');
+	expect((await getTransaction(account.id, sale.id))?.payment_mode_id).toBe('');
+	expect((await getTransaction(account.id, fee.id))?.category_id).toBe('');
+	await upsertAnnotation(account.id, fee.id, { category_id: '', payment_mode_id: '' }, root);
+	await mutateConfig(
+		'categories',
+		{ id: 'frais-bancaires', name: 'Frais bancaires', kind: 'expense' },
+		root
+	);
+	vi.mocked(statusFingerprint).mockResolvedValue('explicit-empty-category');
+	expect(await getTransaction(account.id, fee.id)).toMatchObject({
+		category_id: '',
+		category_is_guessed: false,
+		payment_mode_id: '',
+		payment_mode_is_guessed: false
+	});
 });

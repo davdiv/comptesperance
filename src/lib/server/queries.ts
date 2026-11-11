@@ -17,6 +17,8 @@ export interface AccountWithTotals extends AccountTotals, BalanceResult {
 }
 
 export interface TransactionView extends CachedTransaction {
+	category_is_guessed: boolean;
+	payment_mode_is_guessed: boolean;
 	allocation_details: (CachedTransaction['allocations'][number] & {
 		project_name: string | null;
 	})[];
@@ -120,6 +122,8 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 		third_party_id: stringOrNull(row.third_party_id),
 		notes: String(row.notes ?? ''),
 		category_id: String(row.category_id ?? ''),
+		category_is_guessed: Number(row.category_is_guessed) === 1,
+		payment_mode_is_guessed: Number(row.payment_mode_is_guessed) === 1,
 		payment_mode_id: String(row.payment_mode_id ?? ''),
 		allocations: parseJsonArray(row.allocations_json),
 		allocation_details: parseJsonArray(row.named_allocations_json),

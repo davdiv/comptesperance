@@ -111,6 +111,8 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			notes TEXT NOT NULL,
 			category_id TEXT NOT NULL,
 			payment_mode_id TEXT NOT NULL,
+			category_is_guessed INTEGER NOT NULL,
+			payment_mode_is_guessed INTEGER NOT NULL,
 			allocations_json TEXT NOT NULL,
 			transfer_id TEXT,
 			evidence_json TEXT NOT NULL,
@@ -181,8 +183,9 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 		INSERT INTO transactions (
 			account_id, id, date, value_date, amount_cents, label, description,
 			record_type, status, raw_json, attributes_json, source, source_files_json,
-			third_party_id, notes, category_id, payment_mode_id, allocations_json, transfer_id, evidence_json, excluded
-		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			third_party_id, notes, category_id, payment_mode_id, allocations_json, transfer_id, evidence_json, excluded,
+			category_is_guessed, payment_mode_is_guessed
+		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
 	const insertCheckpoint = db.prepare(
 		'INSERT INTO balance_checkpoints (account_id, id, date, balance_cents, source, note, statement_file) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -376,7 +379,9 @@ function csvTransactionValues(
 		JSON.stringify(annotation?.allocations ?? []),
 		annotation?.transfer_id ?? null,
 		JSON.stringify(annotation?.evidence ?? []),
-		excluded ? 1 : 0
+		excluded ? 1 : 0,
+		annotation?.category_id === undefined ? 1 : 0,
+		annotation?.payment_mode_id === undefined ? 1 : 0
 	];
 }
 
@@ -406,6 +411,8 @@ function manualTransactionValues(
 		JSON.stringify(transaction.allocations ?? []),
 		transaction.transfer_id ?? null,
 		JSON.stringify(transaction.evidence ?? []),
-		excluded ? 1 : 0
+		excluded ? 1 : 0,
+		0,
+		0
 	];
 }

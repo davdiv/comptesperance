@@ -1,3 +1,4 @@
+import { annotationFromTransaction, editedClassification } from '$lib/server/annotations';
 import { suggestTransferGroups } from '$lib/server/transfer-matcher';
 import { linkBalancedSuggestions } from '$lib/server/transfer-suggestions';
 import { m } from '$lib/paraglide/messages.js';
@@ -15,8 +16,7 @@ import {
 	getTransaction,
 	listAccountsWithTotals,
 	listProjectsWithTotals,
-	listThirdPartiesWithCounts,
-	type TransactionView
+	listThirdPartiesWithCounts
 } from '$lib/server/queries';
 import {
 	addTransferMember,
@@ -31,25 +31,6 @@ import {
 	setTransactionAllocations,
 	upsertAnnotation
 } from '$lib/server/repository';
-import type { TransactionAnnotation } from '$lib/types';
-
-function annotationFromTransaction(
-	transaction: TransactionView,
-	overrides: Partial<TransactionAnnotation> = {}
-): TransactionAnnotation {
-	return {
-		notes: transaction.notes || undefined,
-		category_id: transaction.category_id || undefined,
-		payment_mode_id: transaction.payment_mode_id,
-		allocations: transaction.allocations,
-		third_party_id: transaction.third_party_id,
-		transfer_id: transaction.transfer_id,
-		evidence: transaction.evidence,
-		excluded: transaction.excluded,
-		...overrides
-	};
-}
-
 async function setEvidence(
 	source: 'csv' | 'manual',
 	accountId: string,
@@ -168,8 +149,7 @@ export const actions: Actions = {
 					transaction.id,
 					annotationFromTransaction(transaction, {
 						notes: String(form.get('notes') ?? '').trim() || undefined,
-						category_id: String(form.get('category_id') ?? '').trim() || undefined,
-						payment_mode_id: String(form.get('payment_mode_id') ?? '').trim(),
+						...editedClassification(transaction, form),
 						third_party_id: String(form.get('third_party_id') ?? '') || null,
 						excluded
 					})
