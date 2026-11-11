@@ -40,6 +40,12 @@ Ready-to-use local users:
 
 Compose mounts the data git repo at `/data` and the disposable SQLite cache at `/cache`.
 
+The Docker image defaults to `TZ=Europe/Paris` for local times, including PDF
+generation timestamps (which include a time zone label). Override `TZ` with an
+IANA time zone such as `UTC` using `docker run -e TZ=UTC` or the Compose service's
+`environment` configuration. Local development uses the host time zone unless
+`TZ` is set (as in `.env.example`).
+
 ### Non-root runtime and existing volumes
 
 The app image runs as `node` (UID/GID 1000:1000), not root. Its defaults are

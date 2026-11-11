@@ -8,6 +8,7 @@ RUN npm run build
 FROM node:26-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+ENV TZ=Europe/Paris
 ENV PORT=3000
 ENV HOST=0.0.0.0
 ENV BODY_SIZE_LIMIT=100M
