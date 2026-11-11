@@ -202,5 +202,6 @@
 	"transfers_no_suggestions": "No balanced suggestions available.",
 	"transfers_groups": "Transfer groups",
 	"transfers_create": "Create a transfer group",
-	"transfer_remove_member": "Remove member"
+	"transfer_remove_member": "Remove member",
+	"transfer_group_title": "Transfer"
 }

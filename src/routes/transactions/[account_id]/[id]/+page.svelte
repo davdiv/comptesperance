@@ -320,7 +320,9 @@
 				{/if}
 			</div>
 			<section class="card p-4">
-				<h2 class="card-title">{m.transaction_link_transfer()}</h2>
+				<h2 class="card-title">
+					{data.group ? m.transfer_group_title() : m.transaction_link_transfer()}
+				</h2>
 				{#each data.groupSuggestions as suggestion (suggestion.key)}<div class="mt-3">
 						<TransferGroupSuggestion
 							{suggestion}
