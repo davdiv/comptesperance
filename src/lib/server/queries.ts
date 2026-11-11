@@ -45,6 +45,7 @@ export interface ProjectDetails {
 	total_cents: number;
 	incoming_cents: number;
 	outgoing_cents: number;
+	transfer_cents: number;
 	transaction_count: number;
 	hidden_transfer_count: number;
 	by_account: {
@@ -53,6 +54,7 @@ export interface ProjectDetails {
 		amount_cents: number;
 		incoming_cents: number;
 		outgoing_cents: number;
+		transfer_cents: number;
 		count: number;
 	}[];
 	allocations: ProjectAllocationView[];
@@ -348,11 +350,15 @@ export async function getProjectDetails(
 			amount_cents: 0,
 			incoming_cents: 0,
 			outgoing_cents: 0,
+			transfer_cents: 0,
 			count: 0
 		};
 		account.amount_cents += allocation.amount_cents;
-		account.incoming_cents += Math.max(allocation.amount_cents, 0);
-		account.outgoing_cents += Math.min(allocation.amount_cents, 0);
+		if (allocation.transaction?.transfer_id) account.transfer_cents += allocation.amount_cents;
+		else {
+			account.incoming_cents += Math.max(allocation.amount_cents, 0);
+			account.outgoing_cents += Math.min(allocation.amount_cents, 0);
+		}
 		account.count++;
 		byAccount.set(allocation.account_id, account);
 	}
@@ -360,12 +366,22 @@ export async function getProjectDetails(
 	return {
 		project,
 		total_cents: allocations.reduce((sum, a) => sum + a.amount_cents, 0),
-		incoming_cents: allocations.reduce((sum, a) => sum + Math.max(a.amount_cents, 0), 0),
-		outgoing_cents: allocations.reduce((sum, a) => sum + Math.min(a.amount_cents, 0), 0),
+		incoming_cents: allocations.reduce(
+			(sum, a) => sum + (a.transaction?.transfer_id ? 0 : Math.max(a.amount_cents, 0)),
+			0
+		),
+		outgoing_cents: allocations.reduce(
+			(sum, a) => sum + (a.transaction?.transfer_id ? 0 : Math.min(a.amount_cents, 0)),
+			0
+		),
+		transfer_cents: allocations.reduce(
+			(sum, a) => sum + (a.transaction?.transfer_id ? a.amount_cents : 0),
+			0
+		),
 		transaction_count: allocations.length,
 		hidden_transfer_count: page.hidden_transfer_count,
 		by_account: [...byAccount.values()]
-			.filter((a) => a.incoming_cents !== 0 || a.outgoing_cents !== 0)
+			.filter((a) => a.incoming_cents !== 0 || a.outgoing_cents !== 0 || a.transfer_cents !== 0)
 			.sort((a, b) =>
 				(a.account_name ?? a.account_id).localeCompare(b.account_name ?? b.account_id)
 			),
@@ -433,6 +449,7 @@ export async function getUnallocatedDetails(options: boolean | TransactionFilter
 			amount_cents: number;
 			incoming_cents: number;
 			outgoing_cents: number;
+			transfer_cents: number;
 			count: number;
 		}
 	>();
@@ -443,23 +460,37 @@ export async function getUnallocatedDetails(options: boolean | TransactionFilter
 			amount_cents: 0,
 			incoming_cents: 0,
 			outgoing_cents: 0,
+			transfer_cents: 0,
 			count: 0
 		};
 		account.amount_cents += transaction.unallocated_cents;
-		account.incoming_cents += Math.max(transaction.unallocated_cents, 0);
-		account.outgoing_cents += Math.min(transaction.unallocated_cents, 0);
+		if (transaction.transfer_id) account.transfer_cents += transaction.unallocated_cents;
+		else {
+			account.incoming_cents += Math.max(transaction.unallocated_cents, 0);
+			account.outgoing_cents += Math.min(transaction.unallocated_cents, 0);
+		}
 		account.count++;
 		byAccount.set(account.account_id, account);
 	}
 	const page = visiblePage(transactions, filters, (t) => !!t.transfer_id);
 	return {
-		incoming_cents: transactions.reduce((sum, t) => sum + Math.max(t.unallocated_cents, 0), 0),
-		outgoing_cents: transactions.reduce((sum, t) => sum + Math.min(t.unallocated_cents, 0), 0),
+		incoming_cents: transactions.reduce(
+			(sum, t) => sum + (t.transfer_id ? 0 : Math.max(t.unallocated_cents, 0)),
+			0
+		),
+		outgoing_cents: transactions.reduce(
+			(sum, t) => sum + (t.transfer_id ? 0 : Math.min(t.unallocated_cents, 0)),
+			0
+		),
+		transfer_cents: transactions.reduce(
+			(sum, t) => sum + (t.transfer_id ? t.unallocated_cents : 0),
+			0
+		),
 		total_cents: transactions.reduce((sum, t) => sum + t.unallocated_cents, 0),
 		transaction_count: transactions.length,
 		hidden_transfer_count: page.hidden_transfer_count,
 		by_account: [...byAccount.values()]
-			.filter((a) => a.incoming_cents !== 0 || a.outgoing_cents !== 0)
+			.filter((a) => a.incoming_cents !== 0 || a.outgoing_cents !== 0 || a.transfer_cents !== 0)
 			.sort((a, b) => a.account_name.localeCompare(b.account_name)),
 		transactions: page.rows.map((t) => ({
 			...t,

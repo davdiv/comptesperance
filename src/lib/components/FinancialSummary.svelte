@@ -8,6 +8,7 @@
 		total,
 		incoming,
 		outgoing,
+		transfers = 0,
 		totalLabel,
 		totalHint,
 		totalLast = false,
@@ -16,6 +17,7 @@
 		total: number;
 		incoming: number;
 		outgoing: number;
+		transfers?: number;
 		totalLabel: string;
 		totalHint?: Snippet;
 		totalLast?: boolean;
@@ -36,5 +38,6 @@
 	{#if !totalLast}{@render net()}{/if}
 	<StatCard label={m.account_incoming()} value={formatMoney(incoming)} tone="positive" />
 	<StatCard label={m.account_outgoing()} value={formatMoney(outgoing)} />
+	{#if transfers !== 0}<StatCard label={m.common_transfers()} value={formatMoney(transfers)} />{/if}
 	{#if totalLast}{@render net()}{/if}
 </section>

@@ -25,6 +25,7 @@ const details: ProjectDetails = {
 	total_cents: 123456,
 	incoming_cents: 123456,
 	outgoing_cents: 0,
+	transfer_cents: 0,
 	transaction_count: 1,
 	hidden_transfer_count: 0,
 	by_account: [
@@ -34,6 +35,7 @@ const details: ProjectDetails = {
 			amount_cents: 123456,
 			incoming_cents: 123456,
 			outgoing_cents: 0,
+			transfer_cents: 0,
 			count: 1
 		}
 	],
@@ -59,6 +61,30 @@ const details: ProjectDetails = {
 };
 
 describe('project PDF', () => {
+	it('separates transfers in summary, accounts and displayed rows', () => {
+		const definition = buildProjectPdfDefinition(
+			{
+				...details,
+				incoming_cents: 0,
+				transfer_cents: 123456,
+				by_account: [{ ...details.by_account[0], incoming_cents: 0, transfer_cents: 123456 }],
+				allocations: details.allocations.map((a) => ({
+					...a,
+					transaction: { ...a.transaction!, transfer_id: 'group' }
+				}))
+			},
+			config,
+			state
+		);
+		const content = definition.content as { text?: string; table?: { body: unknown[][] } }[];
+		expect(content.find((c) => c.text?.startsWith('Incoming:'))?.text).toBe(
+			'Incoming: €0.00   ·   Outgoing: €0.00   ·   Internal transfers: €1,234.56'
+		);
+		expect(content.find((c) => c.table)?.table?.body[1]).toHaveLength(5);
+		expect(content.find((c) => c.text?.startsWith('Total (displayed rows)'))?.text).toContain(
+			'Incoming: €0.00   ·   Outgoing: €0.00   ·   Internal transfers: €1,234.56'
+		);
+	});
 	it('includes a net-zero account with matching income and expense summary totals', async () => {
 		const definition = buildProjectPdfDefinition(
 			{
