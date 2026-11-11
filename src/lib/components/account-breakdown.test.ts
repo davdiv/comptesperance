@@ -33,6 +33,8 @@ it('shows account income, expenses and net with shared styling, including net-ze
 		'text-right font-medium tabular-nums'
 	])
 		expect(html).toContain(text);
+	expect(html.indexOf(m.account_incoming())).toBeLessThan(html.indexOf(m.account_outgoing()));
+	expect(html.indexOf(m.account_outgoing())).toBeLessThan(html.indexOf(m.common_transfers()));
 });
 
 it('preserves project and unallocated empty messages without rows', () => {

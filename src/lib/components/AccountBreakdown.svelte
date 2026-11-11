@@ -29,9 +29,6 @@
 						>{item.account_name ?? item.account_id}</a
 					>
 					<div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-						{#if item.transfer_cents}<span
-								>{m.common_transfers()}: <Amount cents={item.transfer_cents} signed={false} /></span
-							>{/if}
 						<span
 							>{m.account_incoming()}: <Amount
 								cents={item.incoming_cents}
@@ -42,6 +39,9 @@
 						<span
 							>{m.account_outgoing()}: <Amount cents={item.outgoing_cents} signed={false} /></span
 						>
+						{#if item.transfer_cents}<span
+								>{m.common_transfers()}: <Amount cents={item.transfer_cents} signed={false} /></span
+							>{/if}
 					</div>
 				</div>
 				<Amount
