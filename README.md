@@ -48,17 +48,6 @@ both directories, so Docker initializes fresh named volumes with the correct
 ownership. Documents/evidence under `/data/documents` and Git's `/data/.git`
 are created by that same user. Bind mounts must likewise be writable by UID 1000.
 
-Before upgrading an existing root-owned data/cache volume, back up the data repo,
-stop the app and fix ownership once (use the same Compose project as the deployment):
-
-```bash
-docker compose stop app
-docker compose build app
-docker compose run --rm --no-deps --user 0 app chown -R 1000:1000 /data /cache
-docker compose up -d --wait
-docker compose exec app id
-```
-
 Do not run the app as root or make volumes world-writable. Ownership also makes
 the data repository safe for Git; no `safe.directory=*` exemption is needed.
 Commits use the existing `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` settings through
