@@ -427,16 +427,27 @@ export async function getUnallocatedDetails(options: boolean | TransactionFilter
 	);
 	const byAccount = new Map<
 		string,
-		{ account_id: string; account_name: string; amount_cents: number; count: number }
+		{
+			account_id: string;
+			account_name: string;
+			amount_cents: number;
+			incoming_cents: number;
+			outgoing_cents: number;
+			count: number;
+		}
 	>();
 	for (const transaction of transactions) {
 		const account = byAccount.get(transaction.account_id) ?? {
 			account_id: transaction.account_id,
 			account_name: names.get(transaction.account_id) ?? transaction.account_id,
 			amount_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0,
 			count: 0
 		};
 		account.amount_cents += transaction.unallocated_cents;
+		account.incoming_cents += Math.max(transaction.unallocated_cents, 0);
+		account.outgoing_cents += Math.min(transaction.unallocated_cents, 0);
 		account.count++;
 		byAccount.set(account.account_id, account);
 	}
@@ -448,7 +459,7 @@ export async function getUnallocatedDetails(options: boolean | TransactionFilter
 		transaction_count: transactions.length,
 		hidden_transfer_count: page.hidden_transfer_count,
 		by_account: [...byAccount.values()]
-			.filter((a) => a.amount_cents !== 0)
+			.filter((a) => a.incoming_cents !== 0 || a.outgoing_cents !== 0)
 			.sort((a, b) => a.account_name.localeCompare(b.account_name)),
 		transactions: page.rows.map((t) => ({
 			...t,
