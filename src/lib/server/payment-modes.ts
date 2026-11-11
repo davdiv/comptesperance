@@ -21,10 +21,12 @@ export function guessPaymentMode(
 			? 'carte'
 			: transaction.record_type === 'virement'
 				? 'virement'
-				: rules.find(([pattern]) =>
-						[transaction.label, transaction.description ?? ''].some((text) =>
-							pattern.test(normalize(text))
-						)
-					)?.[1];
+				: transaction.record_type === 'fee'
+					? 'prelevement'
+					: rules.find(([pattern]) =>
+							[transaction.label, transaction.description ?? ''].some((text) =>
+								pattern.test(normalize(text))
+							)
+						)?.[1];
 	return modes.some((mode) => mode.id === id && !mode.archived) ? id! : '';
 }
