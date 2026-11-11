@@ -1,9 +1,9 @@
 <script lang="ts">
 	import './layout.css';
 	import { page } from '$app/state';
-	import { m } from '$lib/paraglide/messages.js';
-	import { getLocale, setLocale } from '$lib/paraglide/runtime';
-	import Icon, { type IconName } from '$lib/components/Icon.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale, setLocale } from '#lib/paraglide/runtime.js';
+	import Icon, { type IconName } from '#lib/components/Icon.svelte';
 	import type { LayoutProps } from './$types';
 
 	const { data, children }: LayoutProps = $props();

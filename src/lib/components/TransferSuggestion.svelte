@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate, formatMoney } from '$lib/format';
-	import type { TransferMatch, TransferTransaction } from '$lib/server/transfer-matcher';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate, formatMoney } from '#lib/format.ts';
+	import type { TransferMatch, TransferTransaction } from '#lib/server/transfer-matcher.ts';
 	const {
 		first,
 		match,

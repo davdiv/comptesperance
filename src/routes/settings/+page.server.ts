@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
-import { m } from '$lib/paraglide/messages.js';
-import { requireWrite } from '$lib/server/auth';
-import { mutateConfig, saveAppName } from '$lib/server/config';
+import { m } from '#lib/paraglide/messages.js';
+import { requireWrite } from '#lib/server/auth.ts';
+import { mutateConfig, saveAppName } from '#lib/server/config.ts';
 import type { Actions } from './$types';
 
 export const actions: Actions = {

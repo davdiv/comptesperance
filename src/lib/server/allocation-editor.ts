@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import { parseDecimalToCents } from './money';
 import { getTransaction } from './queries';
 import { setTransactionAllocations } from './repository';

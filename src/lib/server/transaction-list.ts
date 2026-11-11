@@ -5,7 +5,7 @@ import {
 	listProjectsWithTotals,
 	listTransactions
 } from './queries';
-import type { TransactionFilters } from '$lib/transaction-filters';
+import type { TransactionFilters } from '#lib/transaction-filters.ts';
 export async function transactionFilterState(
 	url: URL,
 	fixed: Partial<TransactionFilters> = {},

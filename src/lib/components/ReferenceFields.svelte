@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import type { Category, PaymentMode } from '$lib/types';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Category, PaymentMode } from '#lib/types.ts';
 	const {
 		categories,
 		paymentModes,

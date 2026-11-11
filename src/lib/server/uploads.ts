@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import { getEnv } from './env';
 
 function bodyTooLarge(cause: unknown): boolean {

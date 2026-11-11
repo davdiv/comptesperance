@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatMoney } from '$lib/format';
-	import { accountSourceLabel } from '$lib/labels';
-	import Alert from '$lib/components/Alert.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
-	import FormPanel from '$lib/components/FormPanel.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatMoney } from '#lib/format.ts';
+	import { accountSourceLabel } from '#lib/labels.ts';
+	import Alert from '#lib/components/Alert.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
+	import FormPanel from '#lib/components/FormPanel.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import PageHeader from '#lib/components/PageHeader.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();

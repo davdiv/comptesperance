@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import { listProjectsWithTotals } from '$lib/server/queries';
-import { createProject } from '$lib/server/repository';
+import { requireWrite } from '#lib/server/auth.ts';
+import { listProjectsWithTotals } from '#lib/server/queries.ts';
+import { createProject } from '#lib/server/repository.ts';
 
 export const load: PageServerLoad = async () => ({ projects: await listProjectsWithTotals() });
 

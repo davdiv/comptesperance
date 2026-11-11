@@ -1,6 +1,6 @@
 import { render } from 'svelte/server';
 import { expect, it } from 'vitest';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import TransactionsPage from '../../routes/transactions/+page.svelte';
 function summary(total: number, amount: number, hidden: number) {
 	return render(TransactionsPage, {

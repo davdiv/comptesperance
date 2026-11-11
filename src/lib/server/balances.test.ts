@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { BalanceCheckpoint } from '$lib/types';
+import type { BalanceCheckpoint } from '#lib/types.ts';
 import { calculateBalance } from './balances';
 
 const checkpoint = (

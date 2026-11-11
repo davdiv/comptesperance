@@ -1,7 +1,7 @@
 import { render } from 'svelte/server';
 import { expect, it } from 'vitest';
-import type { TransactionView } from '$lib/server/queries';
-import { summarizeTransferGroup } from '$lib/server/transfer-groups';
+import type { TransactionView } from '#lib/server/queries.ts';
+import { summarizeTransferGroup } from '#lib/server/transfer-groups.ts';
 import TransferGroupCard from './TransferGroupCard.svelte';
 import TransferGroupSuggestion from './TransferGroupSuggestion.svelte';
 const members = [

@@ -1,10 +1,10 @@
-import { transactionFilterState } from '$lib/server/transaction-list';
-import { editAllocation } from '$lib/server/allocation-editor';
+import { transactionFilterState } from '#lib/server/transaction-list.ts';
+import { editAllocation } from '#lib/server/allocation-editor.ts';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import { getProjectDetails, getTransaction } from '$lib/server/queries';
-import { deleteProject, updateProject, setTransactionAllocations } from '$lib/server/repository';
+import { requireWrite } from '#lib/server/auth.ts';
+import { getProjectDetails, getTransaction } from '#lib/server/queries.ts';
+import { deleteProject, updateProject, setTransactionAllocations } from '#lib/server/repository.ts';
 
 export const load: PageServerLoad = async ({ params, url }) => {
 	const state = await transactionFilterState(url, { project_id: params.id });

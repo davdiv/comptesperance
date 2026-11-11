@@ -1,4 +1,4 @@
-import type { Category, ParsedTransaction } from '$lib/types';
+import type { Category, ParsedTransaction } from '#lib/types.ts';
 
 export function defaultCategory(
 	transaction: Pick<ParsedTransaction, 'record_type'>,

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { TransactionView } from '$lib/server/queries';
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate } from '$lib/format';
+	import type { TransactionView } from '#lib/server/queries.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/format.ts';
 	import Amount from './Amount.svelte';
 	const {
 		suggestion,

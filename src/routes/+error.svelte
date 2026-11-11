@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { m } from '$lib/paraglide/messages.js';
+	import { m } from '#lib/paraglide/messages.js';
 </script>
 
 <section class="card mx-auto max-w-2xl space-y-4 p-6" role="alert">

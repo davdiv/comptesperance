@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import { requireWrite } from './auth';
 import { listTransferPool } from './queries';
 import { createTransferGroups } from './repository';

@@ -11,7 +11,7 @@ import type {
 	ProjectAllocation,
 	ThirdParty,
 	TransactionAnnotation
-} from '$lib/types';
+} from '#lib/types.ts';
 import { ensureConfig } from './config';
 import { detectCsvFormat, parseCsvStatement } from './csv';
 import { getEnv } from './env';

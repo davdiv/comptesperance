@@ -1,6 +1,6 @@
 import { render } from 'svelte/server';
 import { expect, it } from 'vitest';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import TransactionDetail from '../../routes/transactions/[account_id]/[id]/+page.svelte';
 it('titles grouped transactions Transfer rather than Link transfer', () => {
 	const transaction = {

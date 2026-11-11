@@ -1,4 +1,4 @@
-import { filterFields, type TransactionFilters } from '$lib/transaction-filters';
+import { filterFields, type TransactionFilters } from '#lib/transaction-filters.ts';
 export function parseTransactionFilters(
 	url: URL,
 	fixed: Partial<TransactionFilters> = {},

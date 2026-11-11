@@ -1,6 +1,6 @@
 import { render } from 'svelte/server';
 import { expect, it } from 'vitest';
-import { formatMoney } from '$lib/format';
+import { formatMoney } from '#lib/format.ts';
 import TransactionTable from './TransactionTable.svelte';
 const row = {
 	id: 'sale',

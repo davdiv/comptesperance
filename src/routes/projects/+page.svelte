@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
+	import { m } from '#lib/paraglide/messages.js';
 
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import Alert from '$lib/components/Alert.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
-	import FormPanel from '$lib/components/FormPanel.svelte';
-	import Amount from '$lib/components/Amount.svelte';
+	import PageHeader from '#lib/components/PageHeader.svelte';
+	import Alert from '#lib/components/Alert.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
+	import FormPanel from '#lib/components/FormPanel.svelte';
+	import Amount from '#lib/components/Amount.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();

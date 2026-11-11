@@ -1,9 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import type { CsvFormat } from '$lib/server/csv';
-import { importCsvFile } from '$lib/server/importer';
-import { listAccountsWithTotals } from '$lib/server/queries';
+import { requireWrite } from '#lib/server/auth.ts';
+import type { CsvFormat } from '#lib/server/csv/index.ts';
+import { importCsvFile } from '#lib/server/importer.ts';
+import { listAccountsWithTotals } from '#lib/server/queries.ts';
 
 export const load: PageServerLoad = async () => {
 	const accounts = await listAccountsWithTotals();

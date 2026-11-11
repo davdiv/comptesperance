@@ -1,4 +1,4 @@
-import type { BalanceCheckpoint } from '$lib/types';
+import type { BalanceCheckpoint } from '#lib/types.ts';
 
 export interface ReconciledCheckpoint extends BalanceCheckpoint {
 	computed_balance_cents: number;

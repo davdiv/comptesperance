@@ -1,12 +1,12 @@
-import { transactionFilterState } from '$lib/server/transaction-list';
+import { transactionFilterState } from '#lib/server/transaction-list.ts';
 import { fail } from '@sveltejs/kit';
-import { m } from '$lib/paraglide/messages.js';
-import { requireWrite } from '$lib/server/auth';
-import { linkTransfer } from '$lib/server/repository';
-import { rankTransferCandidates, suggestedTransferPairs } from '$lib/server/transfer-matcher';
-import { getTransaction, listTransferPool } from '$lib/server/queries';
+import { m } from '#lib/paraglide/messages.js';
+import { requireWrite } from '#lib/server/auth.ts';
+import { linkTransfer } from '#lib/server/repository.ts';
+import { rankTransferCandidates, suggestedTransferPairs } from '#lib/server/transfer-matcher.ts';
+import { getTransaction, listTransferPool } from '#lib/server/queries.ts';
 import type { Actions, PageServerLoad } from './$types';
-import { listTransactions } from '$lib/server/queries';
+import { listTransactions } from '#lib/server/queries.ts';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const state = await transactionFilterState(url);

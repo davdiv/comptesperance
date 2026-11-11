@@ -1,18 +1,18 @@
 <script lang="ts">
-	import TransferGroupSuggestion from '$lib/components/TransferGroupSuggestion.svelte';
-	import TransferGroupCard from '$lib/components/TransferGroupCard.svelte';
-	import TransferSuggestion from '$lib/components/TransferSuggestion.svelte';
-	import AllocationEditor from '$lib/components/AllocationEditor.svelte';
-	import { documentDisplayName } from '$lib/documents';
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate, formatMoney } from '$lib/format';
-	import { accountSourceLabel } from '$lib/labels';
-	import Alert from '$lib/components/Alert.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import Amount from '$lib/components/Amount.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
-	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
+	import TransferGroupSuggestion from '#lib/components/TransferGroupSuggestion.svelte';
+	import TransferGroupCard from '#lib/components/TransferGroupCard.svelte';
+	import TransferSuggestion from '#lib/components/TransferSuggestion.svelte';
+	import AllocationEditor from '#lib/components/AllocationEditor.svelte';
+	import { documentDisplayName } from '#lib/documents.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate, formatMoney } from '#lib/format.ts';
+	import { accountSourceLabel } from '#lib/labels.ts';
+	import Alert from '#lib/components/Alert.svelte';
+	import PageHeader from '#lib/components/PageHeader.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import Amount from '#lib/components/Amount.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
+	import ReferenceFields from '#lib/components/ReferenceFields.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();

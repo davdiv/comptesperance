@@ -1,6 +1,6 @@
 import { transactionWhere, visiblePage } from './transaction-filters';
-import type { TransactionFilters } from '$lib/transaction-filters';
-export type { TransactionFilters } from '$lib/transaction-filters';
+import type { TransactionFilters } from '#lib/transaction-filters.ts';
+export type { TransactionFilters } from '#lib/transaction-filters.ts';
 import { summarizeTransferGroup } from './transfer-groups';
 import type {
 	AccountSource,
@@ -8,7 +8,7 @@ import type {
 	CachedTransaction,
 	Project,
 	BalanceCheckpoint
-} from '$lib/types';
+} from '#lib/types.ts';
 import { calculateBalance, type BalanceResult } from './balances';
 import { getDatabase } from './cache';
 import { listDocuments } from './repository';

@@ -7,7 +7,7 @@ import type {
 	ParsedTransaction,
 	TransactionAnnotation,
 	PaymentMode
-} from '$lib/types';
+} from '#lib/types.ts';
 import { detectCsvFormat, parseCsvStatement } from './csv';
 import { guessPaymentMode } from './payment-modes';
 import { enrichSumupSales } from './csv/sumup';

@@ -1,4 +1,4 @@
-import type { ParsedTransaction } from '$lib/types';
+import type { ParsedTransaction } from '#lib/types.ts';
 import { detectCcp, parseCcpReport, type CcpAccountMeta } from './ccp';
 import { detectSumup, parseSumupReport } from './sumup';
 

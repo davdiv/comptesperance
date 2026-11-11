@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate, formatMoney } from '$lib/format';
-	import type { FixedFilters } from '$lib/transaction-filters';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate, formatMoney } from '#lib/format.ts';
+	import type { FixedFilters } from '#lib/transaction-filters.ts';
 	import FilterLink from './FilterLink.svelte';
 	import AllocationEditor from './AllocationEditor.svelte';
 	import Amount from './Amount.svelte';

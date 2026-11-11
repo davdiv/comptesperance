@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate, formatMoney } from '$lib/format';
-	import { checkpointSourceLabel } from '$lib/labels';
-	import type { ReconciledCheckpoint } from '$lib/server/balances';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate, formatMoney } from '#lib/format.ts';
+	import { checkpointSourceLabel } from '#lib/labels.ts';
+	import type { ReconciledCheckpoint } from '#lib/server/balances.ts';
 	import EmptyState from './EmptyState.svelte';
 	import Icon from './Icon.svelte';
 	const { checkpoints, canWrite }: { checkpoints: ReconciledCheckpoint[]; canWrite: boolean } =

@@ -1,9 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireWrite } from '$lib/server/auth';
-import { readUploadFiles } from '$lib/server/uploads';
-import { listDocumentsWithLinks } from '$lib/server/queries';
-import { deleteDocument, saveDocuments } from '$lib/server/repository';
+import { requireWrite } from '#lib/server/auth.ts';
+import { readUploadFiles } from '#lib/server/uploads.ts';
+import { listDocumentsWithLinks } from '#lib/server/queries.ts';
+import { deleteDocument, saveDocuments } from '#lib/server/repository.ts';
 
 export const load: PageServerLoad = async () => ({ documents: await listDocumentsWithLinks() });
 

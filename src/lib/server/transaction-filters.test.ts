@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { parseTransactionFilters, transactionWhere, visiblePage } from './transaction-filters';
-import { filterHref, resetFilterHref } from '$lib/transaction-filters';
+import { filterHref, resetFilterHref } from '#lib/transaction-filters.ts';
 import { thirdPartyPerspective, transactionFilterState } from './transaction-list';
 vi.mock('./queries', () => ({
 	listAccountsWithTotals: vi.fn().mockResolvedValue([]),

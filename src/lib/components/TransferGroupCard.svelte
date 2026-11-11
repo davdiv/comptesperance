@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { TransferGroup } from '$lib/server/transfer-groups';
-	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate } from '$lib/format';
+	import type { TransferGroup } from '#lib/server/transfer-groups.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/format.ts';
 	import Amount from './Amount.svelte';
 	const {
 		group,
