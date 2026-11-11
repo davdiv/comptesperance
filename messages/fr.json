@@ -178,5 +178,10 @@
 	"checkpoint_zero_start": "Sans point de contrôle · départ à zéro",
 	"checkpoint_issue": "Écart de solde au {date} : {difference} (déclaré − calculé). Vérifiez les opérations manquantes ou en double et les exclusions.",
 	"checkpoint_mismatches": "Écarts de solde : {count}",
-	"account_issues": "Anomalies du compte"
+	"account_issues": "Anomalies du compte",
+	"transfers_suggested": "Virements suggérés",
+	"transfer_reference": "Référence commune : {reference}",
+	"transfer_amount_difference": "Écart de montant : {amount}. Vérifiez les frais ou versements partiels avant de lier.",
+	"transfer_suggestion_invalid": "Cette suggestion n’est plus disponible. Actualisez la page.",
+	"allocation_add_unavailable": "Aucun montant restant ou projet disponible. Modifiez une imputation ou créez un autre projet."
 }

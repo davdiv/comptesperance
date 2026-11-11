@@ -48,9 +48,9 @@
 	></svelte:head
 >
 
-<div class="min-h-screen lg:grid lg:grid-cols-[15rem_1fr]">
+<div class="min-h-screen lg:bg-[linear-gradient(to_right,white_15rem,transparent_15rem)] lg:pl-60">
 	<aside
-		class="fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-stone-200 bg-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 {menuOpen
+		class="fixed inset-y-0 left-0 z-40 flex h-screen w-60 flex-col border-r border-stone-200 bg-white transition-transform lg:translate-x-0 {menuOpen
 			? 'translate-x-0 shadow-xl'
 			: '-translate-x-full'}"
 	>
@@ -125,7 +125,7 @@
 		></button>
 	{/if}
 
-	<div class="min-w-0">
+	<div class="min-h-screen min-w-0 lg:border-l lg:border-stone-200">
 		<div
 			class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-stone-200 bg-white/90 px-4 backdrop-blur lg:hidden"
 		>

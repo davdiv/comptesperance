@@ -194,3 +194,21 @@ it('loads manual checkpoints for manual and CSV accounts even without transactio
 		});
 	}
 });
+
+it('guesses active CSV payment modes, but annotations including explicit empty values win', async () => {
+	const account = await createAccount({ name: 'Guess', source: 'csv' }, root);
+	const content = await readFile(new URL('./csv/testdata/ccp-sample.csv', import.meta.url), 'utf8');
+	await writeFile(path.join(root, 'accounts', account.id, 'statements/a.csv'), content);
+	const transaction = parseCsvStatement(content, 'ccp').transactions[0];
+	expect((await getTransaction(account.id, transaction.id))?.payment_mode_id).toBe('virement');
+	await upsertAnnotation(account.id, transaction.id, { payment_mode_id: 'carte' }, root);
+	vi.mocked(statusFingerprint).mockResolvedValue('override');
+	expect((await getTransaction(account.id, transaction.id))?.payment_mode_id).toBe('carte');
+	await upsertAnnotation(account.id, transaction.id, { payment_mode_id: '' }, root);
+	vi.mocked(statusFingerprint).mockResolvedValue('empty-override');
+	expect((await getTransaction(account.id, transaction.id))?.payment_mode_id).toBe('');
+	await mutateConfig('paymentModes', { id: 'virement', name: 'Virement', archived: true }, root);
+	vi.mocked(statusFingerprint).mockResolvedValue('archived');
+	const unannotated = parseCsvStatement(content, 'ccp').transactions[1];
+	expect((await getTransaction(account.id, unannotated.id))?.payment_mode_id).toBe('');
+});

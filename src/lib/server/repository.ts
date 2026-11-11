@@ -296,7 +296,7 @@ function cleanAnnotation(annotation: TransactionAnnotation): TransactionAnnotati
 	const cleaned: TransactionAnnotation = {};
 	if (annotation.notes?.trim()) cleaned.notes = annotation.notes.trim();
 	if (annotation.category_id?.trim()) cleaned.category_id = annotation.category_id.trim();
-	if (annotation.payment_mode_id?.trim())
+	if (annotation.payment_mode_id !== undefined)
 		cleaned.payment_mode_id = annotation.payment_mode_id.trim();
 	if (annotation.allocations) cleaned.allocations = annotation.allocations;
 	if (annotation.third_party_id) cleaned.third_party_id = annotation.third_party_id;
@@ -313,6 +313,7 @@ function cleanAnnotation(annotation: TransactionAnnotation): TransactionAnnotati
 }
 
 function isEmptyAnnotation(annotation: TransactionAnnotation): boolean {
+	if (annotation.payment_mode_id !== undefined) return false;
 	return Object.values(annotation).every((value) => {
 		if (Array.isArray(value)) return value.length === 0;
 		return value === undefined || value === null || value === '';

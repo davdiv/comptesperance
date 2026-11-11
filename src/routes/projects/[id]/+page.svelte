@@ -1,9 +1,9 @@
 <script lang="ts">
+	import AllocationEditor from '$lib/components/AllocationEditor.svelte';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatDate, formatMoney } from '$lib/format';
 	import Alert from '$lib/components/Alert.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
-	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import FormPanel from '$lib/components/FormPanel.svelte';
 	import Amount from '$lib/components/Amount.svelte';
@@ -64,7 +64,6 @@
 					<th>{m.common_label()}</th>
 					<th>{m.common_third_party()}</th>
 					<th class="num">{m.project_allocation_amount()}</th>
-					<th></th>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-stone-100">
@@ -80,21 +79,22 @@
 								>{:else}{allocation.transaction_id}{/if}</td
 						>
 						<td>{allocation.transaction?.third_party_name ?? '—'}</td>
-						<td class="num">{formatMoney(allocation.amount_cents)}</td>
-						<td class="num"
-							>{#if data.user.canWrite}<form method="POST" action="?/remove_allocation">
-									<input type="hidden" name="account_id" value={allocation.account_id} /><input
-										type="hidden"
-										name="transaction_id"
-										value={allocation.transaction_id}
-									/><button class="btn-icon text-red-700" aria-label={m.common_delete()}
-										><Icon name="trash" /></button
+						<td class="min-w-80"
+							>{#if data.user.canWrite}<AllocationEditor
+									accountId={allocation.account_id}
+									transactionId={allocation.transaction_id}
+									projectId={data.project.id}
+									amount={allocation.amount_cents}
+									note={allocation.note ?? ''}
+								/>{:else}{formatMoney(allocation.amount_cents)}{#if allocation.note}<p
+										class="text-xs text-stone-500"
 									>
-								</form>{/if}</td
+										{allocation.note}
+									</p>{/if}{/if}</td
 						>
 					</tr>
 				{:else}
-					<tr><td colspan="6"><EmptyState message={m.project_no_allocations()} /></td></tr>
+					<tr><td colspan="5"><EmptyState message={m.project_no_allocations()} /></td></tr>
 				{/each}
 			</tbody>
 		</table>

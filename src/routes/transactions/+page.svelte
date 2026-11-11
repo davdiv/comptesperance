@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
 
+	import Alert from '$lib/components/Alert.svelte';
+	import TransferSuggestion from '$lib/components/TransferSuggestion.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TransactionTable from '$lib/components/TransactionTable.svelte';
 	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
 	import type { PageProps } from './$types';
 
-	const { data }: PageProps = $props();
+	const { data, form }: PageProps = $props();
 	const accountNames = $derived(
 		Object.fromEntries(data.accounts.map((a) => [a.account_id, a.name]))
 	);
@@ -15,6 +17,27 @@
 
 <div class="space-y-6">
 	<PageHeader title={m.transactions_title()} subtitle={m.transactions_subtitle()} />
+	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
+	{#if data.user.canWrite && data.suggestions.length}<section class="card p-5">
+			<h2 class="card-title mb-4">{m.transfers_suggested()}</h2>
+			<div class="grid gap-4 lg:grid-cols-2">
+				{#each data.suggestions as suggestion (suggestion.first.account_id + suggestion.first.id + suggestion.transaction.account_id + suggestion.transaction.id)}
+					<div class="space-y-2">
+						<a
+							class="link text-sm"
+							href="/transactions/{suggestion.first.account_id}/{suggestion.first.id}"
+							>{accountNames[suggestion.first.account_id]} · {suggestion.first.label}</a
+						>
+						<TransferSuggestion
+							first={suggestion.first}
+							match={suggestion}
+							{accountNames}
+							canWrite={true}
+							action="?/link_suggestion"
+						/>
+					</div>{/each}
+			</div>
+		</section>{/if}
 	<form method="GET" class="card grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
 		<label class="field"
 			><span class="field-label">{m.common_search()}</span><span class="relative"

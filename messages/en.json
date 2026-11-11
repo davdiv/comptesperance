@@ -178,5 +178,10 @@
 	"checkpoint_zero_start": "No checkpoint · starting at zero",
 	"checkpoint_issue": "Balance mismatch on {date}: {difference} (recorded − computed). Check missing/duplicate transactions and exclusions.",
 	"checkpoint_mismatches": "Balance mismatches: {count}",
-	"account_issues": "Account issues"
+	"account_issues": "Account issues",
+	"transfers_suggested": "Suggested transfers",
+	"transfer_reference": "Shared reference: {reference}",
+	"transfer_amount_difference": "Amount difference: {amount}. Check fees or partial payouts before linking.",
+	"transfer_suggestion_invalid": "This suggestion is no longer available. Refresh the page.",
+	"allocation_add_unavailable": "No unallocated amount or unused projects. Edit an allocation or create another project."
 }

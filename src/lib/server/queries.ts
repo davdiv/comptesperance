@@ -483,3 +483,15 @@ export async function listDocumentsWithLinks() {
 			}))
 	}));
 }
+
+export async function listTransferPool(): Promise<TransactionView[]> {
+	const db = await getDatabase();
+	return (
+		db
+			.prepare(
+				TRANSACTION_SELECT +
+					' WHERE t.transfer_id IS NULL AND t.excluded = 0 ORDER BY t.date DESC, t.account_id, t.id'
+			)
+			.all() as Record<string, unknown>[]
+	).map(transactionFromRow);
+}
