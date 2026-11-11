@@ -63,7 +63,7 @@ without deleting its volumes.
 
 ```bash
 npm ci
-npx playwright install --with-deps chromium
+npx playwright install --with-deps chromium # or set PLAYWRIGHT_CHANNEL=chrome to use installed Google Chrome
 export COMPOSE_PROJECT_NAME="comptes-e2e-$(date +%s)"
 docker compose up -d --build --wait --wait-timeout 120
 docker compose exec app id # uid=1000(node)
@@ -85,7 +85,8 @@ reimport, and sign-out. No preview server or auth bypass is used.
 and traces under `test-results/`.
 
 CI builds a fresh project per run, waits for service health, checks the non-root
-UID and runs this suite with Chromium. On failure it uploads the Playwright report,
+UID and runs this suite with the runner's preinstalled Google Chrome
+(`PLAYWRIGHT_CHANNEL=chrome`), so it downloads no browser or system packages. On failure it uploads the Playwright report,
 traces/screenshots and Compose logs, then always tears down the test volumes.
 
 Traefik uses Authelia's `/api/authz/forward-auth` endpoint, which handles redirects

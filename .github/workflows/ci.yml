@@ -25,6 +25,7 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: comptes-e2e-${{ github.run_id }}-${{ github.run_attempt }}
       PLAYWRIGHT_BASE_URL: https://comptes.localhost:8443
+      PLAYWRIGHT_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,7 +33,7 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: google-chrome --version
       - name: Resolve local compose domains
         run: echo '127.0.0.1 comptes.localhost auth.comptes.localhost' | sudo tee -a /etc/hosts
       - name: Start a fresh stack
