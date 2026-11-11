@@ -1,12 +1,13 @@
 <script lang="ts">
+	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
+
 	import { m } from '$lib/paraglide/messages.js';
 
 	import Alert from '$lib/components/Alert.svelte';
 	import TransferSuggestion from '$lib/components/TransferSuggestion.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import Icon from '$lib/components/Icon.svelte';
 	import TransactionTable from '$lib/components/TransactionTable.svelte';
-	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
 	import type { PageProps } from './$types';
 	import StatCard from '$lib/components/StatCard.svelte';
 	import Amount from '$lib/components/Amount.svelte';
@@ -40,97 +41,13 @@
 					</div>{/each}
 			</div>
 		</section>{/if}
-	<form method="GET" class="card grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
-		<label class="field"
-			><span class="field-label">{m.common_search()}</span><span class="relative"
-				><Icon name="search" class="absolute top-2.5 left-3 size-4 text-stone-400" /><input
-					name="search"
-					value={data.filters.search ?? ''}
-					class="control w-full pl-9"
-				/></span
-			></label
-		>
-		<label class="field"
-			><span class="field-label">{m.import_account()}</span><select
-				name="account_id"
-				class="control"
-			>
-				<option value="">{m.common_all()}</option>
-				{#each data.accounts as account (account.account_id)}<option
-						value={account.account_id}
-						selected={data.filters.account_id === account.account_id}>{account.name}</option
-					>{/each}
-			</select></label
-		>
-		<label class="field"
-			><span class="field-label">{m.common_third_party()}</span><select
-				name="third_party_id"
-				class="control"
-			>
-				<option value="">{m.common_all()}</option>
-				{#each data.thirdParties as party (party.id)}<option
-						value={party.id}
-						selected={data.filters.third_party_id === party.id}>{party.name}</option
-					>{/each}
-			</select></label
-		>
-		<label class="field"
-			><span class="field-label">{m.date_from()}</span><input
-				name="date_from"
-				type="date"
-				value={data.filters.date_from ?? ''}
-				class="control"
-			/></label
-		>
-		<label class="field"
-			><span class="field-label">{m.date_to()}</span><input
-				name="date_to"
-				type="date"
-				value={data.filters.date_to ?? ''}
-				class="control"
-			/></label
-		>
-		<ReferenceFields
-			categories={data.config.categories}
-			paymentModes={data.config.paymentModes}
-			categoryId={data.filters.category_id}
-			paymentModeId={data.filters.payment_mode_id}
-			filter
-		/>
-		<label class="field"
-			><span class="field-label">{m.allocation_status()}</span>
-			<select name="allocation_status" class="control" value={data.filters.allocation_status ?? ''}>
-				<option value="">{m.common_all()}</option>
-				<option value="allocated">{m.allocation_allocated()}</option>
-				<option value="unallocated">{m.allocation_unallocated()}</option>
-				<option value="partial">{m.allocation_partial()}</option>
-			</select>
-		</label>
-		<label class="field"
-			><span class="field-label">{m.nav_projects()}</span>
-			<select name="project_id" class="control" value={data.filters.project_id ?? ''}>
-				<option value="">{m.common_all()}</option>
-				{#each data.projects as project (project.id)}<option value={project.id}
-						>{project.name}</option
-					>{/each}
-			</select>
-		</label>
-		<label class="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-3">
-			<input
-				type="checkbox"
-				class="checkbox"
-				name="include_transfers"
-				value="1"
-				checked={data.includeTransfers}
-			/>
-			{m.common_include_transfers()}
-		</label>
-		<div class="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
-			<button class="btn">{m.common_search()}</button><a class="btn-ghost" href="/transactions"
-				>{m.common_reset()}</a
-			>
-		</div>
-	</form>
+	<TransactionFilters
+		filters={data.filters}
+		options={data.filterOptions}
+		config={data.config}
+		current={data.filterUrl}
+		fixed={data.fixedFilters}
+	/>
 	<div class="grid gap-4 sm:grid-cols-2" data-testid="transaction-summary">
 		<StatCard label={m.stat_transactions()} value={data.total}>
 			{#snippet hint()}{#if data.hidden_transfer_count > 0}{m.transactions_hidden_transfers({
@@ -145,6 +62,17 @@
 		</div>
 	</div>
 	<div class="table-wrap">
-		<TransactionTable transactions={data.transactions} {accountNames} />
+		<TransactionTable
+			transactions={data.transactions}
+			{accountNames}
+			filterUrl={data.filterUrl}
+			fixedFilters={data.fixedFilters}
+		/>
 	</div>
+	<TransactionPagination
+		filters={data.filters}
+		current={data.filterUrl}
+		total={data.total}
+		hidden={data.hidden_transfer_count}
+	/>
 </div>

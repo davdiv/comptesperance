@@ -1,3 +1,4 @@
+import { transactionFilterState } from '$lib/server/transaction-list';
 import { editAllocation } from '$lib/server/allocation-editor';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -6,10 +7,14 @@ import { getProjectDetails, getTransaction } from '$lib/server/queries';
 import { deleteProject, updateProject, setTransactionAllocations } from '$lib/server/repository';
 
 export const load: PageServerLoad = async ({ params, url }) => {
-	const includeTransfers = url.searchParams.get('include_transfers') === '1';
-	const details = await getProjectDetails(params.id, includeTransfers);
+	const state = await transactionFilterState(url, { project_id: params.id });
+	const details = await getProjectDetails(params.id, state.filters);
 	if (!details) error(404, 'Project not found');
-	return { ...details, includeTransfers };
+	return {
+		...state,
+		...details,
+		transactions: details.allocations.flatMap((a) => (a.transaction ? [a.transaction] : []))
+	};
 };
 
 export const actions: Actions = {

@@ -1,18 +1,23 @@
+import { transactionFilterState, thirdPartyPerspective } from '$lib/server/transaction-list';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
-import { listAccountsWithTotals, listThirdPartyTransactions } from '$lib/server/queries';
+import { listTransactions } from '$lib/server/queries';
 import { deleteThirdParty, readThirdParty, updateThirdParty } from '$lib/server/repository';
 
 export const load: PageServerLoad = async ({ params, url }) => {
-	const includeTransfers = url.searchParams.get('include_transfers') === '1';
-	const [party, transactions, accounts] = await Promise.all([
+	const state = await transactionFilterState(url, { third_party_id: params.id });
+	const [party, result] = await Promise.all([
 		readThirdParty(params.id),
-		listThirdPartyTransactions(params.id, includeTransfers),
-		listAccountsWithTotals()
+		listTransactions(state.filters)
 	]);
 	if (!party) error(404, 'Third party not found');
-	return { party, transactions, accounts, includeTransfers };
+	return {
+		...state,
+		...thirdPartyPerspective(result),
+		party,
+		accounts: state.filterOptions.accounts
+	};
 };
 
 export const actions: Actions = {

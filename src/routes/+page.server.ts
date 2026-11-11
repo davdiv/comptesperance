@@ -1,3 +1,4 @@
+import { transactionFilterState } from '$lib/server/transaction-list';
 import type { PageServerLoad } from './$types';
 import {
 	listAccountsWithTotals,
@@ -6,12 +7,13 @@ import {
 	listTransactions
 } from '$lib/server/queries';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
+	const state = await transactionFilterState(url, {}, { include_transfers: true, limit: 8 });
 	const [accounts, projects, thirdParties, recent] = await Promise.all([
-		listAccountsWithTotals(),
-		listProjectsWithTotals(),
+		listAccountsWithTotals(state.filters),
+		listProjectsWithTotals(state.filters),
 		listThirdPartiesWithCounts(),
-		listTransactions({ limit: 8, include_transfers: true })
+		listTransactions(state.filters)
 	]);
-	return { accounts, projects, thirdParties, recent: recent.transactions };
+	return { ...state, ...recent, accounts, projects, thirdParties, recent: recent.transactions };
 };
