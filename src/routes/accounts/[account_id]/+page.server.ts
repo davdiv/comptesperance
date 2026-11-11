@@ -1,3 +1,4 @@
+import { transactionFilterState } from '$lib/server/transaction-list';
 import { m } from '$lib/paraglide/messages.js';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -11,14 +12,19 @@ import {
 	deleteManualCheckpoint
 } from '$lib/server/repository';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, url }) => {
 	const account = await getAccountWithTotals(params.account_id);
 	if (!account) error(404, 'Account not found');
+	const state = await transactionFilterState(
+		url,
+		{ account_id: params.account_id },
+		{ include_transfers: true }
+	);
 	const [transactions, issues] = await Promise.all([
-		listTransactions({ account_id: account.account_id, include_transfers: true, limit: 500 }),
+		listTransactions(state.filters),
 		listIssues(account.account_id)
 	]);
-	return { account, transactions: transactions.transactions, issues };
+	return { ...state, ...transactions, account, issues };
 };
 
 export const actions: Actions = {

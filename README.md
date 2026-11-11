@@ -135,3 +135,26 @@ legacy-format compatibility is provided.
   imbalances on manually assembled groups remain visible warnings.
 - `third-parties/<id>.json` and `documents/` retain their existing formats.
   Evidence paths can be shared by multiple transactions.
+
+## Transaction filters and third-party amounts
+
+Transaction lists on the dashboard, accounts, projects, Unallocated and third-party
+pages share a collapsible filter form. Active filters open it automatically; the
+page's fixed dimensions are hidden. Search, date range, account, third party,
+category, payment mode, project, allocation status, record type and exclusion
+filters are combined. Unallocated always omits excluded transactions and ignores
+project/allocation-status filters. Unknown URL parameters survive filtering;
+changing a filter resets pagination, while page links preserve the filters.
+
+Project, category, payment-mode and third-party labels filter the current list.
+Small ↗ links keep navigation to project and third-party details available.
+Summaries use all matching rows, not just the current page. Internal transfer
+visibility only hides rows; it never changes sums or summary counts. Account
+current balances/checkpoints remain actual balances, not filtered cash-flow sums.
+Existing excluded-amount rules remain unchanged (project allocation totals retain
+their existing semantics; account/transaction flow sums omit excluded amounts).
+
+Third-party list/detail amounts use the third party's point of view: transaction
+and allocation amounts and net totals are negated, and incoming/outgoing are
+swapped and negated. This display convention does not modify stored accounting
+amounts or allocation editors, which remain in the app's accounting perspective.

@@ -1,10 +1,14 @@
 <script lang="ts">
+	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
+	import TransactionTable from '$lib/components/TransactionTable.svelte';
+
 	import { m } from '$lib/paraglide/messages.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import StatCard from '$lib/components/StatCard.svelte';
 	import Amount from '$lib/components/Amount.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
-	import { formatDate, formatMoney } from '$lib/format';
+	import { formatMoney } from '$lib/format';
 	import type { PageProps } from './$types';
 	const { data }: PageProps = $props();
 </script>
@@ -14,13 +18,14 @@
 		title={m.unallocated_title()}
 		subtitle={m.unallocated_description()}
 		back={{ href: '/projects', label: m.projects_title() }}
-	>
-		{#snippet actions()}<a
-				class="btn-secondary"
-				href="/projects/unallocated{data.includeTransfers ? '' : '?include_transfers=1'}"
-				>{data.includeTransfers ? m.common_hide_transfers() : m.common_include_transfers()}</a
-			>{/snippet}
-	</PageHeader>
+	></PageHeader>
+	<TransactionFilters
+		filters={data.filters}
+		options={data.filterOptions}
+		config={data.config}
+		current={data.filterUrl}
+		fixed={data.fixedFilters}
+	/>
 	<div class="grid gap-4 sm:grid-cols-3">
 		<StatCard
 			label={m.account_incoming()}
@@ -51,48 +56,28 @@
 			<h2 class="card-title">{m.stat_transactions()}</h2>
 			<span class="text-right text-xs text-stone-500"
 				>{data.transaction_count}
-				{#if data.transaction_count > data.transactions.length}<span class="mt-1 block"
+				{#if data.hidden_transfer_count > 0}<span class="mt-1 block"
 						>{m.transactions_hidden_transfers({
-							count: data.transaction_count - data.transactions.length
+							count: data.hidden_transfer_count
 						})}</span
 					>{/if}
 			</span>
 		</div>
-		<div class="overflow-x-auto">
-			<table class="table">
-				<thead
-					><tr
-						><th>{m.transaction_date()}</th><th>{m.common_label()}</th><th>{m.import_account()}</th
-						><th class="num">{m.common_amount()}</th><th class="num">{m.unallocated_remainder()}</th
-						>{#if data.user.canWrite}<th>{m.common_actions()}</th>{/if}</tr
-					></thead
-				>
-				<tbody>
-					{#each data.transactions as transaction (transaction.account_id + '/' + transaction.id)}
-						<tr
-							><td class="whitespace-nowrap">{formatDate(transaction.date)}</td><td
-								><a class="row-link" href="/transactions/{transaction.account_id}/{transaction.id}"
-									>{transaction.label}</a
-								>{#if transaction.transfer_id}<span class="badge badge-violet ml-2"
-										>{m.common_transfers()}</span
-									>{/if}</td
-							><td>{transaction.account_name}</td><td class="num"
-								><Amount cents={transaction.amount_cents} /></td
-							><td class="num"><Amount cents={transaction.unallocated_cents} /></td
-							>{#if data.user.canWrite}<td
-									><a
-										class="btn-secondary btn-sm"
-										href="/transactions/{transaction.account_id}/{transaction.id}#allocations"
-										>{m.unallocated_allocate()}</a
-									></td
-								>{/if}</tr
-						>
-					{:else}<tr
-							><td colspan={data.user.canWrite ? 6 : 5}><EmptyState message={m.empty_state()} /></td
-							></tr
-						>{/each}
-				</tbody>
-			</table>
-		</div>
+		<TransactionTable
+			transactions={data.transactions}
+			accountNames={Object.fromEntries(
+				data.filterOptions?.accounts.map((a) => [a.account_id, a.name]) ?? []
+			)}
+			filterUrl={data.filterUrl}
+			fixedFilters={data.fixedFilters}
+			unallocated
+			canWrite={data.user.canWrite}
+		/>
 	</section>
+	<TransactionPagination
+		filters={data.filters}
+		current={data.filterUrl}
+		total={data.transaction_count}
+		hidden={data.hidden_transfer_count}
+	/>
 </div>

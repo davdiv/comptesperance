@@ -223,5 +223,17 @@
 	"upload_invalid": "The upload could not be read. Select your files and try again.",
 	"upload_unsupported_type": "Choose a PDF, PNG, JPEG or WebP file.",
 	"error_title": "Unable to complete the request",
-	"allocation_deleted_project": "Deleted or missing project"
+	"allocation_deleted_project": "Deleted or missing project",
+	"filters_title": "Filter transactions",
+	"filters_not_excluded": "Not excluded",
+	"filters_only_excluded": "Excluded only",
+	"filters_record_type": "Record type",
+	"filters_open_project": "Open project",
+	"filters_open_party": "Open third party",
+	"filters_open_entity": "Open {name}",
+	"filters_pagination": "Transaction pages",
+	"filters_page_range": "{start}–{end} of {total}",
+	"filters_previous": "Previous",
+	"filters_next": "Next",
+	"third_party_perspective": "Amounts from the third party’s point of view."
 }

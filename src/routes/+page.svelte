@@ -1,4 +1,7 @@
 <script lang="ts">
+	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
+
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatMoney } from '$lib/format';
 	import Amount from '$lib/components/Amount.svelte';
@@ -13,9 +16,7 @@
 	const totalBalance = $derived(
 		data.accounts.reduce((sum, account) => sum + account.current_balance_cents, 0)
 	);
-	const transactionCount = $derived(
-		data.accounts.reduce((sum, account) => sum + account.transaction_count, 0)
-	);
+	const transactionCount = $derived(data.total);
 	const accountNames = $derived(
 		Object.fromEntries(data.accounts.map((account) => [account.account_id, account.name]))
 	);
@@ -129,8 +130,30 @@
 			<h2 class="card-title">{m.dashboard_recent()}</h2>
 			<a href="/transactions" class="link text-xs">{m.view_all()}</a>
 		</div>
-		<div class="overflow-x-auto">
-			<TransactionTable transactions={data.recent} {accountNames} empty={m.empty_state()} />
+		<TransactionFilters
+			filters={data.filters}
+			options={data.filterOptions}
+			config={data.config}
+			current={data.filterUrl}
+			fixed={data.fixedFilters}
+		/>
+		<div class="px-5 py-3 text-sm">
+			{m.transactions_total()}: <Amount cents={data.total_cents} />
 		</div>
+		<div class="overflow-x-auto">
+			<TransactionTable
+				transactions={data.recent}
+				{accountNames}
+				filterUrl={data.filterUrl}
+				fixedFilters={data.fixedFilters}
+				empty={m.empty_state()}
+			/>
+		</div>
+		<TransactionPagination
+			filters={data.filters}
+			current={data.filterUrl}
+			total={data.total}
+			hidden={data.hidden_transfer_count}
+		/>
 	</section>
 </div>

@@ -13,6 +13,7 @@
 
 <div class="space-y-6">
 	<PageHeader title={m.third_parties_title()} subtitle={m.third_parties_subtitle()} />
+	<p class="text-sm text-stone-500">{m.third_party_perspective()}</p>
 	{#if data.user.canWrite}
 		<FormPanel label={m.third_party_new()} open={!!form?.error}
 			><form method="POST" class="grid gap-4 sm:grid-cols-2">
@@ -41,7 +42,7 @@
 					<th>{m.third_party_name()}</th>
 					<th>{m.third_party_aliases()}</th>
 					<th class="num">{m.third_party_transactions()}</th>
-					<th class="num">{m.common_amount()}</th>
+					<th class="num">{m.transactions_total()}</th>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-stone-100">

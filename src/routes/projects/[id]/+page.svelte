@@ -1,7 +1,10 @@
 <script lang="ts">
-	import AllocationEditor from '$lib/components/AllocationEditor.svelte';
+	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
+	import TransactionTable from '$lib/components/TransactionTable.svelte';
+
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatDate, formatMoney } from '$lib/format';
+	import { formatMoney } from '$lib/format';
 	import Alert from '$lib/components/Alert.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -18,17 +21,22 @@
 		title={data.project.name}
 		subtitle={data.project.description ?? m.projects_subtitle()}
 		back={{ href: '/projects', label: m.projects_title() }}
-	>
-		{#snippet actions()}<a
-				class="btn-secondary"
-				href="/projects/{data.project.id}{data.includeTransfers ? '' : '?include_transfers=1'}"
-				>{data.includeTransfers ? m.common_hide_transfers() : m.common_include_transfers()}</a
-			>{/snippet}
-	</PageHeader>
+	></PageHeader>
 	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 
+	<TransactionFilters
+		filters={data.filters}
+		options={data.filterOptions}
+		config={data.config}
+		current={data.filterUrl}
+		fixed={data.fixedFilters}
+	/>
 	<section class="grid gap-4 md:grid-cols-3">
-		<StatCard label={m.project_total()} value={formatMoney(data.total_cents)} tone="brand" />
+		<StatCard
+			label={m.project_total()}
+			value={formatMoney(data.total_cents)}
+			tone={data.total_cents < 0 ? 'negative' : 'brand'}
+		/>
 		<div class="card p-4 md:col-span-2">
 			<h2 class="font-semibold">{m.project_by_account()}</h2>
 			<ul class="mt-3 divide-y divide-stone-100 text-sm">
@@ -56,49 +64,24 @@
 
 	<section class="table-wrap">
 		<h2 class="card-header card-title">{m.project_allocations()}</h2>
-		<table class="table">
-			<thead>
-				<tr>
-					<th>{m.project_allocation_account()}</th>
-					<th>{m.common_date()}</th>
-					<th>{m.common_label()}</th>
-					<th>{m.common_third_party()}</th>
-					<th class="num">{m.project_allocation_amount()}</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-stone-100">
-				{#each data.allocations as allocation (allocation.account_id + allocation.transaction_id)}
-					<tr class="hover:bg-stone-50">
-						<td>{allocation.account_name ?? allocation.account_id}</td>
-						<td class="px-4 py-3 whitespace-nowrap">{formatDate(allocation.transaction?.date)}</td>
-						<td
-							>{#if allocation.transaction}<a
-									class="link"
-									href="/transactions/{allocation.account_id}/{allocation.transaction_id}"
-									>{allocation.transaction.label}</a
-								>{:else}{allocation.transaction_id}{/if}</td
-						>
-						<td>{allocation.transaction?.third_party_name ?? '—'}</td>
-						<td class="min-w-80"
-							>{#if data.user.canWrite}<AllocationEditor
-									accountId={allocation.account_id}
-									transactionId={allocation.transaction_id}
-									projectId={data.project.id}
-									amount={allocation.amount_cents}
-									note={allocation.note ?? ''}
-								/>{:else}{formatMoney(allocation.amount_cents)}{#if allocation.note}<p
-										class="text-xs text-stone-500"
-									>
-										{allocation.note}
-									</p>{/if}{/if}</td
-						>
-					</tr>
-				{:else}
-					<tr><td colspan="5"><EmptyState message={m.project_no_allocations()} /></td></tr>
-				{/each}
-			</tbody>
-		</table>
+		<TransactionTable
+			transactions={data.transactions ??
+				data.allocations.flatMap((a) => (a.transaction ? [a.transaction] : []))}
+			accountNames={Object.fromEntries(
+				data.filterOptions?.accounts.map((a) => [a.account_id, a.name]) ?? []
+			)}
+			filterUrl={data.filterUrl}
+			fixedFilters={data.fixedFilters}
+			projectId={data.project.id}
+			canWrite={data.user.canWrite}
+		/>
 	</section>
+	<TransactionPagination
+		filters={data.filters}
+		current={data.filterUrl}
+		total={data.transaction_count}
+		hidden={data.hidden_transfer_count}
+	/>
 	{#if data.user.canWrite}<FormPanel label={m.project_edit()} open={!!form?.error}>
 			<form method="POST" action="?/update" class="space-y-4">
 				<h2 class="font-semibold">{m.project_edit()}</h2>

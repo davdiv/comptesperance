@@ -1,4 +1,7 @@
 <script lang="ts">
+	import TransactionFilters from '$lib/components/TransactionFilters.svelte';
+	import TransactionPagination from '$lib/components/TransactionPagination.svelte';
+
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatMoney, formatDate } from '$lib/format';
 	import { accountSourceLabel, checkpointSourceLabel } from '$lib/labels';
@@ -47,12 +50,8 @@
 					: m.checkpoint_zero_start()}</span
 			>{/snippet}
 	</StatCard>
-	<StatCard
-		label={m.account_incoming()}
-		value={formatMoney(account.incoming_cents)}
-		tone="positive"
-	/>
-	<StatCard label={m.account_outgoing()} value={formatMoney(account.outgoing_cents)} />
+	<StatCard label={m.account_incoming()} value={formatMoney(data.incoming_cents)} tone="positive" />
+	<StatCard label={m.account_outgoing()} value={formatMoney(data.outgoing_cents)} />
 </section>
 
 {#if data.issues.length || account.mismatch_count}
@@ -118,12 +117,30 @@
 	{/if}
 {/if}
 
+<div class="mb-6">
+	<TransactionFilters
+		filters={data.filters}
+		options={data.filterOptions}
+		config={data.config}
+		current={data.filterUrl}
+		fixed={data.fixedFilters}
+	/>
+</div>
 <section class="table-wrap mb-6">
 	<div class="card-header">
 		<h2 class="card-title">{m.transactions_title()}</h2>
-		<span class="text-xs text-stone-500">{data.transactions.length}</span>
+		<span class="text-xs text-stone-500">{data.total}</span>
 	</div>
-	<TransactionTable transactions={data.transactions} />
+	<TransactionTable
+		transactions={data.transactions}
+		filterUrl={data.filterUrl}
+		fixedFilters={data.fixedFilters}
+	/><TransactionPagination
+		filters={data.filters}
+		current={data.filterUrl}
+		total={data.total}
+		hidden={data.hidden_transfer_count}
+	/>
 </section>
 
 {#if data.user.canWrite}
