@@ -2,6 +2,7 @@ import PdfPrinter from 'pdfmake';
 import { createRequire } from 'node:module';
 import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { m } from '#lib/paraglide/messages.js';
+import { getLocale } from '#lib/paraglide/runtime.js';
 import { formatDate, formatMoney } from '#lib/format.ts';
 import type { ProjectDetails } from '#lib/server/queries.ts';
 import type { transactionFilterState } from '#lib/server/transaction-list.ts';
@@ -115,7 +116,12 @@ export function buildProjectPdfDefinition(
 			? [{ text: details.project.description, margin: [0, 0, 0, 6] } as Content]
 			: []),
 		{
-			text: m.pdf_generated({ date: formatDate(generatedAt.toISOString().slice(0, 19)) }),
+			text: m.pdf_generated({
+				date: new Intl.DateTimeFormat(getLocale() === 'fr' ? 'fr-FR' : 'en-GB', {
+					dateStyle: 'medium',
+					timeStyle: 'short'
+				}).format(generatedAt)
+			}),
 			color: '#57534e'
 		},
 		...(summary
