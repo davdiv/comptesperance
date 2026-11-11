@@ -215,5 +215,12 @@
 	"unallocated_description": "Transactions dont une partie reste à imputer aux projets.",
 	"unallocated_net": "Solde non imputé",
 	"unallocated_remainder": "Reste à imputer",
-	"unallocated_allocate": "Imputer"
+	"unallocated_allocate": "Imputer",
+	"upload_body_too_large_title": "Envoi trop volumineux",
+	"upload_body_too_large": "Cet envoi dépasse la limite totale par requête. Envoyez moins de fichiers à la fois ou réduisez leur taille.",
+	"upload_file_too_large": "Un fichier dépasse la taille maximale autorisée par fichier. Réduisez sa taille ou choisissez un autre fichier.",
+	"upload_select_files": "Sélectionnez au moins un fichier.",
+	"upload_invalid": "Impossible de lire cet envoi. Sélectionnez vos fichiers et réessayez.",
+	"upload_unsupported_type": "Choisissez un fichier PDF, PNG, JPEG ou WebP.",
+	"error_title": "Impossible de terminer la requête"
 }

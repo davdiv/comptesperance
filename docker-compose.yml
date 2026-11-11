@@ -32,6 +32,8 @@ services:
     environment:
       DATA_REPO_PATH: /data
       CACHE_DB_PATH: /cache/comptes.sqlite
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-100M}
+      MAX_EVIDENCE_BYTES: ${MAX_EVIDENCE_BYTES:-26214400}
       AUTH_DISABLED: 'false'
       AUTH_LOGIN_URL: ${AUTH_LOGIN_URL:-https://auth.comptes.localhost:8443/}
       AUTH_LOGOUT_URL: ${AUTH_LOGOUT_URL:-https://auth.comptes.localhost:8443/logout}
