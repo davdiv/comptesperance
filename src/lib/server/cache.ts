@@ -1,15 +1,15 @@
-import { defaultCategory } from './transaction-defaults';
+import { resolveImport } from './import-rules';
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type {
 	ManualTransaction,
 	ParsedTransaction,
-	TransactionAnnotation,
-	PaymentMode
+	DataConfig,
+	ThirdParty,
+	Project
 } from '#lib/types.ts';
 import { detectCsvFormat, parseCsvStatement } from './csv';
-import { guessPaymentMode } from './payment-modes';
 import { enrichSumupSales } from './csv/sumup';
 import { readConfig } from './config';
 import { getEnv } from './env';
@@ -69,6 +69,8 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 	await rm(`${dbPath}-shm`, { force: true });
 
 	const config = await readConfig(root);
+	const parties = await listThirdParties(root);
+	const projects = await listProjects(root);
 	const db = new DatabaseSync(dbPath);
 	db.exec(`
 		PRAGMA foreign_keys = OFF;
@@ -113,8 +115,9 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			notes TEXT NOT NULL,
 			category_id TEXT NOT NULL,
 			payment_mode_id TEXT NOT NULL,
-			category_is_guessed INTEGER NOT NULL,
-			payment_mode_is_guessed INTEGER NOT NULL,
+			sources_json TEXT NOT NULL,
+			suggested_project_id TEXT,
+			suggested_project_rule_json TEXT,
 			allocations_json TEXT NOT NULL,
 			transfer_id TEXT,
 			evidence_json TEXT NOT NULL,
@@ -186,8 +189,8 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			account_id, id, date, value_date, amount_cents, label, description,
 			record_type, status, raw_json, attributes_json, source, source_files_json,
 			third_party_id, notes, category_id, payment_mode_id, allocations_json, transfer_id, evidence_json, excluded,
-			category_is_guessed, payment_mode_is_guessed
-		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			sources_json, suggested_project_id, suggested_project_rule_json
+		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
 	const insertCheckpoint = db.prepare(
 		'INSERT INTO balance_checkpoints (account_id, id, date, balance_cents, source, note, statement_file, ignored) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -229,7 +232,10 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 		}
 
 		const statementFiles = await listCsvFiles(accountFile.dir);
-		const byId = new Map<string, { transaction: ParsedTransaction; sourceFiles: Set<string> }>();
+		const byId = new Map<
+			string,
+			{ transaction: ParsedTransaction; sourceFiles: Set<string>; format: string }
+		>();
 		for (const relativeFile of statementFiles) {
 			const fullPath = safeJoin(accountFile.dir, 'statements', relativeFile);
 			try {
@@ -268,6 +274,7 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 					if (existing) existing.sourceFiles.add(relativeFile);
 					else {
 						byId.set(transaction.id, {
+							format,
 							transaction,
 							sourceFiles: new Set([relativeFile])
 						});
@@ -283,14 +290,16 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 		}
 
 		enrichSumupSales([...byId.values()].map((item) => item.transaction));
-		for (const { transaction, sourceFiles } of byId.values()) {
+		for (const { transaction, sourceFiles, format } of byId.values()) {
 			insertTransaction.run(
 				...csvTransactionValues(
 					accountFile,
 					transaction,
 					[...sourceFiles].sort(),
-					config.paymentModes,
-					defaultCategory(transaction, config.categories)
+					config,
+					parties,
+					projects,
+					format
 				)
 			);
 		}
@@ -361,11 +370,21 @@ function csvTransactionValues(
 	accountFile: StoredAccountFile,
 	transaction: ParsedTransaction,
 	sourceFiles: string[],
-	modes: PaymentMode[],
-	feeCategory?: string
+	config: DataConfig,
+	parties: ThirdParty[],
+	projects: Project[],
+	format: string
 ): (string | number | null)[] {
-	const annotation: TransactionAnnotation | undefined = accountFile.annotations?.[transaction.id];
-	const excluded = annotation?.excluded ?? transaction.excluded;
+	const annotation = accountFile.annotations?.[transaction.id];
+	const resolved = resolveImport(
+		transaction,
+		annotation ?? {},
+		accountFile.account.id,
+		format,
+		config,
+		parties,
+		projects
+	);
 	return [
 		accountFile.account.id,
 		transaction.id,
@@ -380,16 +399,17 @@ function csvTransactionValues(
 		JSON.stringify(transaction.attributes ?? {}),
 		'csv',
 		JSON.stringify(sourceFiles),
-		annotation?.third_party_id ?? null,
+		resolved.values.third_party_id,
 		annotation?.notes ?? '',
-		annotation?.category_id ?? (transaction.record_type === 'fee' ? (feeCategory ?? '') : ''),
-		annotation?.payment_mode_id ?? guessPaymentMode(transaction, modes),
+		resolved.values.category_id,
+		resolved.values.payment_mode_id,
 		JSON.stringify(annotation?.allocations ?? []),
 		annotation?.transfer_id ?? null,
 		JSON.stringify(annotation?.evidence ?? []),
-		excluded ? 1 : 0,
-		annotation?.category_id === undefined ? 1 : 0,
-		annotation?.payment_mode_id === undefined ? 1 : 0
+		resolved.values.excluded ? 1 : 0,
+		JSON.stringify(resolved.sources),
+		resolved.suggested_project_id,
+		JSON.stringify(resolved.suggested_project_rule)
 	];
 }
 
@@ -420,7 +440,15 @@ function manualTransactionValues(
 		transaction.transfer_id ?? null,
 		JSON.stringify(transaction.evidence ?? []),
 		excluded ? 1 : 0,
-		0,
-		0
+		JSON.stringify(
+			Object.fromEntries(
+				['third_party_id', 'category_id', 'payment_mode_id', 'excluded'].map((field) => [
+					field,
+					{ source: 'explicit' }
+				])
+			)
+		),
+		null,
+		null
 	];
 }

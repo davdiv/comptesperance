@@ -29,7 +29,8 @@ import {
 	unlinkTransfer,
 	updateManualTransaction,
 	setTransactionAllocations,
-	upsertAnnotation
+	upsertAnnotation,
+	resetAutomaticField
 } from '#lib/server/repository.ts';
 async function setEvidence(
 	source: 'csv' | 'manual',
@@ -114,6 +115,25 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
+	reset_automatic: async ({ request, locals, params }) => {
+		requireWrite(locals.user);
+		const form = await request.formData();
+		try {
+			await resetAutomaticField(params.account_id, params.id, String(form.get('field') ?? ''));
+		} catch {
+			return fail(400, { error: m.config_invalid() });
+		}
+		return { ok: true };
+	},
+	apply_suggested_project: async ({ locals, params }) => {
+		requireWrite(locals.user);
+		const transaction = await getTransaction(params.account_id, params.id);
+		if (!transaction?.suggested_project_id) return fail(400, { error: m.allocation_invalid() });
+		await setTransactionAllocations({ account_id: params.account_id, transaction_id: params.id }, [
+			{ project_id: transaction.suggested_project_id, amount_cents: transaction.amount_cents }
+		]);
+		return { ok: true };
+	},
 	link_group_suggestion: linkBalancedSuggestions,
 	edit_allocation: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
@@ -150,8 +170,16 @@ export const actions: Actions = {
 					annotationFromTransaction(transaction, {
 						notes: String(form.get('notes') ?? '').trim() || undefined,
 						...editedClassification(transaction, form),
-						third_party_id: String(form.get('third_party_id') ?? '') || null,
-						excluded
+						third_party_id:
+							transaction.sources.third_party_id.source !== 'explicit' &&
+							(String(form.get('third_party_id') ?? '') || null) === transaction.third_party_id
+								? undefined
+								: String(form.get('third_party_id') ?? '') || null,
+						excluded:
+							transaction.sources.excluded.source !== 'explicit' &&
+							excluded === transaction.excluded
+								? undefined
+								: excluded
 					})
 				);
 			}

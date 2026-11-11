@@ -1,4 +1,12 @@
 {
+	"import_source_none": "Aucune valeur automatique",
+	"import_source_explicit": "Défini manuellement",
+	"import_source_rule": "Par la règle : {name}",
+	"import_source_alias": "Alias de tiers",
+	"import_source_guess": "Détection automatique",
+	"import_reset": "Rétablir la valeur automatique",
+	"import_project_suggestion": "Suggéré par la règle {rule} : projet {project}",
+	"import_apply": "Appliquer",
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"app_title": "Comptes d’espérance",
 	"nav_dashboard": "Tableau de bord",

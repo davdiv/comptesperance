@@ -9,6 +9,12 @@ it('titles grouped transactions Transfer rather than Link transfer', () => {
 		date: '2026-10-01',
 		label: 'Sale',
 		source: 'csv',
+		sources: Object.fromEntries(
+			['third_party_id', 'category_id', 'payment_mode_id', 'excluded'].map((field) => [
+				field,
+				{ source: 'guess' }
+			])
+		),
 		amount_cents: 100,
 		allocations: [],
 		evidence: [],
@@ -57,6 +63,12 @@ it('ignores orphan allocations in the add-form remainder and exposes removal onl
 						date: '2026-10-03',
 						label: 'Sale',
 						source: 'csv',
+						sources: Object.fromEntries(
+							['third_party_id', 'category_id', 'payment_mode_id', 'excluded'].map((field) => [
+								field,
+								{ source: 'guess' }
+							])
+						),
 						amount_cents: 10000,
 						allocations: [
 							{ project_id: 'active', amount_cents: 2000 },

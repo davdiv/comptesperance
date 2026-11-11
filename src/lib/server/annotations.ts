@@ -5,17 +5,8 @@ export function annotationFromTransaction(
 	transaction: TransactionView,
 	overrides: Partial<TransactionAnnotation> = {}
 ): TransactionAnnotation {
-	return {
-		notes: transaction.notes || undefined,
-		category_id: transaction.category_is_guessed ? undefined : transaction.category_id,
-		payment_mode_id: transaction.payment_mode_is_guessed ? undefined : transaction.payment_mode_id,
-		allocations: transaction.allocations,
-		third_party_id: transaction.third_party_id,
-		transfer_id: transaction.transfer_id,
-		evidence: transaction.evidence,
-		excluded: transaction.excluded,
-		...overrides
-	};
+	void transaction;
+	return overrides;
 }
 
 export function editedClassification(transaction: TransactionView, form: FormData) {
@@ -23,10 +14,13 @@ export function editedClassification(transaction: TransactionView, form: FormDat
 	const mode = String(form.get('payment_mode_id') ?? '').trim();
 	return {
 		category_id:
-			transaction.category_is_guessed && category === transaction.category_id
+			transaction.sources.category_id.source !== 'explicit' && category === transaction.category_id
 				? undefined
 				: category,
 		payment_mode_id:
-			transaction.payment_mode_is_guessed && mode === transaction.payment_mode_id ? undefined : mode
+			transaction.sources.payment_mode_id.source !== 'explicit' &&
+			mode === transaction.payment_mode_id
+				? undefined
+				: mode
 	};
 }

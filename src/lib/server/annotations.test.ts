@@ -4,28 +4,26 @@ import type { TransactionView } from './queries';
 const transaction = {
 	category_id: 'frais-bancaires',
 	payment_mode_id: 'carte',
-	category_is_guessed: true,
-	payment_mode_is_guessed: true,
+	sources: { category_id: { source: 'guess' }, payment_mode_id: { source: 'guess' } },
 	notes: '',
 	allocations: [],
 	evidence: ['doc.pdf'],
 	excluded: false
 } as unknown as TransactionView;
 it('does not copy effective classifications into non-edit annotation rewrites', () => {
-	expect(annotationFromTransaction(transaction, { evidence: [] })).toMatchObject({
-		category_id: undefined,
-		payment_mode_id: undefined,
-		evidence: []
-	});
+	expect(annotationFromTransaction(transaction, { evidence: [] })).toEqual({ evidence: [] });
 	expect(
 		annotationFromTransaction({
 			...transaction,
-			category_is_guessed: false,
-			payment_mode_is_guessed: false,
+			sources: {
+				...transaction.sources,
+				category_id: { source: 'explicit' },
+				payment_mode_id: { source: 'explicit' }
+			},
 			category_id: '',
 			payment_mode_id: ''
 		})
-	).toMatchObject({ category_id: '', payment_mode_id: '' });
+	).toEqual({});
 });
 it('keeps unchanged defaults dynamic but persists changed, cleared or existing explicit classifications', () => {
 	for (const [category, mode, expected] of [
@@ -43,7 +41,14 @@ it('keeps unchanged defaults dynamic but persists changed, cleared or existing e
 	form.set('payment_mode_id', 'carte');
 	expect(
 		editedClassification(
-			{ ...transaction, category_is_guessed: false, payment_mode_is_guessed: false },
+			{
+				...transaction,
+				sources: {
+					...transaction.sources,
+					category_id: { source: 'explicit' },
+					payment_mode_id: { source: 'explicit' }
+				}
+			},
 			form
 		)
 	).toEqual({ category_id: 'frais-bancaires', payment_mode_id: 'carte' });

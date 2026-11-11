@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FieldSourceHint from '#lib/components/FieldSourceHint.svelte';
 	import TransferGroupSuggestion from '#lib/components/TransferGroupSuggestion.svelte';
 	import TransferGroupCard from '#lib/components/TransferGroupCard.svelte';
 	import TransferSuggestion from '#lib/components/TransferSuggestion.svelte';
@@ -40,6 +41,34 @@
 </script>
 
 <div class="max-w-6xl space-y-6">
+	{#if !isManual}
+		<div class="panel space-y-2 p-4">
+			{#each [['third_party_id', m.common_third_party()], ['category_id', m.common_category()], ['payment_mode_id', m.payment_mode()], ['excluded', m.transaction_excluded()]] as [field, label]}
+				<FieldSourceHint
+					source={transaction.sources[field as keyof typeof transaction.sources]}
+					{field}
+					{label}
+					canWrite={data.user.canWrite}
+				/>
+			{/each}
+			{#if data.user.canWrite && transaction.suggested_project_id}
+				<form
+					method="POST"
+					action="?/apply_suggested_project"
+					class="flex flex-wrap items-center gap-2 text-sm"
+				>
+					<span
+						>{m.import_project_suggestion({
+							rule: transaction.suggested_project_rule?.rule_name ?? '',
+							project:
+								data.projects.find((p) => p.id === transaction.suggested_project_id)?.name ?? ''
+						})}</span
+					>
+					<button type="submit" class="btn btn-secondary">{m.import_apply()}</button>
+				</form>
+			{/if}
+		</div>
+	{/if}
 	<PageHeader
 		title={transaction.label || m.transactions_title()}
 		subtitle={formatDate(transaction.date)}
