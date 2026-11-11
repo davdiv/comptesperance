@@ -170,7 +170,8 @@ export async function listAccountsWithTotals(
 				balance_cents: Number(checkpoint.balance_cents),
 				source: checkpoint.source as BalanceCheckpoint['source'],
 				note: stringOrNull(checkpoint.note) ?? undefined,
-				statement_file: stringOrNull(checkpoint.statement_file) ?? undefined
+				statement_file: stringOrNull(checkpoint.statement_file) ?? undefined,
+				ignored: Boolean(checkpoint.ignored)
 			}));
 		const transactions = transactionQuery.all(String(row.id)).map((transaction) => ({
 			date: String(transaction.date),

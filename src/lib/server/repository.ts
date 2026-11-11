@@ -16,6 +16,7 @@ import { ensureConfig } from './config';
 import { detectCsvFormat, parseCsvStatement } from './csv';
 import { getEnv } from './env';
 import { commitAll, ensureGitRepo } from './git';
+import { statementCheckpointKey } from './statement-checkpoints';
 import {
 	listDirectoryNames,
 	listFilesRecursive,
@@ -106,7 +107,12 @@ async function readStoredAccount(root: string, id: string): Promise<StoredAccoun
 	if (!parsed?.account) return null;
 	const account = parsed.account;
 	account.id = account.id || id;
-	const file: StoredAccountFile = { account, dir, checkpoints: parsed.checkpoints ?? [] };
+	const file: StoredAccountFile = {
+		account,
+		dir,
+		checkpoints: parsed.checkpoints ?? [],
+		ignored_statement_checkpoints: parsed.ignored_statement_checkpoints ?? []
+	};
 	if (account.source === 'csv') {
 		file.annotations = await readJsonFile<Record<string, TransactionAnnotation>>(
 			path.join(dir, 'annotations.json'),
@@ -120,7 +126,11 @@ async function readStoredAccount(root: string, id: string): Promise<StoredAccoun
 
 async function writeStoredAccount(root: string, file: StoredAccountFile): Promise<void> {
 	const { dir, ...stored } = file;
-	const payload: AccountFile = { account: stored.account, checkpoints: stored.checkpoints ?? [] };
+	const payload: AccountFile = {
+		account: stored.account,
+		checkpoints: stored.checkpoints ?? [],
+		ignored_statement_checkpoints: stored.ignored_statement_checkpoints ?? []
+	};
 	if (stored.account.source === 'manual') {
 		payload.transactions = stored.transactions ?? [];
 		await writeJsonFile(path.join(dir, 'account.json'), payload);
@@ -128,7 +138,8 @@ async function writeStoredAccount(root: string, file: StoredAccountFile): Promis
 		payload.annotations = stored.annotations ?? {};
 		await writeJsonFile(path.join(dir, 'account.json'), {
 			account: stored.account,
-			checkpoints: payload.checkpoints
+			checkpoints: payload.checkpoints,
+			ignored_statement_checkpoints: payload.ignored_statement_checkpoints
 		});
 		await writeJsonFile(path.join(dir, 'annotations.json'), payload.annotations);
 	}
@@ -892,6 +903,35 @@ function validateCheckpoint(input: Omit<ManualCheckpoint, 'id'>): void {
 	const parsed = new Date(input.date + 'T00:00:00.000Z');
 	if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== input.date)
 		throw new Error('checkpoint_invalid');
+}
+
+export async function setStatementCheckpointIgnored(
+	accountId: string,
+	id: string,
+	ignored: boolean,
+	root?: string
+): Promise<void> {
+	const repo = await repoRoot(root);
+	const file = await readStoredAccount(repo, accountId);
+	if (!file || file.account.source !== 'csv' || !id.startsWith('statement:'))
+		throw new Error('Checkpoint not found');
+	const content = await readTextFile(
+		safeJoin(file.dir, 'statements', id.slice('statement:'.length))
+	);
+	if (detectCsvFormat(content) !== 'ccp') throw new Error('Checkpoint not found');
+	const parsed = parseCsvStatement(content, 'ccp');
+	if (!parsed.account?.statement_date || parsed.account.closing_balance_cents === null)
+		throw new Error('Checkpoint not found');
+	const key = statementCheckpointKey(content);
+	const keys = new Set(file.ignored_statement_checkpoints ?? []);
+	if (ignored) keys.add(key);
+	else keys.delete(key);
+	file.ignored_statement_checkpoints = [...keys];
+	await writeStoredAccount(repo, file);
+	await commitData(
+		repo,
+		`data: ${ignored ? 'ignore' : 'restore'} statement checkpoint on ${accountId}`
+	);
 }
 
 export async function addManualCheckpoint(

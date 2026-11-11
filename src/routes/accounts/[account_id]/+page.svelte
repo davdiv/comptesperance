@@ -59,7 +59,7 @@
 		<p class="font-medium">{m.account_issues()}</p>
 		<ul class="mt-1 list-disc pl-4">
 			{#each data.issues as issue (issue.id)}<li>{issue.message}</li>{/each}
-			{#each account.checkpoints.filter((checkpoint) => checkpoint.difference_cents !== 0) as checkpoint (checkpoint.id)}
+			{#each account.checkpoints.filter((checkpoint) => !checkpoint.ignored && checkpoint.difference_cents !== 0) as checkpoint (checkpoint.id)}
 				<li>
 					{m.checkpoint_issue({
 						date: formatDate(checkpoint.date),

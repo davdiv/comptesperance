@@ -51,11 +51,13 @@ export interface ManualCheckpoint {
 export interface BalanceCheckpoint extends ManualCheckpoint {
 	source: 'statement' | 'manual';
 	statement_file?: string;
+	ignored?: boolean;
 }
 
 export interface AccountFile {
 	account: Account;
 	checkpoints?: ManualCheckpoint[];
+	ignored_statement_checkpoints?: string[];
 	transactions?: ManualTransaction[];
 	annotations?: Record<string, TransactionAnnotation>;
 }

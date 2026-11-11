@@ -2,6 +2,38 @@ import { expect, it } from 'vitest';
 import type { BalanceCheckpoint } from '#lib/types.ts';
 import { calculateBalance } from './balances';
 
+it('excludes ignored statements from anchors and warnings, including when every checkpoint is ignored', () => {
+	const ignored: BalanceCheckpoint = {
+		id: 'ignored',
+		date: '2026-10-05',
+		balance_cents: 50000,
+		source: 'statement',
+		ignored: true
+	};
+	const active: BalanceCheckpoint = {
+		id: 'manual',
+		date: '2026-10-01',
+		balance_cents: 1000,
+		source: 'manual'
+	};
+	const transactions = [{ date: '2026-10-03', amount_cents: 100 }];
+	const result = calculateBalance([ignored, active], transactions);
+	expect(result).toMatchObject({ current_balance_cents: 1100, anchor: active, mismatch_count: 0 });
+	expect(result.checkpoints.find((c) => c.id === 'ignored')).toMatchObject({
+		is_anchor: false,
+		computed_balance_cents: 1100
+	});
+	expect(calculateBalance([ignored], transactions)).toMatchObject({
+		current_balance_cents: 100,
+		anchor: null,
+		mismatch_count: 0
+	});
+	expect(calculateBalance([{ ...ignored, ignored: false }, active], transactions)).toMatchObject({
+		current_balance_cents: 50000,
+		mismatch_count: 1
+	});
+});
+
 const checkpoint = (
 	id: string,
 	date: string,

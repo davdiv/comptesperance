@@ -9,7 +9,8 @@ import {
 	createManualTransaction,
 	updateAccount,
 	addManualCheckpoint,
-	deleteManualCheckpoint
+	deleteManualCheckpoint,
+	setStatementCheckpointIgnored
 } from '#lib/server/repository.ts';
 
 export const load: PageServerLoad = async ({ params, url }) => {
@@ -28,6 +29,23 @@ export const load: PageServerLoad = async ({ params, url }) => {
 };
 
 export const actions: Actions = {
+	set_checkpoint_ignored: async ({ request, locals, params }) => {
+		requireWrite(locals.user);
+		const form = await request.formData();
+		const ignored = form.get('ignored');
+		if (ignored !== 'true' && ignored !== 'false')
+			return fail(400, { error: m.checkpoint_invalid() });
+		try {
+			await setStatementCheckpointIgnored(
+				params.account_id,
+				String(form.get('checkpoint_id') ?? ''),
+				ignored === 'true'
+			);
+		} catch {
+			return fail(400, { error: m.checkpoint_invalid() });
+		}
+		return { ok: true };
+	},
 	add_checkpoint: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
 		const form = await request.formData();

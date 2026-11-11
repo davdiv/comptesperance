@@ -2,7 +2,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { statusFingerprint } from './git';
+import { commitAll, statusFingerprint } from './git';
+import { importCsvFile } from './importer';
 import { getDatabase } from './cache';
 import {
 	createAccount,
@@ -12,7 +13,9 @@ import {
 	setTransactionAllocations,
 	upsertAnnotation,
 	deleteProject,
-	deleteManualTransaction
+	deleteManualTransaction,
+	setStatementCheckpointIgnored,
+	updateAccount
 } from './repository';
 import {
 	getAccountWithTotals,
@@ -218,6 +221,77 @@ it('derives every CCP header checkpoint, deduplicates transactions, and does not
 	expect(stored.checkpoints[0]).not.toHaveProperty('source');
 	expect(stored.checkpoints[0]).not.toHaveProperty('statement_file');
 });
+it('persists ignore decisions across re-imports and account edits, and restores statements with one commit each', async () => {
+	const account = await createAccount({ name: 'Ignored CCP', source: 'csv' }, root);
+	const content = await readFile(new URL('./csv/testdata/ccp-sample.csv', import.meta.url), 'utf8');
+	await importCsvFile(account.id, 'sample.csv', content, 'ccp', root);
+	await addManualCheckpoint(account.id, { date: '2026-10-02', balance_cents: 274800 }, root);
+	const before = await getAccountWithTotals(account.id);
+	expect(before?.mismatch_count).toBe(1);
+	const statement = before!.checkpoints.find((c) => c.source === 'statement')!;
+	let commits = vi.mocked(commitAll).mock.calls.length;
+	await setStatementCheckpointIgnored(account.id, statement.id, true, root);
+	expect(commitAll).toHaveBeenCalledTimes(commits + 1);
+	vi.mocked(statusFingerprint).mockResolvedValue('ignored');
+	expect(await getAccountWithTotals(account.id)).toMatchObject({
+		current_balance_cents: 274800,
+		mismatch_count: 0,
+		anchor: { source: 'manual' }
+	});
+	await updateAccount(account.id, { notes: 'Keep ignore decision' }, root);
+	await importCsvFile(account.id, 'sample.csv', content, 'ccp', root);
+	await importCsvFile(account.id, 'renamed.csv', content, 'ccp', root);
+	vi.mocked(statusFingerprint).mockResolvedValue('re-imported');
+	const reimported = await getAccountWithTotals(account.id);
+	expect(reimported).toMatchObject({
+		current_balance_cents: 274800,
+		mismatch_count: 0,
+		transaction_count: 4
+	});
+	expect(reimported!.checkpoints.filter((c) => c.source === 'statement')).toHaveLength(3);
+	expect(
+		reimported!.checkpoints
+			.filter((c) => c.source === 'statement')
+			.every((c) => c.ignored && !c.is_anchor)
+	).toBe(true);
+	const stored = JSON.parse(
+		await readFile(path.join(root, 'accounts', account.id, 'account.json'), 'utf8')
+	);
+	expect(stored.ignored_statement_checkpoints).toHaveLength(1);
+	expect(stored.checkpoints).toHaveLength(1);
+	commits = vi.mocked(commitAll).mock.calls.length;
+	await setStatementCheckpointIgnored(account.id, statement.id, false, root);
+	expect(commitAll).toHaveBeenCalledTimes(commits + 1);
+	vi.mocked(statusFingerprint).mockResolvedValue('restored');
+	const restored = await getAccountWithTotals(account.id);
+	expect(restored).toMatchObject({
+		current_balance_cents: 274853,
+		mismatch_count: 1,
+		anchor: { source: 'statement' }
+	});
+	expect(restored!.checkpoints.every((c) => !c.ignored)).toBe(true);
+});
+
+it('rejects invalid statement checkpoint mutations without committing', async () => {
+	const account = await createAccount({ name: 'CCP validation', source: 'csv' }, root);
+	const sumup = await readFile(new URL('./csv/testdata/sumup-sample.csv', import.meta.url), 'utf8');
+	await importCsvFile(account.id, 'sumup.csv', sumup, 'sumup', root);
+	const commits = vi.mocked(commitAll).mock.calls.length;
+	for (const id of [
+		'',
+		'manual',
+		'statement:missing.csv',
+		'statement:../../../config/app.json',
+		'statement:sumup.csv'
+	]) {
+		await expect(setStatementCheckpointIgnored(account.id, id, true, root)).rejects.toThrow();
+	}
+	await expect(
+		setStatementCheckpointIgnored('missing-account', 'statement:file.csv', true, root)
+	).rejects.toThrow();
+	expect(commitAll).toHaveBeenCalledTimes(commits);
+});
+
 it('loads manual checkpoints for manual and CSV accounts even without transactions', async () => {
 	for (const source of ['manual', 'csv'] as const) {
 		const account = await createAccount(

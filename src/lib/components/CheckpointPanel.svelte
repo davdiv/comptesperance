@@ -24,12 +24,13 @@
 				>
 				<tbody
 					>{#each checkpoints as checkpoint (checkpoint.id)}
-						<tr>
+						<tr class={checkpoint.ignored ? 'bg-stone-50 text-stone-400' : ''}>
 							<td class="whitespace-nowrap tabular-nums">{formatDate(checkpoint.date)}</td>
 							<td
 								><span
-									class="badge {checkpoint.source === 'statement' ? 'badge-blue' : 'badge-neutral'}"
-									>{checkpointSourceLabel(checkpoint.source)}</span
+									class="badge {checkpoint.source === 'statement' && !checkpoint.ignored
+										? 'badge-blue'
+										: 'badge-neutral'}">{checkpointSourceLabel(checkpoint.source)}</span
 								>
 								{#if checkpoint.statement_file}<div
 										class="mt-1 max-w-48 truncate text-xs text-stone-500"
@@ -42,9 +43,14 @@
 									</div>{/if}
 							</td>
 							<td class="num font-medium">{formatMoney(checkpoint.balance_cents)}</td>
-							<td class="num">{formatMoney(checkpoint.computed_balance_cents)}</td>
+							<td class="num"
+								>{checkpoint.ignored ? '—' : formatMoney(checkpoint.computed_balance_cents)}</td
+							>
 							<td>
-								{#if checkpoint.difference_cents === 0}<span class="badge badge-neutral"
+								{#if checkpoint.ignored}<span class="badge badge-neutral"
+										>{m.checkpoint_ignored()}</span
+									>
+								{:else if checkpoint.difference_cents === 0}<span class="badge badge-neutral"
 										>{m.checkpoint_ok()}</span
 									>
 								{:else}<span class="badge badge-amber"
@@ -67,6 +73,18 @@
 											<input type="hidden" name="checkpoint_id" value={checkpoint.id} />
 											<button class="btn-icon text-red-700" aria-label={m.common_delete()}
 												><Icon name="trash" /></button
+											>
+										</form>{:else}<form method="POST" action="?/set_checkpoint_ignored">
+											<input type="hidden" name="checkpoint_id" value={checkpoint.id} />
+											<input
+												type="hidden"
+												name="ignored"
+												value={checkpoint.ignored ? 'false' : 'true'}
+											/>
+											<button class="btn-secondary btn-sm"
+												>{checkpoint.ignored
+													? m.checkpoint_restore()
+													: m.checkpoint_ignore()}</button
 											>
 										</form>{/if}</td
 								>{/if}
