@@ -44,7 +44,8 @@ The Docker image defaults to `TZ=Europe/Paris` for local times, including PDF
 generation timestamps (which include a time zone label). Override `TZ` with an
 IANA time zone such as `UTC` using `docker run -e TZ=UTC` or the Compose service's
 `environment` configuration. Local development uses the host time zone unless
-`TZ` is set (as in `.env.example`).
+`TZ` is set in the shell (e.g. `TZ=Europe/Paris npm run dev`); `.env` does not
+set it for the Node process.
 
 ### Non-root runtime and existing volumes
 
