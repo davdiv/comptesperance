@@ -5,6 +5,8 @@ import { listDocuments } from './repository';
 import {
 	getProjectDetails,
 	getTransaction,
+	listAccountsWithTotals,
+	listThirdPartiesWithCounts,
 	listProjectsWithTotals,
 	listTransactions,
 	listDocumentsWithLinks
@@ -66,7 +68,11 @@ it('searches category and payment mode display names rather than opaque ids', as
 		expect(result.transactions.map((transaction) => transaction.id)).toEqual(['sale']);
 	}
 	for (const search of ['category-uuid', 'mode-uuid', 'missing']) {
-		expect(await listTransactions({ search })).toEqual({ transactions: [], total: 0 });
+		expect(await listTransactions({ search })).toEqual({
+			transactions: [],
+			total: 0,
+			total_cents: 0
+		});
 	}
 	db.exec('DELETE FROM categories; DELETE FROM payment_modes;');
 	expect((await listTransactions({ search: 'Fundraising' })).total).toBe(0);
@@ -74,6 +80,21 @@ it('searches category and payment mode display names rather than opaque ids', as
 });
 
 describe('getProjectDetails', () => {
+	it('omits net-zero accounts while retaining their allocations in overall totals and counts', async () => {
+		addAllocation('in', 'group');
+		addAllocation('out', 'group');
+		db.exec("UPDATE project_allocations SET amount_cents = -1250 WHERE transaction_id = 'out'");
+		for (const includeTransfers of [false, true]) {
+			const details = await getProjectDetails('project', includeTransfers);
+			expect(details?.total_cents).toBe(0);
+			expect(details?.by_account).toEqual([]);
+			expect(details?.allocations).toHaveLength(includeTransfers ? 2 : 0);
+		}
+		expect((await listProjectsWithTotals())[0]).toMatchObject({
+			total_cents: 0,
+			allocation_count: 2
+		});
+	});
 	it.each([
 		[1, 1],
 		[1, 0],
@@ -120,19 +141,21 @@ describe('getProjectDetails', () => {
 		});
 	});
 
-	it('filters transfers from allocations and totals unless explicitly included', async () => {
+	it('filters transfer rows without changing project totals, counts or account summaries', async () => {
 		addAllocation('sale');
 		addAllocation('transfer', 'transfer-id');
 		db.exec("INSERT INTO project_allocations VALUES ('project', 'cash', 'orphan', 999, NULL)");
 		const filtered = await getProjectDetails('project');
 		expect(filtered?.allocations.map((a) => a.transaction?.id)).toEqual(['sale']);
-		expect(filtered?.total_cents).toBe(1250);
+		expect(filtered?.total_cents).toBe(2500);
 		const [listed] = await listProjectsWithTotals();
 		expect(listed.total_cents).toBe(filtered?.total_cents);
-		expect(listed.allocation_count).toBe(filtered?.allocations.length);
+		expect(listed.allocation_count).toBe(2);
 		const included = await getProjectDetails('project', true);
 		expect(included?.allocations).toHaveLength(2);
-		expect(included?.total_cents).toBe(2500);
+		expect(included?.total_cents).toBe(filtered?.total_cents);
+		expect(included?.by_account).toEqual(filtered?.by_account);
+		expect(filtered?.by_account[0]).toMatchObject({ amount_cents: 2500, count: 2 });
 	});
 
 	it('ignores allocations with missing transactions', async () => {
@@ -156,6 +179,70 @@ describe('getProjectDetails', () => {
 
 	it('returns null for a missing project', async () => {
 		expect(await getProjectDetails('missing')).toBeNull();
+	});
+});
+
+it('keeps transaction counts and amounts independent of transfer visibility and pagination, respecting other filters and exclusions', async () => {
+	for (const [id, amount, transfer, excluded] of [
+		['sale', 2500, null, 0],
+		['transfer', -1250, 'group', 0],
+		['excluded', 900, 'group', 1]
+	] as const) {
+		addAllocation(id, transfer);
+		db.prepare(
+			"UPDATE transactions SET amount_cents = ?, excluded = ?, date = '2026-10-03' WHERE id = ?"
+		).run(amount, excluded, id);
+	}
+	for (const include_transfers of [false, true]) {
+		const result = await listTransactions({
+			account_id: 'cash',
+			search: 'Vente',
+			date_from: '2026-10-03',
+			date_to: '2026-10-03',
+			project_id: 'project',
+			include_transfers
+		});
+		expect(result).toMatchObject({ total: 3, total_cents: 1250 });
+		expect(result.transactions).toHaveLength(include_transfers ? 3 : 1);
+		expect(
+			await listTransactions({ account_id: 'cash', include_transfers, limit: 1, offset: 3 })
+		).toEqual({ transactions: [], total: 3, total_cents: 1250 });
+		expect(await listTransactions({ account_id: 'missing', include_transfers })).toEqual({
+			transactions: [],
+			total: 0,
+			total_cents: 0
+		});
+	}
+});
+
+it('includes transfer members in account and third-party summaries', async () => {
+	db.exec(`
+  ALTER TABLE accounts ADD COLUMN notes TEXT;
+  ALTER TABLE accounts ADD COLUMN source TEXT DEFAULT 'manual';
+  CREATE TABLE balance_checkpoints (account_id TEXT);
+  ALTER TABLE third_parties ADD COLUMN aliases_json TEXT DEFAULT '[]';
+  ALTER TABLE third_parties ADD COLUMN created_at TEXT DEFAULT '';
+  ALTER TABLE third_parties ADD COLUMN updated_at TEXT DEFAULT '';
+ `);
+	for (const [id, amount, transfer] of [
+		['sale', 2500, null],
+		['transfer', -1250, 'group']
+	] as const) {
+		addAllocation(id, transfer);
+		db.prepare('UPDATE transactions SET amount_cents = ?, excluded = 0 WHERE id = ?').run(
+			amount,
+			id
+		);
+	}
+	expect((await listAccountsWithTotals())[0]).toMatchObject({
+		incoming_cents: 2500,
+		outgoing_cents: -1250,
+		current_balance_cents: 1250,
+		transaction_count: 2
+	});
+	expect((await listThirdPartiesWithCounts())[0]).toMatchObject({
+		total_cents: 1250,
+		transaction_count: 2
 	});
 });
 describe('transaction date filters', () => {
@@ -263,7 +350,7 @@ describe('transaction allocation names and filters', () => {
 		).toBe('Renamed');
 		const paged = await listTransactions({ allocation_status: 'allocated', limit: 1 });
 		expect(paged.transactions).toHaveLength(1);
-		expect(paged.total).toBe(2);
+		expect(paged.total).toBe(3);
 	});
 	it('distinguishes fully allocated, partially allocated and unallocated transactions', async () => {
 		const ids = async (status: string) =>
@@ -307,7 +394,8 @@ describe('transaction allocation names and filters', () => {
 		).toMatchObject({ project_id: 'removed', project_name: null });
 		expect(await listTransactions({ project_id: 'removed', account_id: 'missing' })).toEqual({
 			transactions: [],
-			total: 0
+			total: 0,
+			total_cents: 0
 		});
 	});
 });
