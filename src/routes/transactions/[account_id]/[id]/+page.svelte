@@ -361,6 +361,31 @@
 					</form>
 				{:else}<EmptyState message={m.empty_state()} />{/if}
 			</section>
+			{#if data.sumupLinks}<section class="card">
+					<div class="card-header"><h2 class="card-title">SumUp</h2></div>
+					<div class="card-body space-y-3 text-sm">
+						<div class="flex justify-between">
+							<span>{m.sumup_gross()}</span><Amount
+								cents={Number(transaction.attributes?.total_amount_cents)}
+							/>
+						</div>
+						<div class="flex justify-between">
+							<span>{m.sumup_fee()}</span><Amount
+								cents={-Number(transaction.attributes?.fee_cents)}
+							/>
+						</div>
+						<div class="flex justify-between">
+							<span>{m.sumup_net()}</span><Amount
+								cents={Number(transaction.attributes?.payout_cents)}
+							/>
+						</div>
+						{#each [data.sumupLinks.fee, data.sumupLinks.payout] as item}{#if item}<a
+									class="row-link block"
+									href="/transactions/{item.account_id}/{item.id}"
+									>{item.label} · {formatDate(item.date)}</a
+								>{/if}{/each}
+					</div>
+				</section>{/if}
 			{#if transaction.source === 'csv' && transaction.raw.some((value) => value.trim().length > 0)}<div
 					class="card p-4"
 				>

@@ -9,6 +9,7 @@ import type {
 } from '$lib/types';
 import { detectCsvFormat, parseCsvStatement } from './csv';
 import { guessPaymentMode } from './payment-modes';
+import { enrichSumupSales } from './csv/sumup';
 import { readConfig } from './config';
 import { getEnv } from './env';
 import { statusFingerprint } from './git';
@@ -272,13 +273,20 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			}
 		}
 
+		enrichSumupSales([...byId.values()].map((item) => item.transaction));
 		for (const { transaction, sourceFiles } of byId.values()) {
 			insertTransaction.run(
 				...csvTransactionValues(
 					accountFile,
 					transaction,
 					[...sourceFiles].sort(),
-					config.paymentModes
+					config.paymentModes,
+					config.categories.find(
+						(category) =>
+							category.kind === 'expense' &&
+							!category.archived &&
+							/frais bancaires|bank fees|frais-bancaires/i.test(category.name + ' ' + category.id)
+					)?.id
 				)
 			);
 		}
@@ -349,7 +357,8 @@ function csvTransactionValues(
 	accountFile: StoredAccountFile,
 	transaction: ParsedTransaction,
 	sourceFiles: string[],
-	modes: PaymentMode[]
+	modes: PaymentMode[],
+	feeCategory?: string
 ): (string | number | null)[] {
 	const annotation: TransactionAnnotation | undefined = accountFile.annotations?.[transaction.id];
 	const excluded = annotation?.excluded ?? transaction.excluded;
@@ -369,7 +378,7 @@ function csvTransactionValues(
 		JSON.stringify(sourceFiles),
 		annotation?.third_party_id ?? null,
 		annotation?.notes ?? '',
-		annotation?.category_id ?? '',
+		annotation?.category_id ?? (transaction.record_type === 'fee' ? (feeCategory ?? '') : ''),
 		annotation?.payment_mode_id ?? guessPaymentMode(transaction, modes),
 		JSON.stringify(annotation?.allocations ?? []),
 		annotation?.transfer_id ?? null,

@@ -93,6 +93,18 @@ export const load: PageServerLoad = async ({ params }) => {
 	const accountNames = new Map(accounts.map((item) => [item.account_id, item.name]));
 	return {
 		transaction,
+		sumupLinks:
+			transaction.record_type === 'vente'
+				? {
+						fee: await getTransaction(transaction.account_id, transaction.id + ':fee'),
+						payout: transaction.attributes?.payout_transaction_id
+							? await getTransaction(
+									transaction.account_id,
+									transaction.attributes?.payout_transaction_id
+								)
+							: null
+					}
+				: null,
 		counterpart,
 		counterpartAccountName: counterpart
 			? (accountNames.get(counterpart.account_id) ?? counterpart.account_id)

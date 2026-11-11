@@ -5,6 +5,23 @@ import { detectCsvFormat, parseCsvStatement } from './index';
 const ccpSample = readFileSync(new URL('./testdata/ccp-sample.csv', import.meta.url), 'utf8');
 const sumupSample = readFileSync(new URL('./testdata/sumup-sample.csv', import.meta.url), 'utf8');
 
+it('separates gross SumUp sales, fees and dated net payouts with stable ids', () => {
+	const transactions = parseCsvStatement(sumupSample, 'sumup').transactions;
+	const sale = transactions.find((item) => item.status === 'Accepté')!;
+	const fee = transactions.find((item) => item.id === sale.id + ':fee')!;
+	const payout = transactions.find((item) => item.record_type === 'virement')!;
+	expect([sale.amount_cents, fee.amount_cents, payout.amount_cents]).toEqual([2300, -44, -2256]);
+	expect(sale.amount_cents + fee.amount_cents + payout.amount_cents).toBe(0);
+	expect(payout.date).toBe('2026-09-28');
+	expect(sale.description).toContain('1 x Montant personnalisé');
+	expect(sale.description).toContain('PID9000007');
+	expect(payout.description).toContain('PID9000007');
+	expect(transactions.filter((item) => item.record_type === 'fee')).toHaveLength(1);
+	expect(parseCsvStatement(sumupSample, 'sumup').transactions.map((item) => item.id)).toEqual(
+		transactions.map((item) => item.id)
+	);
+});
+
 describe('csv parsing', () => {
 	it('detects and parses the CCP sample', () => {
 		expect(detectCsvFormat(ccpSample)).toBe('ccp');
