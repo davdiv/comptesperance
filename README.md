@@ -40,6 +40,66 @@ Ready-to-use local users:
 
 Compose mounts the data git repo at `/data` and the disposable SQLite cache at `/cache`.
 
+### Non-root runtime and existing volumes
+
+The app image runs as `node` (UID/GID 1000:1000), not root. Its defaults are
+`DATA_REPO_PATH=/data` and `CACHE_DB_PATH=/cache/comptes.sqlite`. The image owns
+both directories, so Docker initializes fresh named volumes with the correct
+ownership. Documents/evidence under `/data/documents` and Git's `/data/.git`
+are created by that same user. Bind mounts must likewise be writable by UID 1000.
+
+Before upgrading an existing root-owned data/cache volume, back up the data repo,
+stop the app and fix ownership once (use the same Compose project as the deployment):
+
+```bash
+docker compose stop app
+docker compose build app
+docker compose run --rm --no-deps --user 0 app chown -R 1000:1000 /data /cache
+docker compose up -d --wait
+docker compose exec app id
+```
+
+Do not run the app as root or make volumes world-writable. Ownership also makes
+the data repository safe for Git; no `safe.directory=*` exemption is needed.
+Commits use the existing `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` settings through
+per-command Git configuration, so no writable global Git config is required.
+
+### Full-stack Playwright tests
+
+The E2E suite uses the real Traefik + Authelia + app stack, including the committed
+local fixture users above. Never point it at production: it creates accounts,
+transactions, projects, documents and repeated CSV imports. A fresh Compose
+project gives each run isolated data, cache and Authelia volumes.
+Only one stack can bind ports 8080/8443 at a time; stop any existing stack first
+without deleting its volumes.
+
+```bash
+npm ci
+npx playwright install --with-deps chromium
+export COMPOSE_PROJECT_NAME="comptes-e2e-$(date +%s)"
+docker compose up -d --build --wait --wait-timeout 120
+docker compose exec app id # uid=1000(node)
+PLAYWRIGHT_BASE_URL=https://comptes.localhost:8443 npm run test:e2e
+docker compose down --volumes # deletes only this disposable project's data
+```
+
+Playwright ignores the local self-signed certificate. Chromium resolves
+`*.localhost` to loopback; if Node/curl on your machine does not, add
+`127.0.0.1 comptes.localhost auth.comptes.localhost` to `/etc/hosts`.
+`PLAYWRIGHT_BASE_URL` defaults to the Compose app URL; Authelia/Traefik host rules
+must still match the URL you use.
+
+Tests cover signed-out redirects and return URLs, read-only permission checks,
+writer edit-mode switching, account/manual transaction/project allocation writes,
+a 2 MiB evidence upload and download, CCP/SumUp imports and stable rows/IDs on
+reimport, and sign-out. No preview server or auth bypass is used.
+`playwright-report/` contains the HTML report; failed tests retain screenshots
+and traces under `test-results/`.
+
+CI builds a fresh project per run, waits for service health, checks the non-root
+UID and runs this suite with Chromium. On failure it uploads the Playwright report,
+traces/screenshots and Compose logs, then always tears down the test volumes.
+
 Traefik uses Authelia's `/api/authz/forward-auth` endpoint, which handles redirects
 to sign-in and supplies trusted identity headers. The app itself returns 401 for
 requests without identity headers and 403 for signed-in users without an allowed
