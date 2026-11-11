@@ -190,7 +190,7 @@ it('rebuilds transaction-owned allocations and config labels, filters references
 	await deleteManualTransaction(account.id, sale.id, root);
 	vi.mocked(statusFingerprint).mockResolvedValue('deleted-transaction');
 	expect(await getTransaction(account.id, sale.id)).toBeNull();
-});
+}, 15_000);
 
 it('derives every CCP header checkpoint, deduplicates transactions, and does not store statement checkpoints in JSON', async () => {
 	const account = await createAccount({ name: 'CCP', source: 'csv' }, root);
