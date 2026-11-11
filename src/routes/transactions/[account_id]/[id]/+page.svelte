@@ -46,10 +46,11 @@
 		subtitle={formatDate(transaction.date)}
 		back={{ href: '/accounts/' + account.account_id, label: account.name }}
 	>
-		{#snippet actions()}<Amount
-				cents={transaction.amount_cents}
-				class="text-3xl font-semibold"
-			/>{/snippet}
+		{#snippet actions()}{#if data.user.canWrite && !isManual}<a
+					class="btn btn-secondary"
+					href={`/settings/rules?new=1&from_account=${encodeURIComponent(account.account_id)}&from_transaction=${encodeURIComponent(transaction.id)}#editor`}
+					>{m.rules_from_transaction()}</a
+				>{/if}<Amount cents={transaction.amount_cents} class="text-3xl font-semibold" />{/snippet}
 		{#snippet meta()}<span class="badge badge-blue">{accountSourceLabel(account.source)}</span>
 			{#if transaction.transfer_id}<span class="badge badge-violet">{m.common_transfers()}</span
 				>{/if}
@@ -58,32 +59,11 @@
 		{/snippet}
 	</PageHeader>
 	{#if !isManual}
-		<div class="card space-y-2 p-4">
-			{#each [['third_party_id', m.common_third_party()], ['category_id', m.common_category()], ['payment_mode_id', m.payment_mode()], ['excluded', m.transaction_excluded()]] as [field, label]}
-				<FieldSourceHint
-					source={transaction.sources[field as keyof typeof transaction.sources]}
-					{field}
-					{label}
-					canWrite={data.user.canWrite}
-				/>
-			{/each}
-			{#if data.user.canWrite && transaction.suggested_project_id}
-				<form
-					method="POST"
-					action="?/apply_suggested_project"
-					class="flex flex-wrap items-center gap-2 text-sm"
-				>
-					<span
-						>{m.import_project_suggestion({
-							rule: transaction.suggested_project_rule?.rule_name ?? '',
-							project:
-								data.projects.find((p) => p.id === transaction.suggested_project_id)?.name ?? ''
-						})}</span
-					>
-					<button type="submit" class="btn btn-secondary">{m.import_apply()}</button>
+		{#if data.user.canWrite}{#each ['third_party_id', 'category_id', 'payment_mode_id', 'excluded'] as field (field)}
+				<form id={'reset-' + field} method="POST" action="?/reset_automatic">
+					<input type="hidden" name="field" value={field} />
 				</form>
-			{/if}
-		</div>
+			{/each}{/if}
 	{/if}
 	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 
@@ -125,6 +105,10 @@
 								(transaction.category_id
 									? m.config_unknown() + ' (' + transaction.category_id + ')'
 									: '—')}
+							{#if !isManual && !data.user.canWrite}<FieldSourceHint
+									source={transaction.sources.category_id}
+									field="category_id"
+								/>{/if}
 						</dd>
 					</div>
 					<div>
@@ -134,6 +118,31 @@
 								(transaction.payment_mode_id
 									? m.config_unknown() + ' (' + transaction.payment_mode_id + ')'
 									: '—')}
+							{#if !isManual && !data.user.canWrite}<FieldSourceHint
+									source={transaction.sources.payment_mode_id}
+									field="payment_mode_id"
+								/>{/if}
+						</dd>
+					</div>
+					<div>
+						<dt>{m.common_third_party()}</dt>
+						<dd>
+							{data.thirdParties.find((party) => party.id === transaction.third_party_id)?.name ??
+								'—'}
+							{#if !isManual && !data.user.canWrite}<FieldSourceHint
+									source={transaction.sources.third_party_id}
+									field="third_party_id"
+								/>{/if}
+						</dd>
+					</div>
+					<div>
+						<dt>{m.transaction_excluded()}</dt>
+						<dd>
+							{transaction.excluded ? m.rules_yes() : m.rules_no()}
+							{#if !isManual && !data.user.canWrite}<FieldSourceHint
+									source={transaction.sources.excluded}
+									field="excluded"
+								/>{/if}
 						</dd>
 					</div>
 					<div>
@@ -190,19 +199,39 @@
 							paymentModes={data.config.paymentModes}
 							categoryId={transaction.category_id}
 							paymentModeId={transaction.payment_mode_id}
-						/>
-						<label class="field"
-							><span class="field-label">{m.common_third_party()}</span><select
-								name="third_party_id"
-								class="control"
-							>
-								<option value="">—</option>
-								{#each data.thirdParties as party (party.id)}<option
-										value={party.id}
-										selected={transaction.third_party_id === party.id}>{party.name}</option
-									>{/each}
-							</select></label
 						>
+							{#snippet categoryHint()}{#if !isManual}<FieldSourceHint
+										source={transaction.sources.category_id}
+										field="category_id"
+										canWrite
+										resetFormId="reset-category_id"
+									/>{/if}{/snippet}
+							{#snippet paymentModeHint()}{#if !isManual}<FieldSourceHint
+										source={transaction.sources.payment_mode_id}
+										field="payment_mode_id"
+										canWrite
+										resetFormId="reset-payment_mode_id"
+									/>{/if}{/snippet}
+						</ReferenceFields>
+						<div class="space-y-1">
+							<label class="field"
+								><span class="field-label">{m.common_third_party()}</span><select
+									name="third_party_id"
+									class="control"
+								>
+									<option value="">—</option>
+									{#each data.thirdParties as party (party.id)}<option
+											value={party.id}
+											selected={transaction.third_party_id === party.id}>{party.name}</option
+										>{/each}
+								</select></label
+							>{#if !isManual}<FieldSourceHint
+									source={transaction.sources.third_party_id}
+									field="third_party_id"
+									canWrite
+									resetFormId="reset-third_party_id"
+								/>{/if}
+						</div>
 					</div>
 					<label class="field"
 						><span class="field-label">{m.common_notes()}</span><textarea
@@ -221,11 +250,33 @@
 						/>
 						{m.transaction_excluded()}</label
 					>
+					{#if !isManual}<FieldSourceHint
+							source={transaction.sources.excluded}
+							field="excluded"
+							canWrite
+							resetFormId="reset-excluded"
+						/>{/if}
 					<button class="btn">{m.common_save()}</button>
 				</form>
 			{/if}
 			<section class="card p-4" id="allocations">
 				<h2 class="card-title">{m.project_allocations()}</h2>
+				{#if data.user.canWrite && transaction.suggested_project_id}
+					<form
+						method="POST"
+						action="?/apply_suggested_project"
+						class="mt-3 flex flex-wrap items-center gap-2 text-sm text-stone-500"
+					>
+						<span
+							>{m.import_project_suggestion({
+								rule: transaction.suggested_project_rule?.rule_name ?? '',
+								project:
+									data.projects.find((p) => p.id === transaction.suggested_project_id)?.name ?? ''
+							})}</span
+						>
+						<button type="submit" class="underline">{m.import_apply()}</button>
+					</form>
+				{/if}
 				{#if data.user.canWrite && availableProjects.length && remaining !== 0}
 					<form
 						method="POST"

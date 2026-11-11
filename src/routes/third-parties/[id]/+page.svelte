@@ -29,6 +29,7 @@
 				>{/each}{/snippet}
 	</PageHeader>
 	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
+	<p class="text-xs text-stone-500">{m.rules_alias_help()}</p>
 
 	<p class="text-sm text-stone-500">{m.third_party_perspective()}</p>
 	<TransactionFilters

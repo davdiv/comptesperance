@@ -162,3 +162,5 @@ export interface ImportRule {
 		excluded?: boolean;
 	};
 }
+
+export type ImportRuleDraft = Omit<ImportRule, 'id'> & { id?: string };

@@ -234,6 +234,22 @@ legacy-format compatibility is provided.
 - `third-parties/<id>.json` and `documents/` retain their existing formats.
   Evidence paths can be shared by multiple transactions.
 
+## Managing import rules
+
+Open **Settings → Import rules** to see ordered rules, conditions, outputs and CSV
+match counts. Counts include disabled rules' condition matches. In edit mode,
+create, edit, enable/disable, delete or move rules; each mutation makes one data
+repository commit. A transaction's **Create rule from this transaction** link
+prefills the editor with its label, account, direction and current classifications.
+
+**Preview** does not save anything. It shows up to eight matching CSV transactions
+and the effective changes after applying the draft in its actual rule position,
+respecting earlier rules and explicit values. Project outputs remain suggestions.
+Source hints appear beneath fields in the transaction editor, or beside values
+in read-only Details; explicit fields can be reset independently of unsaved edits.
+Third-party aliases are editable on the third-party page and provide automatic
+matching below rules in precedence.
+
 ## Transaction filters and third-party amounts
 
 Transaction lists on the dashboard, accounts, projects, Unallocated and third-party

@@ -14,7 +14,8 @@ import type {
 	ImportRule
 } from '#lib/types.ts';
 import { ensureConfig, readConfig } from './config';
-import { importPattern, resolveImport } from './import-rules';
+import { resolveImport } from './import-rules';
+import { validateImportRule } from './import-rule-validation';
 import { accountCsvTransactions } from './csv/account-transactions';
 import { detectCsvFormat, parseCsvStatement } from './csv';
 import { getEnv } from './env';
@@ -711,65 +712,12 @@ export async function saveImportRule(
 	const config = await readConfig(repo);
 	if (input.id && !config.rules.some((rule) => rule.id === input.id))
 		throw new Error('config_invalid');
-	const c = input.conditions;
-	if (
-		!input.name.trim() ||
-		!c ||
-		!Object.keys(c).length ||
-		!input.set ||
-		!Object.keys(input.set).length
-	)
-		throw new Error('config_invalid');
-	const conditionKeys = [
-		'text',
-		'pattern',
-		'account_id',
-		'direction',
-		'min_cents',
-		'max_cents',
-		'format',
-		'record_type'
-	];
-	if (Object.keys(c).some((key) => !conditionKeys.includes(key))) throw new Error('config_invalid');
-	for (const key of ['text', 'pattern', 'account_id', 'record_type'] as const)
-		if (key in c && (typeof c[key] !== 'string' || !c[key]!.trim()))
-			throw new Error('config_invalid');
-	if (c.pattern) {
-		try {
-			importPattern(c.pattern);
-		} catch {
-			throw new Error('config_invalid');
-		}
-	}
-	if (
-		('direction' in c && !['in', 'out'].includes(c.direction ?? '')) ||
-		('format' in c && !['ccp', 'sumup'].includes(c.format ?? ''))
-	)
-		throw new Error('config_invalid');
-	for (const value of [c.min_cents, c.max_cents])
-		if (value !== undefined && (!Number.isSafeInteger(value) || value < 0))
-			throw new Error('config_invalid');
-	if (c.min_cents !== undefined && c.max_cents !== undefined && c.min_cents > c.max_cents)
-		throw new Error('config_invalid');
-	if (c.account_id && !(await readStoredAccount(repo, c.account_id)))
-		throw new Error('config_invalid');
-	const refs = {
-		category_id: config.categories,
-		payment_mode_id: config.paymentModes,
-		third_party_id: await listThirdParties(repo),
-		project_id: await listProjects(repo)
-	};
-	for (const [field, value] of Object.entries(input.set)) {
-		if (field === 'excluded') {
-			if (typeof value !== 'boolean') throw new Error('config_invalid');
-		} else if (
-			!(field in refs) ||
-			!refs[field as keyof typeof refs].some((entry) => entry.id === value)
-		)
-			throw new Error('config_invalid');
-	}
-	if (input.enabled !== undefined && typeof input.enabled !== 'boolean')
-		throw new Error('config_invalid');
+	validateImportRule(input, {
+		config,
+		accounts: (await listStoredAccounts(repo)).map((file) => file.account),
+		thirdParties: await listThirdParties(repo),
+		projects: await listProjects(repo)
+	});
 	const rule = { ...input, id: input.id ?? randomUUID(), name: input.name.trim() };
 	const index = config.rules.findIndex((item) => item.id === rule.id);
 	if (index < 0) config.rules.push(rule);
