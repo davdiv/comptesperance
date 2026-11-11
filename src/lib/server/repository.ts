@@ -271,11 +271,33 @@ export async function deleteManualTransaction(
 	const file = await readStoredAccount(repo, accountId);
 	if (!file) throw new Error('Account not found');
 	if (file.account.source !== 'manual') throw new Error('Account is not manual');
-	const before = (file.transactions ?? []).length;
+	const transaction = (file.transactions ?? []).find((item) => item.id === transactionId);
+	if (!transaction) throw new Error('Transaction not found');
+	const counterpart = await readTransferCounterpart(repo, {
+		account_id: accountId,
+		transaction_id: transactionId
+	});
+	if (counterpart) await applyTransferFields(repo, counterpart, EMPTY_TRANSFER);
+	const projects = await listProjects(repo);
+	for (const project of projects) {
+		const allocations = project.allocations.filter(
+			(allocation) =>
+				allocation.account_id !== accountId || allocation.transaction_id !== transactionId
+		);
+		if (allocations.length !== project.allocations.length) {
+			await writeJsonFile(path.join(repo, 'projects', `${project.id}.json`), {
+				...project,
+				allocations,
+				updated_at: now()
+			});
+		}
+	}
+	const currentFile = await readStoredAccount(repo, accountId);
+	if (!currentFile) throw new Error('Account not found');
+	file.transactions = currentFile.transactions;
 	file.transactions = (file.transactions ?? []).filter(
 		(transaction) => transaction.id !== transactionId
 	);
-	if (file.transactions.length === before) throw new Error('Transaction not found');
 	await writeStoredAccount(repo, file);
 	await commitData(repo, `data: delete transaction ${transactionId} from ${accountId}`);
 }

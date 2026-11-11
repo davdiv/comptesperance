@@ -113,6 +113,7 @@
 	"third_party_aliases": "Alias",
 	"third_party_transactions": "Transactions",
 	"third_party_no_transactions": "Aucune transaction avec ce tiers.",
+	"import_read_only_notice": "Vous avez un accès en lecture seule. L’import CSV nécessite un accès en écriture.",
 	"import_title": "Importer un CSV",
 	"import_subtitle": "Importez un relevé bancaire ou SumUp dans un compte.",
 	"import_account": "Compte",

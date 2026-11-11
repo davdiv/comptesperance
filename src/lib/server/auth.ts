@@ -1,4 +1,4 @@
-import type { RequestEvent } from '@sveltejs/kit';
+import { error, type RequestEvent } from '@sveltejs/kit';
 import { getEnv } from './env';
 
 export interface SessionUser {
@@ -29,6 +29,6 @@ export function getSessionUser(event: RequestEvent): SessionUser | null {
 }
 
 export function requireWrite(user: SessionUser | null): asserts user is SessionUser {
-	if (!user) throw new Error('Unauthorized');
-	if (!user.canWrite) throw new Error('Forbidden');
+	if (!user) error(401, 'Unauthorized');
+	if (!user.canWrite) error(403, 'Forbidden');
 }

@@ -77,9 +77,20 @@ export const load: PageServerLoad = async ({ params }) => {
 		listThirdPartiesWithCounts()
 	]);
 	if (!transaction || !account) error(404, 'Transaction not found');
+	const counterpart =
+		transaction.counterpart_account_id && transaction.counterpart_transaction_id
+			? await getTransaction(
+					transaction.counterpart_account_id,
+					transaction.counterpart_transaction_id
+				)
+			: null;
 	const accountNames = new Map(accounts.map((item) => [item.account_id, item.name]));
 	return {
 		transaction,
+		counterpart,
+		counterpartAccountName: counterpart
+			? (accountNames.get(counterpart.account_id) ?? counterpart.account_id)
+			: null,
 		account,
 		accounts,
 		projects,

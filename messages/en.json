@@ -113,6 +113,7 @@
 	"third_party_aliases": "Aliases",
 	"third_party_transactions": "Transactions",
 	"third_party_no_transactions": "No transactions with this third party.",
+	"import_read_only_notice": "You have read-only access. CSV imports require write access.",
 	"import_title": "Import CSV",
 	"import_subtitle": "Import a bank or SumUp CSV statement into an account.",
 	"import_account": "Account",

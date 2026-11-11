@@ -18,27 +18,29 @@
 		</Alert>
 	{/if}
 	<Alert>{m.import_duplicate_note()}</Alert>
-	<form method="POST" enctype="multipart/form-data" class="card space-y-4 p-4">
-		<label class="field"
-			><span class="field-label">{m.import_account()}</span>
-			<select name="account_id" required class="control">
-				{#each data.accounts as account (account.account_id)}<option value={account.account_id}
-						>{account.name}</option
-					>{/each}
-			</select>
-		</label>
-		<label class="field"
-			><span class="field-label">{m.import_file()}</span>
-			<input type="file" name="file" accept=".csv,text/csv" required class="file-input" />
-		</label>
-		<label class="field"
-			><span class="field-label">{m.import_format()}</span>
-			<select name="format" class="control">
-				<option value="">{m.import_auto_detect()}</option>
-				<option value="ccp">CCP</option>
-				<option value="sumup">SumUp</option>
-			</select>
-		</label>
-		<button class="btn">{m.import_submit()}</button>
-	</form>
+	{#if data.user.canWrite}
+		<form method="POST" enctype="multipart/form-data" class="card space-y-4 p-4">
+			<label class="field"
+				><span class="field-label">{m.import_account()}</span>
+				<select name="account_id" required class="control">
+					{#each data.accounts as account (account.account_id)}<option value={account.account_id}
+							>{account.name}</option
+						>{/each}
+				</select>
+			</label>
+			<label class="field"
+				><span class="field-label">{m.import_file()}</span>
+				<input type="file" name="file" accept=".csv,text/csv" required class="file-input" />
+			</label>
+			<label class="field"
+				><span class="field-label">{m.import_format()}</span>
+				<select name="format" class="control">
+					<option value="">{m.import_auto_detect()}</option>
+					<option value="ccp">CCP</option>
+					<option value="sumup">SumUp</option>
+				</select>
+			</label>
+			<button class="btn">{m.import_submit()}</button>
+		</form>
+	{:else}<Alert>{m.import_read_only_notice()}</Alert>{/if}
 </div>

@@ -185,7 +185,7 @@ export async function listTransactions(
 		params.push(filters.date_from);
 	}
 	if (filters.date_to) {
-		where.push('t.date < ?');
+		where.push("t.date < date(?, '+1 day')");
 		params.push(filters.date_to);
 	}
 	if (filters.record_type) {
@@ -256,6 +256,7 @@ export async function listProjectsWithTotals(): Promise<
 			`SELECT p.*, COALESCE(SUM(pa.amount_cents), 0) AS total_cents, COUNT(pa.transaction_id) AS allocation_count
 			FROM projects p
 			LEFT JOIN project_allocations pa ON pa.project_id = p.id
+ AND EXISTS (SELECT 1 FROM transactions t WHERE t.account_id = pa.account_id AND t.id = pa.transaction_id)
 			GROUP BY p.id
 			ORDER BY p.name`
 		)
@@ -280,7 +281,7 @@ export async function getProjectDetails(
 	const projectRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as
 		Record<string, unknown> | undefined;
 	if (!projectRow) return null;
-	const transferFilter = includeTransfers ? '' : 'AND (t.transfer_id IS NULL OR t.id IS NULL)';
+	const transferFilter = includeTransfers ? '' : 'AND t.transfer_id IS NULL';
 	const rows = db
 		.prepare(
 			`SELECT
@@ -293,7 +294,7 @@ export async function getProjectDetails(
 				t.excluded, t.counts_in_total, t.source, t.source_files_json, t.raw_json, t.attributes_json
 			FROM project_allocations pa
 			LEFT JOIN accounts a ON a.id = pa.account_id
-			LEFT JOIN transactions t ON t.account_id = pa.account_id AND t.id = pa.transaction_id
+			JOIN transactions t ON t.account_id = pa.account_id AND t.id = pa.transaction_id
 			LEFT JOIN third_parties tp ON tp.id = t.third_party_id
 			WHERE pa.project_id = ? ${transferFilter}
 			ORDER BY a.name, t.date DESC`

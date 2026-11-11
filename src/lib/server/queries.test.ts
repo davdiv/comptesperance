@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDatabase } from './cache';
-import { getProjectDetails } from './queries';
+import { getProjectDetails, listProjectsWithTotals, listTransactions } from './queries';
 
 vi.mock('./cache', () => ({ getDatabase: vi.fn() }));
 
@@ -71,11 +71,15 @@ describe('getProjectDetails', () => {
 		expect(included?.total_cents).toBe(2500);
 	});
 
-	it('retains allocations with missing transactions as null', async () => {
+	it('ignores allocations with missing transactions', async () => {
 		db.exec("INSERT INTO project_allocations VALUES ('project', 'cash', 'missing', 100, NULL)");
 		const details = await getProjectDetails('project');
-		expect(details?.allocations[0].transaction).toBeNull();
-		expect(details?.total_cents).toBe(100);
+		expect(details?.allocations).toEqual([]);
+		expect(details?.total_cents).toBe(0);
+		expect((await listProjectsWithTotals())[0]).toMatchObject({
+			total_cents: 0,
+			allocation_count: 0
+		});
 	});
 
 	it('returns empty allocations and zero totals for an empty project', async () => {
@@ -88,5 +92,26 @@ describe('getProjectDetails', () => {
 
 	it('returns null for a missing project', async () => {
 		expect(await getProjectDetails('missing')).toBeNull();
+	});
+});
+describe('transaction date filters', () => {
+	it('includes the entire end date for plain dates and ISO datetimes', async () => {
+		for (const [id, date] of [
+			['plain', '2026-10-03'],
+			['late', '2026-10-03T23:59:59.999Z'],
+			['next', '2026-10-04T00:00:00Z']
+		]) {
+			db.prepare('INSERT INTO transactions (account_id, id, date) VALUES (?, ?, ?)').run(
+				'cash',
+				id,
+				date
+			);
+		}
+		const result = await listTransactions({ date_from: '2026-10-03', date_to: '2026-10-03' });
+		expect(result.transactions.map((t) => t.id).sort()).toEqual(['late', 'plain']);
+		expect(result.total).toBe(2);
+	});
+	it('returns no results for an empty date range', async () => {
+		expect((await listTransactions({ date_to: '2026-10-03' })).total).toBe(0);
 	});
 });
