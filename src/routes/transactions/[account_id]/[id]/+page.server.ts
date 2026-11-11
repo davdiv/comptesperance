@@ -8,6 +8,7 @@ import { requireWrite } from '$lib/server/auth';
 import { getEnv } from '$lib/server/env';
 import { parseDecimalToCents } from '$lib/server/money';
 import {
+	listTransferGroups,
 	getAccountWithTotals,
 	getTransaction,
 	listAccountsWithTotals,
@@ -16,6 +17,7 @@ import {
 	type TransactionView
 } from '$lib/server/queries';
 import {
+	addTransferMember,
 	deleteManualTransaction,
 	linkTransfer,
 	readProject,
@@ -40,8 +42,6 @@ function annotationFromTransaction(
 		allocations: transaction.allocations,
 		third_party_id: transaction.third_party_id,
 		transfer_id: transaction.transfer_id,
-		counterpart_account_id: transaction.counterpart_account_id,
-		counterpart_transaction_id: transaction.counterpart_transaction_id,
 		evidence: transaction.evidence,
 		excluded: transaction.excluded,
 		...overrides
@@ -83,13 +83,8 @@ export const load: PageServerLoad = async ({ params }) => {
 		listThirdPartiesWithCounts()
 	]);
 	if (!transaction || !account) error(404, 'Transaction not found');
-	const counterpart =
-		transaction.counterpart_account_id && transaction.counterpart_transaction_id
-			? await getTransaction(
-					transaction.counterpart_account_id,
-					transaction.counterpart_transaction_id
-				)
-			: null;
+	const groups = await listTransferGroups();
+	const group = groups.find((item) => item.id === transaction.transfer_id) ?? null;
 	const accountNames = new Map(accounts.map((item) => [item.account_id, item.name]));
 	return {
 		transaction,
@@ -105,10 +100,7 @@ export const load: PageServerLoad = async ({ params }) => {
 							: null
 					}
 				: null,
-		counterpart,
-		counterpartAccountName: counterpart
-			? (accountNames.get(counterpart.account_id) ?? counterpart.account_id)
-			: null,
+		group,
 		account,
 		accounts,
 		projects,
@@ -117,12 +109,19 @@ export const load: PageServerLoad = async ({ params }) => {
 			(document) => !transaction.evidence.includes(document.path)
 		),
 		suggestion: rankTransferCandidates(transaction, candidates)[0] ?? null,
-		candidates: rankTransferCandidates(transaction, candidates).map(({ transaction: item }) => ({
-			value: `${item.account_id}:${item.id}`,
-			account_id: item.account_id,
-			transaction_id: item.id,
-			label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} EUR`
-		}))
+		candidates: [...candidates]
+			.filter((item) => group || item.account_id !== transaction.account_id)
+			.sort(
+				(a, b) =>
+					Number((group?.total_cents ?? transaction.amount_cents) + b.amount_cents === 0) -
+					Number((group?.total_cents ?? transaction.amount_cents) + a.amount_cents === 0)
+			)
+			.map((item) => ({
+				value: `${item.account_id}:${item.id}`,
+				account_id: item.account_id,
+				transaction_id: item.id,
+				label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} EUR`
+			}))
 	};
 };
 
@@ -192,29 +191,43 @@ export const actions: Actions = {
 		requireWrite(locals.user);
 		const transaction = await getTransaction(params.account_id, params.id);
 		if (!transaction) error(404, 'Transaction not found');
-		if (transaction.transfer_id) return fail(400, { error: 'Transaction is already linked' });
+
 		const form = await request.formData();
 		const counterpart = parseCounterpart(String(form.get('counterpart') ?? ''));
-		if (!counterpart) return fail(400, { error: 'Select a counterpart transaction' });
+		if (!counterpart) return fail(400, { error: m.transfer_invalid() });
 		const other = await getTransaction(counterpart.account_id, counterpart.transaction_id);
-		if (!other || !rankTransferCandidates(transaction, [other]).length)
+		if (!other || other.transfer_id || other.excluded)
 			return fail(400, { error: m.transfer_suggestion_invalid() });
 		try {
-			await linkTransfer(
-				{ account_id: transaction.account_id, transaction_id: transaction.id },
-				counterpart
-			);
+			if (transaction.transfer_id) await addTransferMember(transaction.transfer_id, counterpart);
+			else
+				await linkTransfer(
+					{ account_id: transaction.account_id, transaction_id: transaction.id },
+					counterpart
+				);
 		} catch (e) {
-			return fail(400, { error: e instanceof Error ? e.message : 'Link failed' });
+			return fail(400, { error: m.transfer_invalid() });
 		}
 		return { ok: true };
 	},
-	unlink_transfer: async ({ locals, params }) => {
+	unlink_transfer: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
 		const transaction = await getTransaction(params.account_id, params.id);
 		if (!transaction) error(404, 'Transaction not found');
 		if (!transaction.transfer_id) return fail(400, { error: 'Transaction is not linked' });
-		await unlinkTransfer({ account_id: transaction.account_id, transaction_id: transaction.id });
+		const form = await request.formData();
+		const member = parseCounterpart(String(form.get('member') ?? '')) ?? {
+			account_id: transaction.account_id,
+			transaction_id: transaction.id
+		};
+		const group = (await listTransferGroups()).find((item) => item.id === transaction.transfer_id);
+		if (
+			!group?.members.some(
+				(item) => item.account_id === member.account_id && item.id === member.transaction_id
+			)
+		)
+			return fail(400, { error: m.transfer_suggestion_invalid() });
+		await unlinkTransfer(member);
 		return { ok: true };
 	},
 	upload_evidence: async ({ request, locals, params }) => {

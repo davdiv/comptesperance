@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TransferGroupCard from '$lib/components/TransferGroupCard.svelte';
 	import TransferSuggestion from '$lib/components/TransferSuggestion.svelte';
 	import AllocationEditor from '$lib/components/AllocationEditor.svelte';
 	import { documentDisplayName } from '$lib/documents';
@@ -330,23 +331,16 @@
 							action="?/link_transfer"
 						/>
 					</div>{/if}
-				{#if transaction.transfer_id}<p class="mt-3 text-sm break-all">
-						{m.transaction_counterpart()}:
-						<a
-							class="link"
-							href="/transactions/{transaction.counterpart_account_id}/{transaction.counterpart_transaction_id}"
-							>{#if data.counterpart}{formatDate(data.counterpart.date)} · {data.counterpart.label} ·
-								{formatMoney(data.counterpart.amount_cents)} · {data.counterpartAccountName}{:else}{m.empty_state()}{/if}</a
-						>
-					</p>
-					{#if data.user.canWrite}<form method="POST" action="?/unlink_transfer" class="mt-4">
-							<button class="btn-secondary">{m.transaction_unlink_transfer()}</button>
-						</form>{/if}
-				{:else if data.user.canWrite}<form
-						method="POST"
-						action="?/link_transfer"
-						class="mt-4 space-y-4"
-					>
+				{#if data.group}<div class="mt-4">
+						<TransferGroupCard
+							group={data.group}
+							accountNames={Object.fromEntries(
+								data.accounts.map((item) => [item.account_id, item.name])
+							)}
+							canWrite={data.user.canWrite}
+						/>
+					</div>{/if}
+				{#if data.user.canWrite}<form method="POST" action="?/link_transfer" class="mt-4 space-y-4">
 						<label class="field"
 							><span class="field-label">{m.transaction_candidates()}</span><select
 								name="counterpart"
@@ -357,7 +351,10 @@
 										value={candidate.value}>{candidate.label}</option
 									>{/each}</select
 							></label
-						><button class="btn-secondary">{m.transaction_link_transfer()}</button>
+						>
+						<button class="btn-secondary"
+							>{data.group ? m.transfer_add_member() : m.transaction_link_transfer()}</button
+						>
 					</form>
 				{:else}<EmptyState message={m.empty_state()} />{/if}
 			</section>

@@ -112,8 +112,6 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			payment_mode_id TEXT NOT NULL,
 			allocations_json TEXT NOT NULL,
 			transfer_id TEXT,
-			counterpart_account_id TEXT,
-			counterpart_transaction_id TEXT,
 			evidence_json TEXT NOT NULL,
 			excluded INTEGER NOT NULL,
 			PRIMARY KEY (account_id, id)
@@ -182,9 +180,8 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 		INSERT INTO transactions (
 			account_id, id, date, value_date, amount_cents, label, description,
 			record_type, status, raw_json, attributes_json, source, source_files_json,
-			third_party_id, notes, category_id, payment_mode_id, allocations_json, transfer_id,
-			counterpart_account_id, counterpart_transaction_id, evidence_json, excluded
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			third_party_id, notes, category_id, payment_mode_id, allocations_json, transfer_id, evidence_json, excluded
+		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
 	const insertCheckpoint = db.prepare(
 		'INSERT INTO balance_checkpoints (account_id, id, date, balance_cents, source, note, statement_file) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -382,8 +379,6 @@ function csvTransactionValues(
 		annotation?.payment_mode_id ?? guessPaymentMode(transaction, modes),
 		JSON.stringify(annotation?.allocations ?? []),
 		annotation?.transfer_id ?? null,
-		annotation?.counterpart_account_id ?? null,
-		annotation?.counterpart_transaction_id ?? null,
 		JSON.stringify(annotation?.evidence ?? []),
 		excluded ? 1 : 0
 	];
@@ -414,8 +409,6 @@ function manualTransactionValues(
 		transaction.payment_mode_id ?? '',
 		JSON.stringify(transaction.allocations ?? []),
 		transaction.transfer_id ?? null,
-		transaction.counterpart_account_id ?? null,
-		transaction.counterpart_transaction_id ?? null,
 		JSON.stringify(transaction.evidence ?? []),
 		excluded ? 1 : 0
 	];

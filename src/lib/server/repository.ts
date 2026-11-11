@@ -275,13 +275,10 @@ export async function deleteManualTransaction(
 	if (file.account.source !== 'manual') throw new Error('Account is not manual');
 	const transaction = (file.transactions ?? []).find((item) => item.id === transactionId);
 	if (!transaction) throw new Error('Transaction not found');
-	const counterpart = await readTransferCounterpart(repo, {
+	await removeTransferMemberInternal(repo, {
 		account_id: accountId,
 		transaction_id: transactionId
 	});
-	if (counterpart) {
-		await applyTransferFields(repo, counterpart, EMPTY_TRANSFER, { ignoreMissing: true });
-	}
 	const currentFile = await readStoredAccount(repo, accountId);
 	if (!currentFile) throw new Error('Account not found');
 	file.transactions = currentFile.transactions;
@@ -301,12 +298,6 @@ function cleanAnnotation(annotation: TransactionAnnotation): TransactionAnnotati
 	if (annotation.allocations) cleaned.allocations = annotation.allocations;
 	if (annotation.third_party_id) cleaned.third_party_id = annotation.third_party_id;
 	if (annotation.transfer_id) cleaned.transfer_id = annotation.transfer_id;
-	if (annotation.counterpart_account_id) {
-		cleaned.counterpart_account_id = annotation.counterpart_account_id;
-	}
-	if (annotation.counterpart_transaction_id) {
-		cleaned.counterpart_transaction_id = annotation.counterpart_transaction_id;
-	}
 	if (annotation.evidence?.length) cleaned.evidence = annotation.evidence.filter(Boolean);
 	if (annotation.excluded !== undefined) cleaned.excluded = annotation.excluded;
 	return cleaned;
@@ -348,115 +339,107 @@ export async function upsertAnnotation(
 	await commitData(repo, `data: annotate transaction ${transactionId} in ${accountId}`);
 }
 
-type TransferFields = Pick<
-	TransactionAnnotation,
-	'transfer_id' | 'counterpart_account_id' | 'counterpart_transaction_id'
->;
-
-async function applyTransferFields(
-	root: string,
-	ref: TransactionRef,
-	fields: TransferFields,
-	options: { ignoreMissing?: boolean } = {}
-): Promise<void> {
-	const file = await readStoredAccount(root, ref.account_id);
-	if (!file) {
-		if (options.ignoreMissing) return;
-		throw new Error('Account not found');
+async function storedTransferMembers(root: string, id: string): Promise<TransactionRef[]> {
+	const members: TransactionRef[] = [];
+	for (const file of await listStoredAccounts(root)) {
+		const items =
+			file.account.source === 'manual'
+				? (file.transactions ?? []).map((item) => [item.id, item] as const)
+				: Object.entries(file.annotations ?? {});
+		for (const [transaction_id, item] of items)
+			if (item.transfer_id === id) members.push({ account_id: file.account.id, transaction_id });
 	}
+	return members;
+}
+async function transferRecord(root: string, ref: TransactionRef) {
+	const file = await readStoredAccount(root, ref.account_id);
+	if (!file) throw new Error('transfer_invalid');
 	if (file.account.source === 'manual') {
-		const transactions = file.transactions ?? [];
-		const index = transactions.findIndex((transaction) => transaction.id === ref.transaction_id);
-		if (index === -1) {
-			if (options.ignoreMissing) return;
-			throw new Error('Transaction not found');
-		}
-		transactions[index] = { ...transactions[index], ...fields, updated_at: now() };
-		file.transactions = transactions;
+		const transaction = file.transactions?.find((item) => item.id === ref.transaction_id);
+		if (!transaction) throw new Error('transfer_invalid');
+		return { file, transaction };
+	}
+	await findCsvTransaction(file, ref.transaction_id);
+	return { file, transaction: file.annotations?.[ref.transaction_id] ?? {} };
+}
+async function setTransferId(root: string, ref: TransactionRef, transfer_id: string | null) {
+	const file = await readStoredAccount(root, ref.account_id);
+	if (!file) return;
+	if (file.account.source === 'manual') {
+		file.transactions = (file.transactions ?? []).map((item) =>
+			item.id === ref.transaction_id ? { ...item, transfer_id } : item
+		);
 	} else {
-		const annotations = { ...(file.annotations ?? {}) };
-		annotations[ref.transaction_id] = { ...(annotations[ref.transaction_id] ?? {}), ...fields };
-		file.annotations = annotations;
+		file.annotations = {
+			...file.annotations,
+			[ref.transaction_id]: { ...file.annotations?.[ref.transaction_id], transfer_id }
+		};
 	}
 	await writeStoredAccount(root, file);
 }
-
-async function readTransferCounterpart(
-	root: string,
-	ref: TransactionRef
-): Promise<TransactionRef | null> {
-	const file = await readStoredAccount(root, ref.account_id);
-	if (!file) return null;
-	let counterpartAccount: string | null;
-	let counterpartTransaction: string | null;
-	if (file.account.source === 'manual') {
-		const transaction = (file.transactions ?? []).find((item) => item.id === ref.transaction_id);
-		counterpartAccount = transaction?.counterpart_account_id ?? null;
-		counterpartTransaction = transaction?.counterpart_transaction_id ?? null;
-	} else {
-		const annotation = file.annotations?.[ref.transaction_id];
-		counterpartAccount = annotation?.counterpart_account_id ?? null;
-		counterpartTransaction = annotation?.counterpart_transaction_id ?? null;
+async function removeTransferMemberInternal(root: string, ref: TransactionRef) {
+	const { transaction } = await transferRecord(root, ref);
+	if (!transaction.transfer_id) return;
+	const remaining = (await storedTransferMembers(root, transaction.transfer_id)).filter(
+		(item) => item.account_id !== ref.account_id || item.transaction_id !== ref.transaction_id
+	);
+	await setTransferId(root, ref, null);
+	if (remaining.length < 2 || new Set(remaining.map((item) => item.account_id)).size < 2) {
+		for (const member of remaining) await setTransferId(root, member, null);
 	}
-	if (!counterpartAccount || !counterpartTransaction) return null;
-	return { account_id: counterpartAccount, transaction_id: counterpartTransaction };
 }
-
-const EMPTY_TRANSFER: TransferFields = {
-	transfer_id: null,
-	counterpart_account_id: null,
-	counterpart_transaction_id: null
-};
-
+export async function createTransferGroups(
+	groups: TransactionRef[][],
+	root?: string
+): Promise<string[]> {
+	const repo = await repoRoot(root);
+	const seen = new Set<string>();
+	for (const refs of groups) {
+		if (refs.length < 2 || new Set(refs.map((ref) => ref.account_id)).size < 2)
+			throw new Error('transfer_invalid');
+		for (const ref of refs) {
+			const key = JSON.stringify([ref.account_id, ref.transaction_id]);
+			if (seen.has(key)) throw new Error('transfer_invalid');
+			seen.add(key);
+			if ((await transferRecord(repo, ref)).transaction.transfer_id)
+				throw new Error('transfer_invalid');
+		}
+	}
+	const ids: string[] = [];
+	for (const refs of groups) {
+		const id = 'tr_' + randomUUID();
+		ids.push(id);
+		for (const ref of refs) await setTransferId(repo, ref, id);
+	}
+	if (ids.length) await commitData(repo, 'data: create transfer groups');
+	return ids;
+}
+export async function createTransferGroup(refs: TransactionRef[], root?: string): Promise<string> {
+	return (await createTransferGroups([refs], root))[0];
+}
+export async function addTransferMember(
+	id: string,
+	ref: TransactionRef,
+	root?: string
+): Promise<void> {
+	const repo = await repoRoot(root);
+	const members = await storedTransferMembers(repo, id);
+	if (members.length < 2 || (await transferRecord(repo, ref)).transaction.transfer_id)
+		throw new Error('transfer_invalid');
+	await setTransferId(repo, ref, id);
+	await commitData(repo, 'data: add transfer member');
+}
+export async function unlinkTransfer(ref: TransactionRef, root?: string): Promise<void> {
+	const repo = await repoRoot(root);
+	await removeTransferMemberInternal(repo, ref);
+	await commitData(repo, 'data: remove transfer member');
+}
 export async function linkTransfer(
 	first: TransactionRef,
 	second: TransactionRef,
-	transferId = `tr_${randomUUID()}`,
 	root?: string
 ): Promise<string> {
-	const repo = await repoRoot(root);
-	const [firstCounterpart, secondCounterpart] = await Promise.all([
-		readTransferCounterpart(repo, first),
-		readTransferCounterpart(repo, second)
-	]);
-	const clearCounterpart = async (
-		counterpart: { account_id: string; transaction_id: string } | null,
-		keep: TransactionRef
-	) => {
-		if (
-			counterpart &&
-			!(
-				counterpart.account_id === keep.account_id &&
-				counterpart.transaction_id === keep.transaction_id
-			)
-		) {
-			await applyTransferFields(repo, counterpart, EMPTY_TRANSFER, { ignoreMissing: true });
-		}
-	};
-	await clearCounterpart(firstCounterpart, second);
-	await clearCounterpart(secondCounterpart, first);
-	await applyTransferFields(repo, first, {
-		transfer_id: transferId,
-		counterpart_account_id: second.account_id,
-		counterpart_transaction_id: second.transaction_id
-	});
-	await applyTransferFields(repo, second, {
-		transfer_id: transferId,
-		counterpart_account_id: first.account_id,
-		counterpart_transaction_id: first.transaction_id
-	});
-	await commitData(repo, `data: link transfer ${transferId}`);
-	return transferId;
-}
-
-export async function unlinkTransfer(ref: TransactionRef, root?: string): Promise<void> {
-	const repo = await repoRoot(root);
-	const counterpart = await readTransferCounterpart(repo, ref);
-	await applyTransferFields(repo, ref, EMPTY_TRANSFER);
-	if (counterpart) {
-		await applyTransferFields(repo, counterpart, EMPTY_TRANSFER, { ignoreMissing: true });
-	}
-	await commitData(repo, `data: unlink transfer for ${ref.account_id}/${ref.transaction_id}`);
+	return createTransferGroup([first, second], root);
 }
 
 async function readProjectFile(root: string, id: string): Promise<Project | null> {
