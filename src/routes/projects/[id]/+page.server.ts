@@ -1,3 +1,4 @@
+import { editAllocation } from '$lib/server/allocation-editor';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
@@ -12,6 +13,16 @@ export const load: PageServerLoad = async ({ params, url }) => {
 };
 
 export const actions: Actions = {
+	edit_allocation: async ({ request, locals, params }) => {
+		requireWrite(locals.user);
+		const form = await request.formData();
+		return editAllocation(
+			String(form.get('account_id') ?? ''),
+			String(form.get('transaction_id') ?? ''),
+			params.id,
+			form
+		);
+	},
 	update: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
 		const form = await request.formData();

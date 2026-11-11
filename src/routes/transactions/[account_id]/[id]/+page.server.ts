@@ -1,4 +1,7 @@
 import { m } from '$lib/paraglide/messages.js';
+import { editAllocation } from '$lib/server/allocation-editor';
+import { rankTransferCandidates } from '$lib/server/transfer-matcher';
+import { listTransferPool } from '$lib/server/queries';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
@@ -10,7 +13,6 @@ import {
 	listAccountsWithTotals,
 	listProjectsWithTotals,
 	listThirdPartiesWithCounts,
-	listTransactionCandidates,
 	type TransactionView
 } from '$lib/server/queries';
 import {
@@ -76,7 +78,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		getTransaction(params.account_id, params.id),
 		getAccountWithTotals(params.account_id),
 		listAccountsWithTotals(),
-		listTransactionCandidates(undefined, 1000),
+		listTransferPool(),
 		listProjectsWithTotals(),
 		listThirdPartiesWithCounts()
 	]);
@@ -102,18 +104,24 @@ export const load: PageServerLoad = async ({ params }) => {
 		documents: (await listDocuments()).filter(
 			(document) => !transaction.evidence.includes(document.path)
 		),
-		candidates: candidates
-			.filter((item) => item.account_id !== transaction.account_id || item.id !== transaction.id)
-			.map((item) => ({
+		suggestion: rankTransferCandidates(transaction, candidates)[0] ?? null,
+		candidates: rankTransferCandidates(transaction, candidates).map(
+			({ transaction: item, difference_cents }) => ({
 				value: `${item.account_id}:${item.id}`,
 				account_id: item.account_id,
 				transaction_id: item.id,
-				label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} EUR`
-			}))
+				label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} EUR${difference_cents ? ' · ' + m.transfer_amount_difference({ amount: (difference_cents / 100).toFixed(2) + ' EUR' }) : ''}`
+			})
+		)
 	};
 };
 
 export const actions: Actions = {
+	edit_allocation: async ({ request, locals, params }) => {
+		requireWrite(locals.user);
+		const form = await request.formData();
+		return editAllocation(params.account_id, params.id, String(form.get('project_id') ?? ''), form);
+	},
 	save: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
 		const [transaction, account] = await Promise.all([
@@ -178,6 +186,9 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const counterpart = parseCounterpart(String(form.get('counterpart') ?? ''));
 		if (!counterpart) return fail(400, { error: 'Select a counterpart transaction' });
+		const other = await getTransaction(counterpart.account_id, counterpart.transaction_id);
+		if (!other || !rankTransferCandidates(transaction, [other]).length)
+			return fail(400, { error: m.transfer_suggestion_invalid() });
 		try {
 			await linkTransfer(
 				{ account_id: transaction.account_id, transaction_id: transaction.id },

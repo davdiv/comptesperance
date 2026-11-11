@@ -1,11 +1,17 @@
-import type { PageServerLoad } from './$types';
+import { fail } from '@sveltejs/kit';
+import { m } from '$lib/paraglide/messages.js';
+import { requireWrite } from '$lib/server/auth';
+import { linkTransfer } from '$lib/server/repository';
+import { rankTransferCandidates, suggestedTransferPairs } from '$lib/server/transfer-matcher';
+import { getTransaction, listTransferPool } from '$lib/server/queries';
+import type { Actions, PageServerLoad } from './$types';
 import {
 	listAccountsWithTotals,
 	listThirdPartiesWithCounts,
 	listTransactions
 } from '$lib/server/queries';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	const includeTransfers = url.searchParams.get('include_transfers') === '1';
 	const filters = {
 		account_id: url.searchParams.get('account_id') || undefined,
@@ -23,5 +29,37 @@ export const load: PageServerLoad = async ({ url }) => {
 		listAccountsWithTotals(),
 		listThirdPartiesWithCounts()
 	]);
-	return { ...transactions, accounts, thirdParties, filters, includeTransfers };
+	return {
+		...transactions,
+		accounts,
+		thirdParties,
+		filters,
+		includeTransfers,
+		suggestions: locals.user?.canWrite
+			? suggestedTransferPairs(await listTransferPool()).slice(0, 20)
+			: []
+	};
+};
+
+export const actions: Actions = {
+	link_suggestion: async ({ request, locals }) => {
+		requireWrite(locals.user);
+		const form = await request.formData();
+		const value = String(form.get('counterpart') ?? '');
+		const index = value.indexOf(':');
+		const [first, second] = await Promise.all([
+			getTransaction(
+				String(form.get('first_account') ?? ''),
+				String(form.get('first_transaction') ?? '')
+			),
+			getTransaction(value.slice(0, index), value.slice(index + 1))
+		]);
+		if (!first || !second || !rankTransferCandidates(first, [second]).some((match) => match.strong))
+			return fail(400, { error: m.transfer_suggestion_invalid() });
+		await linkTransfer(
+			{ account_id: first.account_id, transaction_id: first.id },
+			{ account_id: second.account_id, transaction_id: second.id }
+		);
+		return { ok: true };
+	}
 };

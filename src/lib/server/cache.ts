@@ -1,8 +1,14 @@
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { ManualTransaction, ParsedTransaction, TransactionAnnotation } from '$lib/types';
+import type {
+	ManualTransaction,
+	ParsedTransaction,
+	TransactionAnnotation,
+	PaymentMode
+} from '$lib/types';
 import { detectCsvFormat, parseCsvStatement } from './csv';
+import { guessPaymentMode } from './payment-modes';
 import { readConfig } from './config';
 import { getEnv } from './env';
 import { statusFingerprint } from './git';
@@ -268,7 +274,12 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 
 		for (const { transaction, sourceFiles } of byId.values()) {
 			insertTransaction.run(
-				...csvTransactionValues(accountFile, transaction, [...sourceFiles].sort())
+				...csvTransactionValues(
+					accountFile,
+					transaction,
+					[...sourceFiles].sort(),
+					config.paymentModes
+				)
 			);
 		}
 	}
@@ -337,7 +348,8 @@ async function listCsvFiles(accountDir: string): Promise<string[]> {
 function csvTransactionValues(
 	accountFile: StoredAccountFile,
 	transaction: ParsedTransaction,
-	sourceFiles: string[]
+	sourceFiles: string[],
+	modes: PaymentMode[]
 ): (string | number | null)[] {
 	const annotation: TransactionAnnotation | undefined = accountFile.annotations?.[transaction.id];
 	const excluded = annotation?.excluded ?? transaction.excluded;
@@ -358,7 +370,7 @@ function csvTransactionValues(
 		annotation?.third_party_id ?? null,
 		annotation?.notes ?? '',
 		annotation?.category_id ?? '',
-		annotation?.payment_mode_id ?? '',
+		annotation?.payment_mode_id ?? guessPaymentMode(transaction, modes),
 		JSON.stringify(annotation?.allocations ?? []),
 		annotation?.transfer_id ?? null,
 		annotation?.counterpart_account_id ?? null,

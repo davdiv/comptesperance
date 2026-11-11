@@ -1,4 +1,6 @@
 <script lang="ts">
+	import TransferSuggestion from '$lib/components/TransferSuggestion.svelte';
+	import AllocationEditor from '$lib/components/AllocationEditor.svelte';
 	import { documentDisplayName } from '$lib/documents';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatDate, formatMoney } from '$lib/format';
@@ -16,6 +18,15 @@
 	const account = $derived(data.account);
 	const isManual = $derived(account.source === 'manual');
 
+	const remaining = $derived(
+		transaction.amount_cents -
+			transaction.allocations.reduce((sum, item) => sum + item.amount_cents, 0)
+	);
+	const availableProjects = $derived(
+		data.projects.filter(
+			(project) => !transaction.allocations.some((item) => item.project_id === project.id)
+		)
+	);
 	const projectAllocations = $derived(
 		transaction.allocations.map((allocation) => ({
 			allocation,
@@ -183,8 +194,8 @@
 				</form>
 			{/if}
 			<section class="card p-4">
-				<h2 class="card-title">{m.project_add_allocation()}</h2>
-				{#if data.user.canWrite}
+				<h2 class="card-title">{m.project_allocations()}</h2>
+				{#if data.user.canWrite && availableProjects.length && remaining !== 0}
 					<form
 						method="POST"
 						action="?/add_project_allocation"
@@ -197,7 +208,7 @@
 								class="control"
 							>
 								<option value="">—</option>
-								{#each data.projects as project (project.id)}<option value={project.id}
+								{#each availableProjects as project (project.id)}<option value={project.id}
 										>{project.name}</option
 									>{/each}
 							</select></label
@@ -205,7 +216,7 @@
 						<label class="field"
 							><span class="field-label">{m.common_amount()}</span><input
 								name="amount"
-								value={(transaction.amount_cents / 100).toFixed(2)}
+								value={(remaining / 100).toFixed(2)}
 								required
 								class="control"
 							/></label
@@ -218,13 +229,23 @@
 						>
 						<button class="btn sm:col-span-2 sm:w-fit">{m.project_add_allocation()}</button>
 					</form>
+				{:else if data.user.canWrite}<p class="mt-3 text-sm text-stone-500">
+						{m.allocation_add_unavailable()}
+					</p>
 				{/if}
 				{#if projectAllocations.length}
 					<ul class="mt-4 space-y-2 text-sm">
 						{#each projectAllocations as item (item.project.id)}
-							<li class="flex justify-between rounded bg-stone-50 px-3 py-2">
+							<li class="space-y-2 rounded bg-stone-50 px-3 py-2">
 								<a class="link" href="/projects/{item.project.id}">{item.project.name}</a>
-								<span>{formatMoney(item.allocation.amount_cents)}</span>
+								{#if data.user.canWrite}<AllocationEditor
+										accountId={transaction.account_id}
+										transactionId={transaction.id}
+										projectId={item.project.id}
+										amount={item.allocation.amount_cents}
+										note={item.allocation.note}
+									/>{:else}<span>{formatMoney(item.allocation.amount_cents)}</span
+									>{#if item.allocation.note}<p>{item.allocation.note}</p>{/if}{/if}
 							</li>
 						{/each}
 					</ul>
@@ -298,6 +319,17 @@
 			</div>
 			<section class="card p-4">
 				<h2 class="card-title">{m.transaction_link_transfer()}</h2>
+				{#if data.suggestion}<div class="mt-3">
+						<TransferSuggestion
+							first={transaction}
+							match={data.suggestion}
+							accountNames={Object.fromEntries(
+								data.accounts.map((item) => [item.account_id, item.name])
+							)}
+							canWrite={data.user.canWrite}
+							action="?/link_transfer"
+						/>
+					</div>{/if}
 				{#if transaction.transfer_id}<p class="mt-3 text-sm break-all">
 						{m.transaction_counterpart()}:
 						<a
