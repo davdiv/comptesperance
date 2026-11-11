@@ -164,7 +164,7 @@
 			>
 				{m.auth_edit_mode_active()}
 			</div>{/if}
-		<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+		<main class="w-full px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
 			{@render children()}
 		</main>
 	</div>

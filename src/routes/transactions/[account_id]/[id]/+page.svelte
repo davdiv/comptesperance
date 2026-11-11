@@ -39,7 +39,7 @@
 	);
 </script>
 
-<div class="space-y-6">
+<div class="max-w-6xl space-y-6">
 	<PageHeader
 		title={transaction.label || m.transactions_title()}
 		subtitle={formatDate(transaction.date)}

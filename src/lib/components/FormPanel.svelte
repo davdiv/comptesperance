@@ -22,5 +22,5 @@
 			class="ml-auto size-4 text-stone-400 transition-transform group-open:rotate-90"
 		/>
 	</summary>
-	<div class="border-t border-stone-100 px-5 py-4">{@render children()}</div>
+	<div class="max-w-6xl border-t border-stone-100 px-5 py-4">{@render children()}</div>
 </details>
