@@ -133,20 +133,26 @@ export function buildProjectPdfDefinition(
 			bold: true,
 			margin: [0, 16, 0, 10]
 		},
+		{
+			text: `${m.account_incoming()}: ${formatMoney(details.incoming_cents)}   ·   ${m.account_outgoing()}: ${formatMoney(details.outgoing_cents)}`,
+			fontSize: 11
+		},
 		{ text: m.project_by_account(), style: 'section' },
 		{
 			table: {
 				headerRows: 1,
-				widths: ['*', 90, 100],
+				widths: ['*', 120, 120, 120],
 				body: [
 					[
 						m.project_allocation_account(),
-						m.project_allocations(),
+						{ text: m.account_incoming(), alignment: 'right' },
+						{ text: m.account_outgoing(), alignment: 'right' },
 						{ text: m.common_amount(), alignment: 'right' }
 					],
 					...details.by_account.map((a) => [
 						a.account_name ?? a.account_id,
-						String(a.count),
+						money(a.incoming_cents),
+						money(a.outgoing_cents),
 						money(a.amount_cents)
 					])
 				]
@@ -159,6 +165,7 @@ export function buildProjectPdfDefinition(
 					{
 						table: {
 							headerRows: 1,
+							dontBreakRows: true,
 							widths: [54, 64, '*', 64, 62, 62, 66, 73, 73],
 							body: [
 								headings.map((text) => ({
@@ -194,6 +201,10 @@ export function buildProjectPdfDefinition(
 							paddingTop: () => 5,
 							paddingBottom: () => 5
 						}
+					} as Content,
+					{
+						text: `${m.pdf_visible_total()} — ${m.account_incoming()}: ${formatMoney(details.allocations.reduce((sum, a) => sum + Math.max(a.amount_cents, 0), 0))}   ·   ${m.account_outgoing()}: ${formatMoney(details.allocations.reduce((sum, a) => sum + Math.min(a.amount_cents, 0), 0))}`,
+						margin: [0, 8, 0, 0]
 					} as Content
 				]
 			: [{ text: m.project_no_allocations() }]),

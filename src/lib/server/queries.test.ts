@@ -84,6 +84,59 @@ it('searches category and payment mode display names rather than opaque ids', as
 });
 
 describe('getProjectDetails', () => {
+	it('sums signed allocated income and expenses before transfer hiding and pagination', async () => {
+		for (const id of ['income', 'expense', 'transfer', 'other', 'zero'])
+			addAllocation(id, id === 'transfer' ? 'group' : null);
+		db.exec(`
+			INSERT INTO accounts VALUES ('bank', 'Bank');
+			UPDATE project_allocations SET amount_cents = -500 WHERE transaction_id = 'expense';
+			UPDATE project_allocations SET amount_cents = -300 WHERE transaction_id = 'transfer';
+			UPDATE project_allocations SET amount_cents = 0 WHERE transaction_id = 'zero';
+			UPDATE project_allocations SET account_id = 'bank', amount_cents = 200 WHERE transaction_id = 'other';
+			UPDATE transactions SET account_id = 'bank' WHERE id = 'other';
+		`);
+		for (const include_transfers of [false, true]) {
+			const details = await getProjectDetails('project', {
+				include_transfers,
+				limit: 1,
+				offset: 1
+			});
+			expect(details).toMatchObject({
+				total_cents: 650,
+				incoming_cents: 1450,
+				outgoing_cents: -800,
+				transaction_count: 5
+			});
+			expect(details?.allocations).toHaveLength(1);
+			expect(details?.by_account).toEqual([
+				{
+					account_id: 'bank',
+					account_name: 'Bank',
+					amount_cents: 200,
+					incoming_cents: 200,
+					outgoing_cents: 0,
+					count: 1
+				},
+				{
+					account_id: 'cash',
+					account_name: 'Cash',
+					amount_cents: 450,
+					incoming_cents: 1250,
+					outgoing_cents: -800,
+					count: 4
+				}
+			]);
+		}
+		expect(
+			await getProjectDetails('project', { account_id: 'cash', search: 'Vente' })
+		).toMatchObject({ total_cents: 450, incoming_cents: 1250, outgoing_cents: -800 });
+		expect(await getProjectDetails('project', { date_from: '2026-10-04' })).toMatchObject({
+			total_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0,
+			by_account: []
+		});
+	});
 	it('omits net-zero accounts while retaining their allocations in overall totals and counts', async () => {
 		addAllocation('in', 'group');
 		addAllocation('out', 'group');
@@ -91,6 +144,8 @@ describe('getProjectDetails', () => {
 		for (const includeTransfers of [false, true]) {
 			const details = await getProjectDetails('project', includeTransfers);
 			expect(details?.total_cents).toBe(0);
+			expect(details?.incoming_cents).toBe(1250);
+			expect(details?.outgoing_cents).toBe(-1250);
 			expect(details?.by_account).toEqual([]);
 			expect(details?.allocations).toHaveLength(includeTransfers ? 2 : 0);
 		}
@@ -177,7 +232,9 @@ describe('getProjectDetails', () => {
 		expect(await getProjectDetails('project')).toMatchObject({
 			allocations: [],
 			by_account: [],
-			total_cents: 0
+			total_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0
 		});
 	});
 
