@@ -130,6 +130,7 @@
 	"document_confirm_delete_linked": "Supprimer ce document et le délier de toutes les transactions ? Cette action est irréversible.",
 	"documents_title": "Documents",
 	"documents_subtitle": "Pièces justificatives stockées dans le dépôt de données.",
+	"document_label": "Document",
 	"document_upload": "Téléverser un document",
 	"document_no_documents": "Aucun document pour le moment.",
 	"document_size": "Taille",

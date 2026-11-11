@@ -130,6 +130,7 @@
 	"document_confirm_delete_linked": "Delete this document and unlink it from all transactions? This cannot be undone.",
 	"documents_title": "Documents",
 	"documents_subtitle": "Evidence files stored in the data repository.",
+	"document_label": "Document",
 	"document_upload": "Upload document",
 	"document_no_documents": "No documents yet.",
 	"document_size": "Size",

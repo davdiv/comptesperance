@@ -657,12 +657,28 @@ export async function saveDocument(
 	data: Uint8Array,
 	root?: string
 ): Promise<string> {
+	return (await saveDocuments([{ name: fileName, data }], root))[0];
+}
+
+export async function saveDocuments(
+	files: { name: string; data: Uint8Array }[],
+	root?: string
+): Promise<string[]> {
+	if (!files.length) throw new Error('Select at least one file');
 	const repo = await repoRoot(root);
-	const safeName = safeDocumentName(fileName);
-	const fullPath = path.join(repo, 'documents', safeName);
-	await writeBinaryFile(fullPath, data);
-	await commitData(repo, `data: add document ${safeName}`);
-	return `documents/${safeName}`;
+	const paths: string[] = [];
+	try {
+		for (const file of files) {
+			const documentPath = `documents/${safeDocumentName(file.name)}`;
+			paths.push(documentPath);
+			await writeBinaryFile(safeJoin(repo, documentPath), file.data);
+		}
+	} catch (error) {
+		await Promise.all(paths.map((documentPath) => removeFile(safeJoin(repo, documentPath))));
+		throw error;
+	}
+	await commitData(repo, `data: add ${paths.length} documents`);
+	return paths;
 }
 
 async function appendEvidence(root: string, ref: TransactionRef, paths: string[]): Promise<void> {

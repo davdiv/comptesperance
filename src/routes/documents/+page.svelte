@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { documentDisplayName } from '$lib/documents';
 	import { m } from '$lib/paraglide/messages.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Alert from '$lib/components/Alert.svelte';
@@ -25,9 +26,10 @@
 			class="card flex flex-wrap items-center gap-3 p-4"
 		>
 			<label class="field"
-				><span class="field-label">{m.common_evidence()}</span><input
+				><span class="field-label">{m.document_label()}</span><input
 					type="file"
 					name="file"
+					multiple
 					required
 					class="file-input"
 				/></label
@@ -52,7 +54,7 @@
 							><a
 								class="link inline-flex max-w-xs items-center gap-2 break-all"
 								href="/documents/download?path={encodeURIComponent(document.path)}"
-								><Icon name="file" />{document.name}</a
+								title={document.path}><Icon name="file" />{documentDisplayName(document.path)}</a
 							></td
 						>
 						<td>{formatSize(document.size)}</td>
