@@ -277,7 +277,9 @@ export async function deleteManualTransaction(
 		account_id: accountId,
 		transaction_id: transactionId
 	});
-	if (counterpart) await applyTransferFields(repo, counterpart, EMPTY_TRANSFER);
+	if (counterpart) {
+		await applyTransferFields(repo, counterpart, EMPTY_TRANSFER, { ignoreMissing: true });
+	}
 	const projects = await listProjects(repo);
 	for (const project of projects) {
 		const allocations = project.allocations.filter(

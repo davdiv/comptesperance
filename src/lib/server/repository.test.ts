@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { commitAll } from './git';
 import {
 	deleteManualTransaction,
+	linkTransfer,
 	uploadEvidence,
 	linkDocument,
 	deleteDocument,
@@ -186,4 +187,41 @@ it('saves library uploads together in one commit', async () => {
 	expect(await listDocuments(root)).toHaveLength(2);
 	expect(commitAll).toHaveBeenCalledTimes(1);
 	await expect(saveDocuments([], root)).rejects.toThrow('Select at least one file');
+});
+it.each(['missing-account', 'cash'])(
+	'deletes safely when the counterpart is missing in %s',
+	async (accountId) => {
+		const accountPath = path.join(root, 'accounts/cash/account.json');
+		const account = JSON.parse(await readFile(accountPath, 'utf8'));
+		account.transactions[0].counterpart_account_id = accountId;
+		account.transactions[0].counterpart_transaction_id = 'missing';
+		await writeFile(accountPath, JSON.stringify(account));
+		await deleteManualTransaction('cash', 'sale', root);
+		const updated = JSON.parse(await readFile(accountPath, 'utf8'));
+		expect(updated.transactions.map((transaction: { id: string }) => transaction.id)).toEqual([
+			'keep'
+		]);
+		expect(commitAll).toHaveBeenCalledTimes(1);
+	}
+);
+
+it('relinks a transfer whose old manual counterpart was deleted', async () => {
+	const annotationPath = path.join(root, 'accounts/bank/annotations.json');
+	const annotations = JSON.parse(await readFile(annotationPath, 'utf8'));
+	annotations.other.counterpart_transaction_id = 'missing';
+	await writeFile(annotationPath, JSON.stringify(annotations));
+	await linkTransfer(
+		{ account_id: 'bank', transaction_id: 'other' },
+		{ account_id: 'cash', transaction_id: 'keep' },
+		'new-transfer',
+		root
+	);
+	const updated = JSON.parse(await readFile(annotationPath, 'utf8'));
+	expect(updated.other).toMatchObject({
+		transfer_id: 'new-transfer',
+		counterpart_account_id: 'cash',
+		counterpart_transaction_id: 'keep',
+		notes: 'Keep notes'
+	});
+	expect(commitAll).toHaveBeenCalledTimes(1);
 });
