@@ -83,8 +83,9 @@ legacy-format compatibility is provided.
   A project appears at most once per transaction; amounts have the transaction's
   sign and their absolute sum cannot exceed its absolute amount.
 - `projects/<id>.json` contains only `id`, `name`, optional `description`,
-  `created_at`, `updated_at`. Project summaries exclude transfer allocations by
-  default. Deleting a project removes its allocations from all manual transactions
+  `created_at`, `updated_at`. Hiding internal transfers only filters displayed rows:
+  totals and summary counts always include transfer members, including project allocations.
+  Orphan allocations are ignored. Deleting a project removes its allocations from all manual transactions
   and CSV annotations in the same commit.
 - SumUp CSV formats are unchanged. Accepted sales use gross amounts; a derived
   fee transaction has id `<sale fingerprint>:fee` and a negative amount.
