@@ -4,6 +4,7 @@ import { getDatabase } from './cache';
 import { listDocuments } from './repository';
 import {
 	getProjectDetails,
+	getUnallocatedDetails,
 	getTransaction,
 	listAccountsWithTotals,
 	listThirdPartiesWithCounts,
@@ -180,6 +181,65 @@ describe('getProjectDetails', () => {
 
 	it('returns null for a missing project', async () => {
 		expect(await getProjectDetails('missing')).toBeNull();
+	});
+});
+
+describe('unallocated pseudo-project', () => {
+	it('uses full or partial remainders, excludes excluded and fully allocated rows, and keeps totals stable when transfers are hidden', async () => {
+		db.exec("INSERT INTO accounts VALUES ('bank','Bank')");
+		for (const [account, id, amount, allocated, transfer, excluded] of [
+			['cash', 'partial', 10000, 3000, null, 0],
+			['cash', 'expense', -5000, -2000, null, 0],
+			['bank', 'in', 9000, 0, 'group', 0],
+			['bank', 'out', -9000, 0, 'group', 0],
+			['cash', 'full', 2000, 2000, null, 0],
+			['cash', 'excluded', 9999, 0, null, 1],
+			['cash', 'zero', 0, 0, null, 0]
+		] as const) {
+			db.prepare(
+				'INSERT INTO transactions (account_id,id,date,amount_cents,label,excluded,transfer_id) VALUES (?,?,?,?,?,?,?)'
+			).run(account, id, '2026-10-03', amount, id, excluded, transfer);
+			if (allocated)
+				db.prepare('INSERT INTO project_allocations VALUES (?,?,?,?,NULL)').run(
+					'project',
+					account,
+					id,
+					allocated
+				);
+		}
+		for (const included of [false, true]) {
+			const result = await getUnallocatedDetails(included);
+			expect(result).toMatchObject({
+				incoming_cents: 16000,
+				outgoing_cents: -12000,
+				total_cents: 4000,
+				transaction_count: 4,
+				by_account: [{ account_id: 'cash', account_name: 'Cash', amount_cents: 4000, count: 2 }]
+			});
+			expect(result.transactions).toHaveLength(included ? 4 : 2);
+			expect(result.transactions.find((item) => item.id === 'partial')?.unallocated_cents).toBe(
+				7000
+			);
+			expect(result.transactions.find((item) => item.id === 'expense')?.unallocated_cents).toBe(
+				-3000
+			);
+			if (included)
+				expect(result.transactions.find((item) => item.id === 'in')).toMatchObject({
+					account_name: 'Bank',
+					unallocated_cents: 9000
+				});
+		}
+	});
+	it('returns empty rows and zero summaries without matching transactions', async () => {
+		for (const included of [false, true])
+			expect(await getUnallocatedDetails(included)).toEqual({
+				incoming_cents: 0,
+				outgoing_cents: 0,
+				total_cents: 0,
+				transaction_count: 0,
+				by_account: [],
+				transactions: []
+			});
 	});
 });
 

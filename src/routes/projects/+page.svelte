@@ -13,6 +13,10 @@
 
 <div class="space-y-6">
 	<PageHeader title={m.projects_title()} subtitle={m.projects_subtitle()} />
+	<a class="card block p-5 transition-colors hover:bg-stone-50" href="/projects/unallocated">
+		<span class="link font-semibold">{m.unallocated_title()}</span>
+		<span class="mt-1 block text-sm text-stone-500">{m.unallocated_description()}</span>
+	</a>
 	{#if data.user.canWrite}
 		<FormPanel label={m.project_new()} open={!!form?.error}
 			><form method="POST" class="grid gap-4 sm:grid-cols-2">

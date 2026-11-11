@@ -210,5 +210,10 @@
 	"auth_read_mode": "Return to read-only",
 	"auth_edit_mode_start": "Switch to edit mode",
 	"auth_edit_mode_active": "Edit mode",
-	"auth_enable_edit_mode": "Switch to edit mode before making changes."
+	"auth_enable_edit_mode": "Switch to edit mode before making changes.",
+	"unallocated_title": "Unallocated",
+	"unallocated_description": "Transactions with amounts still to allocate to projects.",
+	"unallocated_net": "Unallocated net",
+	"unallocated_remainder": "Unallocated remainder",
+	"unallocated_allocate": "Allocate"
 }

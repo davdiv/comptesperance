@@ -55,6 +55,12 @@ role and edit mode are present. Read-only users cannot enable edit mode.
 
 ## Data repository format
 
+`/projects/unallocated` is a computed view, not a stored project. It lists non-excluded
+transactions with a non-zero unallocated remainder (transaction amount minus allocations).
+Incoming/outgoing/net totals always include transfers; the transfer toggle only hides rows.
+Per-account breakdowns omit net-zero accounts. In edit mode, Allocate links open the existing
+transaction allocation editor.
+
 The git data repository is the source of truth; SQLite is disposable and rebuilt
 from these files. All monetary amounts are integer cents in EUR. No migration or
 legacy-format compatibility is provided.
