@@ -215,5 +215,12 @@
 	"unallocated_description": "Transactions with amounts still to allocate to projects.",
 	"unallocated_net": "Unallocated net",
 	"unallocated_remainder": "Unallocated remainder",
-	"unallocated_allocate": "Allocate"
+	"unallocated_allocate": "Allocate",
+	"upload_body_too_large_title": "Upload too large",
+	"upload_body_too_large": "This upload exceeds the total request limit. Send fewer files at once or reduce their size.",
+	"upload_file_too_large": "A file exceeds the configured per-file upload limit. Reduce its size or choose another file.",
+	"upload_select_files": "Select at least one file.",
+	"upload_invalid": "The upload could not be read. Select your files and try again.",
+	"upload_unsupported_type": "Choose a PDF, PNG, JPEG or WebP file.",
+	"error_title": "Unable to complete the request"
 }

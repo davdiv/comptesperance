@@ -8,7 +8,7 @@ import { listTransferPool } from '$lib/server/queries';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
-import { getEnv } from '$lib/server/env';
+import { readUploadFiles } from '$lib/server/uploads';
 import { parseDecimalToCents } from '$lib/server/money';
 import {
 	listTransferGroups,
@@ -225,18 +225,9 @@ export const actions: Actions = {
 			getAccountWithTotals(params.account_id)
 		]);
 		if (!transaction || !account) error(404, 'Transaction not found');
-		const form = await request.formData();
-		const files = form.getAll('file');
-		if (!files.length || files.some((file) => typeof file === 'string' || !file.name)) {
-			return fail(400, { error: 'Select at least one file' });
-		}
-		const uploads = files as File[];
-		const env = getEnv();
-		for (const file of uploads) {
-			if (file.size > env.maxEvidenceBytes) return fail(400, { error: 'File is too large' });
-			if (!/\.(pdf|png|jpe?g|webp)$/i.test(file.name))
-				return fail(400, { error: 'Unsupported file type' });
-		}
+		const result = await readUploadFiles(request, true);
+		if ('error' in result) return fail(result.status, { error: result.error });
+		const uploads = result.files;
 		try {
 			await uploadEvidence(
 				{ account_id: transaction.account_id, transaction_id: transaction.id },

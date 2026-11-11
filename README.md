@@ -53,6 +53,23 @@ SameSite=Strict session cookie; the server rejects writes unless both the write
 role and edit mode are present. Read-only users cannot enable edit mode.
 `AUTH_DISABLED=true` behaves as a writer but also starts read-only and hides Sign out.
 
+## Upload limits
+
+`MAX_EVIDENCE_BYTES` limits each document/evidence file (default 26214400 bytes,
+25 MiB). `BODY_SIZE_LIMIT` is adapter-node's total HTTP request-body limit, including
+all files and multipart overhead. Docker and Compose default to `100M` (100 MiB);
+both settings can be overridden through environment variables. Keep the total
+limit above the per-file limit, allowing headroom for multi-file batches. Split
+large batches across requests; four maximum-size files plus multipart overhead
+will exceed 100 MiB.
+
+When running `node build` directly, explicitly set `BODY_SIZE_LIMIT=100M`:
+adapter-node otherwise defaults to 512 KiB, well below the app's per-file limit.
+For local HTTP production testing also set `ORIGIN=http://localhost:<port>`.
+Traefik's supplied configuration has no buffering/body-limit middleware. Other
+upstream proxies may impose their own limits and must be configured separately.
+Per-file and request-body rejections are shown as bilingual upload errors.
+
 ## Data repository format
 
 `/projects/unallocated` is a computed view, not a stored project. It lists non-excluded

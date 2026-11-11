@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
-import { getEnv } from '$lib/server/env';
+import { readUploadFiles } from '$lib/server/uploads';
 import { listDocumentsWithLinks } from '$lib/server/queries';
 import { deleteDocument, saveDocuments } from '$lib/server/repository';
 
@@ -10,13 +10,9 @@ export const load: PageServerLoad = async () => ({ documents: await listDocument
 export const actions: Actions = {
 	upload: async ({ request, locals }) => {
 		requireWrite(locals.user);
-		const form = await request.formData();
-		const files = form.getAll('file');
-		if (!files.length || files.some((file) => typeof file === 'string' || !file.name))
-			return fail(400, { error: 'Select at least one file' });
-		const uploads = files as File[];
-		if (uploads.some((file) => file.size > getEnv().maxEvidenceBytes))
-			return fail(400, { error: 'File is too large' });
+		const result = await readUploadFiles(request);
+		if ('error' in result) return fail(result.status, { error: result.error });
+		const uploads = result.files;
 		try {
 			await saveDocuments(
 				await Promise.all(
