@@ -1,4 +1,5 @@
-import { defaultCategory } from './transaction-defaults';
+import { resolveImport } from './import-rules';
+import { accountCsvTransactions } from './csv/account-transactions';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -7,22 +8,22 @@ import type {
 	DataConfig,
 	PaymentMode,
 	AccountFile,
-	TransactionAnnotation
+	TransactionAnnotation,
+	ThirdParty,
+	Project
 } from '#lib/types.ts';
 import { getEnv } from './env';
 import { commitAll } from './git';
-import { detectCsvFormat, parseCsvStatement } from './csv';
-import { guessPaymentMode } from './payment-modes';
 import {
 	listDirectoryNames,
 	listFilesRecursive,
 	pathExists,
 	readJsonFile,
-	readTextFile,
 	writeJsonFile
 } from './store';
 
 const defaults: DataConfig = {
+	rules: [],
 	app: { name: 'Comptesperance' },
 	categories: [
 		{ id: 'dons', name: 'Dons', kind: 'income' },
@@ -43,6 +44,7 @@ const defaults: DataConfig = {
 	]
 };
 const files = {
+	rules: 'rules.json',
 	app: 'app.json',
 	categories: 'categories.json',
 	paymentModes: 'payment-modes.json'
@@ -60,7 +62,7 @@ export async function ensureConfig(root: string): Promise<void> {
 
 async function initializeConfig(root: string): Promise<void> {
 	let changed = false;
-	for (const key of ['app', 'categories', 'paymentModes'] as const) {
+	for (const key of ['app', 'categories', 'paymentModes', 'rules'] as const) {
 		const file = path.join(root, 'config', files[key]);
 		if (!(await pathExists(file))) {
 			await writeJsonFile(file, defaults[key]);
@@ -70,9 +72,13 @@ async function initializeConfig(root: string): Promise<void> {
 	if (changed) await commitAll(root, 'data: initialize configuration');
 }
 
-export async function readConfig(root = getEnv().dataRepoPath): Promise<DataConfig> {
-	await ensureConfig(root);
+export async function readConfig(
+	root = getEnv().dataRepoPath,
+	initialize = true
+): Promise<DataConfig> {
+	if (initialize) await ensureConfig(root);
 	return {
+		rules: await readJsonFile(path.join(root, 'config/rules.json'), []),
 		app: await readJsonFile<AppConfig>(path.join(root, 'config/app.json'), defaults.app),
 		categories: await readJsonFile<Category[]>(path.join(root, 'config/categories.json'), []),
 		paymentModes: await readJsonFile<PaymentMode[]>(
@@ -94,6 +100,18 @@ async function isUsed(
 	id: string,
 	config: DataConfig
 ): Promise<boolean> {
+	if (config.rules.some((rule) => rule.set[field] === id)) return true;
+	const parties: ThirdParty[] = [];
+	const projects: Project[] = [];
+	for (const name of await listFilesRecursive(path.join(root, 'third-parties'))) {
+		if (name.endsWith('.json'))
+			parties.push(
+				await readJsonFile<ThirdParty>(
+					path.join(root, 'third-parties', name),
+					null as unknown as ThirdParty
+				)
+			);
+	}
 	for (const accountId of await listDirectoryNames(path.join(root, 'accounts'))) {
 		const dir = path.join(root, 'accounts', accountId);
 		const file = await readJsonFile<AccountFile | null>(path.join(dir, 'account.json'), null);
@@ -109,19 +127,17 @@ async function isUsed(
 			file.account.source === 'manual' ? (file.transactions ?? []) : Object.values(annotations);
 		if (items.some((item) => item[field] === id)) return true;
 		if (file.account.source === 'csv') {
-			for (const statement of await listFilesRecursive(path.join(dir, 'statements'))) {
-				if (!statement.toLowerCase().endsWith('.csv')) continue;
-				const content = await readTextFile(path.join(dir, 'statements', statement));
-				const format = detectCsvFormat(content);
-				if (!format) continue;
-				for (const transaction of parseCsvStatement(content, format).transactions) {
-					const effectiveValue =
-						annotations[transaction.id]?.[field] ??
-						(field === 'payment_mode_id'
-							? guessPaymentMode(transaction, config.paymentModes)
-							: defaultCategory(transaction, config.categories));
-					if (effectiveValue === id) return true;
-				}
+			for (const { transaction, format } of await accountCsvTransactions(dir)) {
+				const effectiveValue = resolveImport(
+					transaction,
+					annotations[transaction.id] ?? {},
+					accountId,
+					format,
+					config,
+					parties.filter(Boolean),
+					projects
+				).values[field];
+				if (effectiveValue === id) return true;
 			}
 		}
 	}

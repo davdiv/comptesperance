@@ -27,7 +27,10 @@
 	]);
 </script>
 
-<PageHeader title={m.nav_settings()} subtitle={m.settings_subtitle()} />
+<PageHeader title={m.nav_settings()} subtitle={m.settings_subtitle()}>
+	{#snippet actions()}<a class="btn btn-secondary" href="/settings/rules">{m.rules_title()}</a
+		>{/snippet}
+</PageHeader>
 {#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 {#if form?.ok}<Alert tone="success">{m.settings_saved()}</Alert>{/if}
 <section class="card mb-6 p-5">

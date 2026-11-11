@@ -7,7 +7,9 @@ import type {
 	AccountTotals,
 	CachedTransaction,
 	Project,
-	BalanceCheckpoint
+	BalanceCheckpoint,
+	ClassificationField,
+	FieldSource
 } from '#lib/types.ts';
 import { calculateBalance, type BalanceResult } from './balances';
 import { getDatabase } from './cache';
@@ -20,8 +22,9 @@ export interface AccountWithTotals extends AccountTotals, BalanceResult {
 }
 
 export interface TransactionView extends CachedTransaction {
-	category_is_guessed: boolean;
-	payment_mode_is_guessed: boolean;
+	sources: Record<ClassificationField, FieldSource>;
+	suggested_project_id: string | null;
+	suggested_project_rule: FieldSource | null;
 	allocation_details: (CachedTransaction['allocations'][number] & {
 		project_name: string | null;
 	})[];
@@ -111,8 +114,11 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 		third_party_id: stringOrNull(row.third_party_id),
 		notes: String(row.notes ?? ''),
 		category_id: String(row.category_id ?? ''),
-		category_is_guessed: Number(row.category_is_guessed) === 1,
-		payment_mode_is_guessed: Number(row.payment_mode_is_guessed) === 1,
+		sources: parseJsonObject(row.sources_json),
+		suggested_project_id: stringOrNull(row.suggested_project_id),
+		suggested_project_rule: row.suggested_project_rule_json
+			? JSON.parse(String(row.suggested_project_rule_json))
+			: null,
 		payment_mode_id: String(row.payment_mode_id ?? ''),
 		allocations: parseJsonArray(row.allocations_json),
 		allocation_details: parseJsonArray(row.named_allocations_json),

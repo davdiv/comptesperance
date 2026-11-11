@@ -177,6 +177,22 @@ test('writer edit mode, account, transaction, allocation, large evidence and CSV
 		}, downloadUrl ?? '')
 	).toEqual({ status: 200, size: evidence.length });
 
+	await page.goto('/settings/rules');
+	await page.getByRole('link', { name: 'New rule', exact: true }).click();
+	const ruleEditor = page.locator('#rule-editor');
+	await ruleEditor.locator('[name="name"]').fill('E2E cash classification');
+	await ruleEditor.locator('[name="condition_text"]').fill('VERSEMENT ESPECES');
+	await ruleEditor.locator('[name="set_category_id"]').selectOption('ventes');
+	await ruleEditor.getByRole('button', { name: 'Preview', exact: true }).click();
+	await expect(
+		page.getByRole('heading', { name: 'Matches 0 transactions', exact: true })
+	).toBeVisible();
+	await ruleEditor.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(
+		page.getByRole('heading', { name: 'E2E cash classification', exact: false })
+	).toBeVisible();
+	await expectWriterCommit();
+
 	for (const [format, count] of [
 		['ccp', 4],
 		['sumup', 4]
@@ -201,6 +217,45 @@ test('writer edit mode, account, transaction, allocation, large evidence and CSV
 				.locator('a[href^="/transactions/"]')
 				.evaluateAll((links) => links.map((link) => link.getAttribute('href')))
 		).toEqual(originalLinks);
+		if (format === 'ccp') {
+			await page.getByRole('link', { name: 'VERSEMENT ESPECES', exact: true }).click();
+			await expect(page).toHaveURL(/\/transactions\/e2e-ccp\//);
+			const csvTransactionUrl = new URL(page.url()).pathname;
+			const edit = page.locator('form[action="?/save"]');
+			const category = edit.locator('select[name="category_id"]');
+			await expect(category).toHaveValue('ventes');
+			await expect(
+				edit.getByRole('link', { name: 'By rule: E2E cash classification', exact: true })
+			).toBeVisible();
+			await category.selectOption('dons');
+			await edit.getByRole('button', { name: 'Save', exact: true }).click();
+			await expect(category).toHaveValue('dons');
+			await expect(edit.getByText('Set manually', { exact: false })).toBeVisible();
+			await page
+				.getByRole('link', { name: 'Create rule from this transaction', exact: true })
+				.click();
+			await expect(ruleEditor.locator('[name="condition_text"]')).toHaveValue('VERSEMENT ESPECES');
+			await expect(ruleEditor.locator('[name="condition_account_id"]')).toHaveValue(
+				csvAccountUrl.split('/').pop()!
+			);
+			await expect(ruleEditor.locator('[name="condition_direction"]')).toHaveValue('in');
+			await expect(ruleEditor.locator('[name="set_category_id"]')).toHaveValue('dons');
+			await ruleEditor.getByRole('button', { name: 'Preview', exact: true }).click();
+			await expect(
+				page.getByRole('heading', { name: 'Matches 1 transactions', exact: true })
+			).toBeVisible();
+			await expect(page.locator('#preview')).toContainText('Set manually — not affected');
+			await page.goto(csvTransactionUrl);
+			await edit.getByRole('button', { name: 'Reset to automatic', exact: true }).click();
+			await expect(category).toHaveValue('ventes');
+			await expect(
+				edit.getByRole('link', { name: 'By rule: E2E cash classification', exact: true })
+			).toBeVisible();
+			await expect(
+				edit.getByRole('button', { name: 'Reset to automatic', exact: true })
+			).toHaveCount(0);
+			await expectWriterCommit();
+		}
 	}
 
 	await page.goto(accountUrl);

@@ -9,7 +9,12 @@ import {
 import type { ProjectDetails } from './queries';
 import type { DataConfig } from '#lib/types.ts';
 
-const config: DataConfig = { app: { name: 'Test app' }, categories: [], paymentModes: [] };
+const config: DataConfig = {
+	app: { name: 'Test app' },
+	categories: [],
+	paymentModes: [],
+	rules: []
+};
 const state = {
 	filters: {},
 	filterOptions: { accounts: [], thirdParties: [], projects: [] }

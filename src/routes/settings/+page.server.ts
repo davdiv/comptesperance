@@ -33,7 +33,7 @@ export const actions: Actions = {
 			return fail(400, {
 				error:
 					e instanceof Error && e.message === 'config_in_use'
-						? m.config_in_use()
+						? m.import_reference_in_use()
 						: m.config_invalid()
 			});
 		}

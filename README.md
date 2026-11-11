@@ -164,6 +164,23 @@ legacy-format compatibility is provided.
   Missing config files are initialized with French defaults and committed.
   Settings edits each make one data-repository commit. Used entries can be archived
   but not deleted.
+- `config/rules.json`: ordered import rules (`id`, `name`, optional `enabled`, `conditions`, `set`).
+  Conditions can match normalized label/description text or a regex, account, direction,
+  absolute minimum/maximum cents, CSV format and record type; all supplied conditions
+  must match. Rules require at least one condition and one field to set. Invalid regexes
+  and missing references are rejected by the repository save functions. Rules can be
+  saved, deleted and reordered, with one commit per mutation. Their settings UI follows separately.
+  CSV classifications resolve per field: explicit annotation key, then the first enabled
+  matching rule with an active/existing target, then a name-ordered third-party alias,
+  then built-in guesses. Explicit empty IDs, null third parties and false exclusion values
+  override automatic values. Manual transactions remain fully explicit.
+  Rule-derived values and provenance live only in the rebuildable cache; rule changes
+  invalidate the cache through the data-repository fingerprint and apply retroactively.
+  Unrelated annotation edits patch only their own fields. Explicit classifications can
+  be reset to automatic from the transaction page in edit mode. A rule's project is only
+  a suggestion until Apply saves a full allocation; suggestions never affect totals.
+  An explicit allocations key (including an empty array) suppresses suggestions.
+  Rules prevent deletion of referenced categories, payment modes, third parties and projects.
 - `accounts/<id>/account.json`: `{ "account": { "id": "...", "name": "...", "source": "manual", "notes": "...", "created_at": "...", "updated_at": "..." }, "transactions": [] }`.
   CSV accounts omit `transactions` and keep unchanged CSV imports in `statements/`.
   Accounts have no type, currency or opening-balance field. Optional top-level
@@ -216,6 +233,22 @@ legacy-format compatibility is provided.
   imbalances on manually assembled groups remain visible warnings.
 - `third-parties/<id>.json` and `documents/` retain their existing formats.
   Evidence paths can be shared by multiple transactions.
+
+## Managing import rules
+
+Open **Settings → Import rules** to see ordered rules, conditions, outputs and CSV
+match counts. Counts include disabled rules' condition matches. In edit mode,
+create, edit, enable/disable, delete or move rules; each mutation makes one data
+repository commit. A transaction's **Create rule from this transaction** link
+prefills the editor with its label, account, direction and current classifications.
+
+**Preview** does not save anything. It shows up to eight matching CSV transactions
+and the effective changes after applying the draft in its actual rule position,
+respecting earlier rules and explicit values. Project outputs remain suggestions.
+Source hints appear beneath fields in the transaction editor, or beside values
+in read-only Details; explicit fields can be reset independently of unsaved edits.
+Third-party aliases are editable on the third-party page and provide automatic
+matching below rules in precedence.
 
 ## Transaction filters and third-party amounts
 

@@ -23,12 +23,14 @@
 		[
 			{ href: '/documents', label: m.nav_documents, icon: 'documents' },
 			{ href: '/import', label: m.nav_import, icon: 'upload' },
-			{ href: '/settings', label: m.nav_settings, icon: 'settings' }
+			{ href: '/settings', label: m.nav_settings, icon: 'settings' },
+			{ href: '/settings/rules', label: m.rules_title, icon: 'settings' }
 		]
 	];
 
 	function isActive(href: string): boolean {
 		if (href === '/') return pathname === '/';
+		if (href === '/settings') return pathname === '/settings';
 		if (href === '/accounts' && pathname.startsWith('/transactions/')) return true;
 		if (href === '/transactions') return pathname === '/transactions';
 		return pathname.startsWith(href);

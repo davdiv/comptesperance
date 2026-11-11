@@ -33,7 +33,7 @@ beforeEach(() => {
 			label TEXT, description TEXT, record_type TEXT, status TEXT, third_party_id TEXT, transfer_id TEXT,
 			notes TEXT, category_id TEXT, evidence_json TEXT, excluded INTEGER, payment_mode_id TEXT, allocations_json TEXT,
 			source TEXT, source_files_json TEXT, raw_json TEXT, attributes_json TEXT,
-			category_is_guessed INTEGER NOT NULL DEFAULT 0, payment_mode_is_guessed INTEGER NOT NULL DEFAULT 0
+			sources_json TEXT NOT NULL DEFAULT '{}', suggested_project_id TEXT, suggested_project_rule_json TEXT
 		);
 		INSERT INTO projects VALUES ('project', 'Project', NULL, '', '');
 		INSERT INTO accounts VALUES ('cash', 'Cash');
@@ -109,22 +109,24 @@ describe('getProjectDetails', () => {
 		async (categoryGuessed, modeGuessed) => {
 			addAllocation('sale');
 			db.prepare(
-				"UPDATE transactions SET source = 'csv', category_id = 'frais-bancaires', payment_mode_id = 'carte', category_is_guessed = ?, payment_mode_is_guessed = ?"
-			).run(categoryGuessed, modeGuessed);
+				"UPDATE transactions SET source = 'csv', category_id = 'frais-bancaires', payment_mode_id = 'carte', sources_json = ?"
+			).run(
+				JSON.stringify({
+					category_id: { source: categoryGuessed ? 'guess' : 'explicit' },
+					payment_mode_id: { source: modeGuessed ? 'guess' : 'explicit' }
+				})
+			);
 			const transaction = (await getProjectDetails('project'))!.allocations[0].transaction;
 			expect(transaction).toMatchObject({
 				category_id: 'frais-bancaires',
 				payment_mode_id: 'carte',
-				category_is_guessed: Boolean(categoryGuessed),
-				payment_mode_is_guessed: Boolean(modeGuessed)
+				sources: {
+					category_id: { source: categoryGuessed ? 'guess' : 'explicit' },
+					payment_mode_id: { source: modeGuessed ? 'guess' : 'explicit' }
+				}
 			});
 			const direct = await getTransaction('cash', 'sale');
-			for (const field of [
-				'category_id',
-				'payment_mode_id',
-				'category_is_guessed',
-				'payment_mode_is_guessed'
-			] as const) {
+			for (const field of ['category_id', 'payment_mode_id', 'sources'] as const) {
 				expect(transaction?.[field]).toEqual(direct?.[field]);
 			}
 		}

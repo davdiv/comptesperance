@@ -5,6 +5,7 @@ import Settings from '../../routes/settings/+page.svelte';
 import type { DataConfig } from '#lib/types.ts';
 
 const config: DataConfig = {
+	rules: [],
 	app: { name: 'Custom name' },
 	categories: [
 		{ id: 'income', name: 'Income category', kind: 'income' },

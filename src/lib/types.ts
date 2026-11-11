@@ -132,7 +132,35 @@ export interface Category extends PaymentMode {
 	kind: 'income' | 'expense';
 }
 export interface DataConfig {
+	rules: ImportRule[];
 	app: AppConfig;
 	categories: Category[];
 	paymentModes: PaymentMode[];
 }
+
+export type ClassificationField = 'third_party_id' | 'category_id' | 'payment_mode_id' | 'excluded';
+export interface FieldSource {
+	source: 'explicit' | 'rule' | 'alias' | 'guess' | 'none';
+	rule_id?: string;
+	rule_name?: string;
+}
+export interface ImportRule {
+	id: string;
+	name: string;
+	enabled?: boolean;
+	conditions: {
+		text?: string;
+		pattern?: string;
+		account_id?: string;
+		direction?: 'in' | 'out';
+		min_cents?: number;
+		max_cents?: number;
+		format?: 'ccp' | 'sumup';
+		record_type?: string;
+	};
+	set: Partial<Record<Exclude<ClassificationField, 'excluded'> | 'project_id', string>> & {
+		excluded?: boolean;
+	};
+}
+
+export type ImportRuleDraft = Omit<ImportRule, 'id'> & { id?: string };

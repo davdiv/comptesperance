@@ -15,7 +15,16 @@ import {
 	deleteProject,
 	deleteManualTransaction,
 	setStatementCheckpointIgnored,
-	updateAccount
+	updateAccount,
+	saveImportRule,
+	deleteImportRule,
+	reorderImportRules,
+	resetAutomaticField,
+	createThirdParty,
+	deleteThirdParty,
+	uploadEvidence,
+	linkTransfer,
+	unlinkTransfer
 } from './repository';
 import {
 	getAccountWithTotals,
@@ -27,6 +36,7 @@ import {
 import { parseCsvStatement } from './csv';
 import { mutateConfig } from './config';
 import { annotationFromTransaction, editedClassification } from './annotations';
+import { readConfig } from './config';
 
 vi.mock('./git', () => ({
 	commitAll: vi.fn().mockResolvedValue(true),
@@ -34,6 +44,179 @@ vi.mock('./git', () => ({
 	statusFingerprint: vi.fn()
 }));
 let root: string;
+
+it('records alias provenance and blocks deletion unless the alias is explicitly overridden', async () => {
+	const account = await createAccount({ name: 'Alias', source: 'csv' }, root);
+	const party = await createThirdParty({ name: 'Alias party', aliases: ['DUCLOS MARIE'] }, root);
+	const content = await readFile(new URL('./csv/testdata/ccp-sample.csv', import.meta.url), 'utf8');
+	await writeFile(path.join(root, 'accounts', account.id, 'statements/sample.csv'), content);
+	const transaction = parseCsvStatement(content, 'ccp').transactions[0];
+	expect(await getTransaction(account.id, transaction.id)).toMatchObject({
+		third_party_id: party.id,
+		sources: { third_party_id: { source: 'alias' } }
+	});
+	await expect(deleteThirdParty(party.id, root)).rejects.toThrow('config_in_use');
+	await upsertAnnotation(account.id, transaction.id, { third_party_id: null }, root);
+	vi.mocked(statusFingerprint).mockResolvedValue('explicit-no-alias');
+	expect(await getTransaction(account.id, transaction.id)).toMatchObject({
+		third_party_id: null,
+		sources: { third_party_id: { source: 'explicit' } }
+	});
+	await deleteThirdParty(party.id, root);
+});
+
+it('makes one commit for each rules CRUD or reorder mutation and preserves update order', async () => {
+	await readConfig(root);
+	vi.mocked(commitAll).mockClear();
+	const first = await saveImportRule(
+		{ name: 'First', conditions: { text: 'first' }, set: { excluded: true } },
+		root
+	);
+	expect(commitAll).toHaveBeenCalledTimes(1);
+	const second = await saveImportRule(
+		{ name: 'Second', conditions: { text: 'second' }, set: { excluded: false } },
+		root
+	);
+	expect(commitAll).toHaveBeenCalledTimes(2);
+	await saveImportRule({ ...first, name: 'Updated' }, root);
+	expect(commitAll).toHaveBeenCalledTimes(3);
+	expect((await readConfig(root)).rules.map((rule) => rule.id)).toEqual([first.id, second.id]);
+	await reorderImportRules([second.id, first.id], root);
+	expect(commitAll).toHaveBeenCalledTimes(4);
+	await deleteImportRule(first.id, root);
+	expect(commitAll).toHaveBeenCalledTimes(5);
+	await deleteImportRule(second.id, root);
+	expect(commitAll).toHaveBeenCalledTimes(6);
+	expect((await readConfig(root)).rules).toEqual([]);
+});
+
+it('persists ordered rules, resolves retroactively, resets keys, preserves automatic fields on unrelated edits, and blocks referenced entity deletion', async () => {
+	const account = await createAccount({ name: 'Rules', source: 'csv' }, root);
+	const project = await createProject({ name: 'Project' }, root);
+	const party = await createThirdParty({ name: 'Alias party', aliases: [''] }, root);
+	const content = await readFile(
+		new URL('./csv/testdata/sumup-sample.csv', import.meta.url),
+		'utf8'
+	);
+	await writeFile(path.join(root, 'accounts', account.id, 'statements/sample.csv'), content);
+	const transaction = parseCsvStatement(content, 'sumup').transactions.find(
+		(item) => item.record_type === 'vente' && !item.excluded
+	)!;
+	const input = {
+		name: 'Sales',
+		conditions: { record_type: 'vente' },
+		set: {
+			third_party_id: party.id,
+			category_id: 'ventes',
+			payment_mode_id: 'especes',
+			project_id: project.id,
+			excluded: false
+		}
+	};
+	const first = await saveImportRule(input, root);
+	const second = await saveImportRule(
+		{ ...input, name: 'Second', set: { category_id: 'dons' } },
+		root
+	);
+	let resolved = (await getTransaction(account.id, transaction.id))!;
+	expect(resolved).toMatchObject({
+		category_id: 'ventes',
+		third_party_id: party.id,
+		suggested_project_id: project.id,
+		allocations: [],
+		sources: { category_id: { source: 'rule', rule_id: first.id } }
+	});
+	await upsertAnnotation(account.id, transaction.id, { notes: 'Note' }, root);
+	await uploadEvidence(
+		{ account_id: account.id, transaction_id: transaction.id },
+		[{ name: 'proof.pdf', data: new Uint8Array([1, 2]) }],
+		root
+	);
+	await setTransactionAllocations(
+		{ account_id: account.id, transaction_id: transaction.id },
+		[{ project_id: project.id, amount_cents: transaction.amount_cents }],
+		root
+	);
+	const otherAccount = await createAccount({ name: 'Other', source: 'manual' }, root);
+	const other = await createManualTransaction(
+		otherAccount.id,
+		{ date: transaction.date, label: 'Transfer', amount_cents: -transaction.amount_cents },
+		root
+	);
+	await linkTransfer(
+		{ account_id: account.id, transaction_id: transaction.id },
+		{ account_id: otherAccount.id, transaction_id: other.id },
+		root
+	);
+	await unlinkTransfer({ account_id: account.id, transaction_id: transaction.id }, root);
+	let annotation = JSON.parse(
+		await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8')
+	)[transaction.id];
+	for (const field of ['third_party_id', 'category_id', 'payment_mode_id', 'excluded'])
+		expect(annotation).not.toHaveProperty(field);
+	await upsertAnnotation(
+		account.id,
+		transaction.id,
+		{ third_party_id: null, category_id: '', payment_mode_id: '', excluded: true },
+		root
+	);
+	vi.mocked(statusFingerprint).mockResolvedValue('explicit-rules');
+	expect(await getTransaction(account.id, transaction.id)).toMatchObject({
+		category_id: '',
+		third_party_id: null,
+		excluded: true,
+		suggested_project_id: null,
+		sources: { category_id: { source: 'explicit' } }
+	});
+	for (const field of ['third_party_id', 'category_id', 'payment_mode_id', 'excluded'])
+		await resetAutomaticField(account.id, transaction.id, field, root);
+	await reorderImportRules([second.id, first.id], root);
+	vi.mocked(statusFingerprint).mockResolvedValue('reordered');
+	resolved = (await getTransaction(account.id, transaction.id))!;
+	expect(resolved.category_id).toBe('dons');
+	expect(resolved.sources.third_party_id.source).toBe('rule');
+	annotation = JSON.parse(
+		await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8')
+	)[transaction.id];
+	expect(annotation.notes).toBe('Note');
+	expect(annotation.evidence).toHaveLength(1);
+	await upsertAnnotation(account.id, transaction.id, { notes: '' }, root);
+	expect(
+		JSON.parse(await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8'))[
+			transaction.id
+		]
+	).not.toHaveProperty('notes');
+	await expect(deleteProject(project.id, root)).rejects.toThrow('config_in_use');
+	await expect(deleteThirdParty(party.id, root)).rejects.toThrow('config_in_use');
+	await expect(mutateConfig('categories', { id: 'ventes', remove: true }, root)).rejects.toThrow(
+		'config_in_use'
+	);
+	await expect(mutateConfig('paymentModes', { id: 'especes', remove: true }, root)).rejects.toThrow(
+		'config_in_use'
+	);
+	await saveImportRule({ ...second, enabled: false }, root);
+	await deleteImportRule(first.id, root);
+	vi.mocked(statusFingerprint).mockResolvedValue('deleted-rules');
+	expect((await getTransaction(account.id, transaction.id))!.payment_mode_id).toBe('carte');
+	expect((await readConfig(root)).rules.map((rule) => rule.id)).toEqual([second.id]);
+	const commits = vi.mocked(commitAll).mock.calls.length;
+	for (const invalid of [
+		{ ...input, conditions: {} },
+		{ ...input, conditions: { pattern: '[' } },
+		{ ...input, conditions: { min_cents: -1 } },
+		{ ...input, set: { project_id: 'missing' } },
+		{ ...input, conditions: { account_id: 'missing' } },
+		{ ...input, conditions: { direction: '' as 'in' } },
+		{ ...input, conditions: { format: '' as 'ccp' } }
+	])
+		await expect(saveImportRule(invalid, root)).rejects.toThrow('config_invalid');
+	await expect(reorderImportRules([second.id, second.id], root)).rejects.toThrow('config_invalid');
+	await expect(deleteImportRule('missing', root)).rejects.toThrow('config_invalid');
+	await expect(resetAutomaticField(account.id, transaction.id, 'notes', root)).rejects.toThrow(
+		'Invalid field'
+	);
+	expect(commitAll).toHaveBeenCalledTimes(commits);
+});
 beforeEach(async () => {
 	root = await mkdtemp(path.join(tmpdir(), 'comptesperance-cache-'));
 	vi.stubEnv('DATA_REPO_PATH', root);
@@ -383,8 +566,14 @@ it('keeps CSV classification defaults dynamic across unrelated annotation saves 
 	const { transactions } = await listTransactions({ account_id: account.id });
 	const sale = transactions.find((item) => item.record_type === 'vente' && !item.excluded)!;
 	const fee = transactions.find((item) => item.record_type === 'fee')!;
-	expect(sale).toMatchObject({ payment_mode_id: 'carte', payment_mode_is_guessed: true });
-	expect(fee).toMatchObject({ category_id: 'frais-bancaires', category_is_guessed: true });
+	expect(sale).toMatchObject({
+		payment_mode_id: 'carte',
+		sources: { payment_mode_id: { source: 'guess' } }
+	});
+	expect(fee).toMatchObject({
+		category_id: 'frais-bancaires',
+		sources: { category_id: { source: 'guess' } }
+	});
 	for (const transaction of [sale, fee]) {
 		const form = new FormData();
 		form.set('category_id', transaction.category_id);
@@ -425,8 +614,7 @@ it('keeps CSV classification defaults dynamic across unrelated annotation saves 
 	vi.mocked(statusFingerprint).mockResolvedValue('explicit-empty-category');
 	expect(await getTransaction(account.id, fee.id)).toMatchObject({
 		category_id: '',
-		category_is_guessed: false,
 		payment_mode_id: '',
-		payment_mode_is_guessed: false
+		sources: { category_id: { source: 'explicit' }, payment_mode_id: { source: 'explicit' } }
 	});
 });

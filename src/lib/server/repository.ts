@@ -10,9 +10,13 @@ import type {
 	Project,
 	ProjectAllocation,
 	ThirdParty,
-	TransactionAnnotation
+	TransactionAnnotation,
+	ImportRule
 } from '#lib/types.ts';
-import { ensureConfig } from './config';
+import { ensureConfig, readConfig } from './config';
+import { resolveImport } from './import-rules';
+import { validateImportRule } from './import-rule-validation';
+import { accountCsvTransactions } from './csv/account-transactions';
 import { detectCsvFormat, parseCsvStatement } from './csv';
 import { getEnv } from './env';
 import { commitAll, ensureGitRepo } from './git';
@@ -318,7 +322,7 @@ function cleanAnnotation(annotation: TransactionAnnotation): TransactionAnnotati
 	if (annotation.payment_mode_id !== undefined)
 		cleaned.payment_mode_id = annotation.payment_mode_id.trim();
 	if (annotation.allocations) cleaned.allocations = annotation.allocations;
-	if (annotation.third_party_id) cleaned.third_party_id = annotation.third_party_id;
+	if (annotation.third_party_id !== undefined) cleaned.third_party_id = annotation.third_party_id;
 	if (annotation.transfer_id) cleaned.transfer_id = annotation.transfer_id;
 	if (annotation.evidence?.length) cleaned.evidence = annotation.evidence.filter(Boolean);
 	if (annotation.excluded !== undefined) cleaned.excluded = annotation.excluded;
@@ -326,7 +330,13 @@ function cleanAnnotation(annotation: TransactionAnnotation): TransactionAnnotati
 }
 
 function isEmptyAnnotation(annotation: TransactionAnnotation): boolean {
-	if (annotation.payment_mode_id !== undefined || annotation.category_id !== undefined)
+	if (
+		annotation.payment_mode_id !== undefined ||
+		annotation.category_id !== undefined ||
+		annotation.third_party_id !== undefined ||
+		annotation.excluded !== undefined ||
+		annotation.allocations !== undefined
+	)
 		return false;
 	return Object.values(annotation).every((value) => {
 		if (Array.isArray(value)) return value.length === 0;
@@ -349,17 +359,39 @@ export async function upsertAnnotation(
 			(await findCsvTransaction(file, transactionId)).amount_cents,
 			annotation.allocations
 		);
-	const cleaned = cleanAnnotation({
-		...annotation,
-		payment_mode_id:
-			annotation.payment_mode_id ?? file.annotations?.[transactionId]?.payment_mode_id
-	});
+	await findCsvTransaction(file, transactionId);
+	const patch = Object.fromEntries(
+		Object.entries(annotation).filter(([, value]) => value !== undefined)
+	);
+	const cleaned = cleanAnnotation({ ...file.annotations?.[transactionId], ...patch });
 	const annotations = { ...(file.annotations ?? {}) };
 	if (isEmptyAnnotation(cleaned)) delete annotations[transactionId];
 	else annotations[transactionId] = cleaned;
 	file.annotations = annotations;
 	await writeStoredAccount(repo, file);
 	await commitData(repo, `data: annotate transaction ${transactionId} in ${accountId}`);
+}
+
+export async function resetAutomaticField(
+	accountId: string,
+	transactionId: string,
+	field: string,
+	root?: string
+): Promise<void> {
+	if (!['third_party_id', 'category_id', 'payment_mode_id', 'excluded'].includes(field))
+		throw new Error('Invalid field');
+	const repo = await repoRoot(root);
+	const file = await readStoredAccount(repo, accountId);
+	if (!file || file.account.source !== 'csv') throw new Error('CSV account required');
+	await findCsvTransaction(file, transactionId);
+	const annotations = { ...file.annotations };
+	const annotation = { ...annotations[transactionId] };
+	delete annotation[field as keyof TransactionAnnotation];
+	if (isEmptyAnnotation(annotation)) delete annotations[transactionId];
+	else annotations[transactionId] = annotation;
+	file.annotations = annotations;
+	await writeStoredAccount(repo, file);
+	await commitData(repo, `data: reset ${field} on ${transactionId}`);
 }
 
 async function storedTransferMembers(root: string, id: string): Promise<TransactionRef[]> {
@@ -543,6 +575,8 @@ export async function updateProject(
 
 export async function deleteProject(id: string, root?: string): Promise<void> {
 	const repo = await repoRoot(root);
+	if ((await readConfig(repo, false)).rules.some((rule) => rule.set.project_id === id))
+		throw new Error('config_in_use');
 	if (!(await readProjectFile(repo, id))) throw new Error('Project not found');
 	for (const file of await listStoredAccounts(repo)) {
 		let changed = false;
@@ -641,8 +675,83 @@ export async function updateThirdParty(
 export async function deleteThirdParty(id: string, root?: string): Promise<void> {
 	const repo = await repoRoot(root);
 	if (!(await readThirdPartyFile(repo, id))) throw new Error('Third party not found');
+	const config = await readConfig(repo, false);
+	if (config.rules.some((rule) => rule.set.third_party_id === id)) throw new Error('config_in_use');
+	const parties = await listThirdParties(repo);
+	const projects = await listProjects(repo);
+	for (const file of await listStoredAccounts(repo)) {
+		if (file.account.source === 'manual') {
+			if (file.transactions?.some((transaction) => transaction.third_party_id === id))
+				throw new Error('config_in_use');
+		} else {
+			for (const { transaction, format } of await accountCsvTransactions(file.dir)) {
+				if (
+					resolveImport(
+						transaction,
+						file.annotations?.[transaction.id] ?? {},
+						file.account.id,
+						format,
+						config,
+						parties,
+						projects
+					).values.third_party_id === id
+				)
+					throw new Error('config_in_use');
+			}
+		}
+	}
 	await removeFile(entityFilePath(repo, 'third-parties', id));
 	await commitData(repo, `data: delete third party ${id}`);
+}
+
+export async function saveImportRule(
+	input: Omit<ImportRule, 'id'> & { id?: string },
+	root?: string
+): Promise<ImportRule> {
+	const repo = await repoRoot(root);
+	const config = await readConfig(repo);
+	if (input.id && !config.rules.some((rule) => rule.id === input.id))
+		throw new Error('config_invalid');
+	validateImportRule(input, {
+		config,
+		accounts: (await listStoredAccounts(repo)).map((file) => file.account),
+		thirdParties: await listThirdParties(repo),
+		projects: await listProjects(repo)
+	});
+	const rule = { ...input, id: input.id ?? randomUUID(), name: input.name.trim() };
+	const index = config.rules.findIndex((item) => item.id === rule.id);
+	if (index < 0) config.rules.push(rule);
+	else config.rules[index] = rule;
+	await writeJsonFile(path.join(repo, 'config/rules.json'), config.rules);
+	await commitData(repo, `data: save import rule ${rule.id}`);
+	return rule;
+}
+
+export async function deleteImportRule(id: string, root?: string): Promise<void> {
+	const repo = await repoRoot(root);
+	const config = await readConfig(repo);
+	if (!config.rules.some((rule) => rule.id === id)) throw new Error('config_invalid');
+	await writeJsonFile(
+		path.join(repo, 'config/rules.json'),
+		config.rules.filter((rule) => rule.id !== id)
+	);
+	await commitData(repo, `data: delete import rule ${id}`);
+}
+
+export async function reorderImportRules(ids: string[], root?: string): Promise<void> {
+	const repo = await repoRoot(root);
+	const config = await readConfig(repo);
+	if (
+		ids.length !== config.rules.length ||
+		new Set(ids).size !== ids.length ||
+		ids.some((id) => !config.rules.some((rule) => rule.id === id))
+	)
+		throw new Error('config_invalid');
+	await writeJsonFile(
+		path.join(repo, 'config/rules.json'),
+		ids.map((id) => config.rules.find((rule) => rule.id === id)!)
+	);
+	await commitData(repo, 'data: reorder import rules');
 }
 
 function safeDocumentName(fileName: string): string {
