@@ -1,3 +1,4 @@
+import { defaultCategory } from './transaction-defaults';
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -278,12 +279,7 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 					transaction,
 					[...sourceFiles].sort(),
 					config.paymentModes,
-					config.categories.find(
-						(category) =>
-							category.kind === 'expense' &&
-							!category.archived &&
-							/frais bancaires|bank fees|frais-bancaires/i.test(category.name + ' ' + category.id)
-					)?.id
+					defaultCategory(transaction, config.categories)
 				)
 			);
 		}

@@ -1,3 +1,4 @@
+import { defaultCategory } from './transaction-defaults';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -91,7 +92,7 @@ async function isUsed(
 	root: string,
 	field: 'category_id' | 'payment_mode_id',
 	id: string,
-	modes: PaymentMode[]
+	config: DataConfig
 ): Promise<boolean> {
 	for (const accountId of await listDirectoryNames(path.join(root, 'accounts'))) {
 		const dir = path.join(root, 'accounts', accountId);
@@ -107,16 +108,19 @@ async function isUsed(
 		const items =
 			file.account.source === 'manual' ? (file.transactions ?? []) : Object.values(annotations);
 		if (items.some((item) => item[field] === id)) return true;
-		if (field === 'payment_mode_id' && file.account.source === 'csv') {
+		if (file.account.source === 'csv') {
 			for (const statement of await listFilesRecursive(path.join(dir, 'statements'))) {
 				if (!statement.toLowerCase().endsWith('.csv')) continue;
 				const content = await readTextFile(path.join(dir, 'statements', statement));
 				const format = detectCsvFormat(content);
 				if (!format) continue;
 				for (const transaction of parseCsvStatement(content, format).transactions) {
-					const effectiveMode =
-						annotations[transaction.id]?.payment_mode_id ?? guessPaymentMode(transaction, modes);
-					if (effectiveMode === id) return true;
+					const effectiveValue =
+						annotations[transaction.id]?.[field] ??
+						(field === 'payment_mode_id'
+							? guessPaymentMode(transaction, config.paymentModes)
+							: defaultCategory(transaction, config.categories));
+					if (effectiveValue === id) return true;
 				}
 			}
 		}
@@ -140,7 +144,7 @@ export async function mutateConfig(
 				root,
 				collection === 'categories' ? 'category_id' : 'payment_mode_id',
 				current.id,
-				config.paymentModes
+				config
 			)
 		)
 			throw new Error('config_in_use');

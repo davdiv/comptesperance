@@ -159,3 +159,33 @@ it('initializes defaults once for concurrent readers', async () => {
 	]);
 	expect(commitAll).toHaveBeenCalledTimes(1);
 });
+
+it('blocks deleting a derived fee category unless the fee has an explicit override', async () => {
+	const dir = path.join(root, 'accounts/sumup');
+	await mkdir(path.join(dir, 'statements'), { recursive: true });
+	const content = await readFile(
+		new URL('./csv/testdata/sumup-sample.csv', import.meta.url),
+		'utf8'
+	);
+	await writeFile(
+		path.join(dir, 'account.json'),
+		JSON.stringify({ account: { id: 'sumup', source: 'csv' } })
+	);
+	await writeFile(path.join(dir, 'statements/sample.csv'), content);
+	await expect(
+		mutateConfig('categories', { id: 'frais-bancaires', remove: true }, root)
+	).rejects.toThrow('config_in_use');
+	expect(commitAll).not.toHaveBeenCalled();
+	const fee = parseCsvStatement(content, 'sumup').transactions.find(
+		(item) => item.record_type === 'fee'
+	)!;
+	await writeFile(
+		path.join(dir, 'annotations.json'),
+		JSON.stringify({ [fee.id]: { category_id: 'achats' } })
+	);
+	await mutateConfig('categories', { id: 'frais-bancaires', remove: true }, root);
+	expect((await readConfig(root)).categories.some((item) => item.id === 'frais-bancaires')).toBe(
+		false
+	);
+	expect(commitAll).toHaveBeenCalledTimes(1);
+});
