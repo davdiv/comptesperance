@@ -78,12 +78,12 @@ export function slugify(value: string): string {
 		.replace(/\p{Diacritic}/gu, '')
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 60);
+		.slice(0, 60)
+		.replace(/^-+|-+$/g, '');
 	return slug || 'item';
 }
 
-const ENTITY_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const ENTITY_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 export function isValidEntityId(id: string): boolean {
 	return ENTITY_ID_PATTERN.test(id);
@@ -642,8 +642,8 @@ function safeDocumentName(fileName: string): string {
 		.normalize('NFD')
 		.replace(/\p{Diacritic}/gu, '')
 		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 60);
+		.slice(0, 60)
+		.replace(/^-+|-+$/g, '');
 	const safeExtension = /^\.[a-z0-9]{1,10}$/.test(extension) ? extension : '';
 	return `${Date.now()}-${randomUUID()}-${base || 'document'}${safeExtension}`;
 }
