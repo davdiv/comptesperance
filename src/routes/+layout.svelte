@@ -40,6 +40,21 @@
 	});
 </script>
 
+{#snippet editToggle()}
+	{#if data.user.canEdit}
+		<form method="POST" action="/edit-mode">
+			<input type="hidden" name="mode" value={data.user.editMode ? 'off' : 'on'} />
+			<input type="hidden" name="return_to" value={page.url.pathname + page.url.search} />
+			<button
+				class="w-full text-xs {data.user.editMode
+					? 'btn bg-amber-600 hover:bg-amber-700'
+					: 'btn-secondary'}"
+				>{data.user.editMode ? m.auth_read_mode() : m.auth_edit_mode_start()}</button
+			>
+		</form>
+	{/if}
+{/snippet}
+
 <svelte:head
 	><title
 		>{sections
@@ -114,6 +129,10 @@
 					>
 				{/each}
 			</div>
+			{@render editToggle()}
+			{#if data.logoutUrl}<a class="link block text-center text-xs" href={data.logoutUrl}
+					>{m.auth_sign_out()}</a
+				>{/if}
 		</div>
 	</aside>
 
@@ -128,7 +147,7 @@
 
 	<div class="min-h-screen min-w-0 lg:border-l lg:border-stone-200">
 		<div
-			class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-stone-200 bg-white/90 px-4 backdrop-blur lg:hidden"
+			class="sticky top-0 z-20 flex min-h-14 flex-wrap items-center gap-3 border-b border-stone-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden"
 		>
 			<button
 				type="button"
@@ -137,7 +156,14 @@
 				onclick={() => (menuOpen = true)}><Icon name="menu" class="size-5" /></button
 			>
 			<span class="font-semibold text-stone-900">{data.config.app.name}</span>
+			{#if data.user.canEdit}<div class="w-full">{@render editToggle()}</div>{/if}
 		</div>
+		{#if data.user.editMode}<div
+				class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm font-semibold text-amber-900"
+				role="status"
+			>
+				{m.auth_edit_mode_active()}
+			</div>{/if}
 		<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
 			{@render children()}
 		</main>

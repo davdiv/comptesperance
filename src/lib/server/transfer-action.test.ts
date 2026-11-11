@@ -36,7 +36,7 @@ it.each([2256, 5790])(
 		form.set('counterpart', 'ccp:receipt');
 		const result = await actions.link_suggestion!({
 			request: new Request('http://localhost/transactions', { method: 'POST', body: form }),
-			locals: { user: { canWrite: true } }
+			locals: { user: { canWrite: true, canEdit: true, editMode: true } }
 		} as never);
 		if (incoming !== 2256) {
 			expect(result).toMatchObject({ status: 400 });
@@ -54,7 +54,7 @@ it('rejects a stale or absent suggestion without linking', async () => {
 	vi.mocked(getTransaction).mockResolvedValue(null);
 	const result = await actions.link_suggestion!({
 		request: new Request('http://localhost/transactions', { method: 'POST', body: new FormData() }),
-		locals: { user: { canWrite: true } }
+		locals: { user: { canWrite: true, canEdit: true, editMode: true } }
 	} as never);
 	expect(result).toMatchObject({ status: 400 });
 	expect(linkTransfer).not.toHaveBeenCalled();

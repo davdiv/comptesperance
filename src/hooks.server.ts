@@ -1,7 +1,8 @@
 import type { Handle } from '@sveltejs/kit/hooks';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { getTextDirection } from '$lib/paraglide/runtime';
-import { getSessionUser } from '$lib/server/auth';
+import { authRedirectUrl, getSessionUser } from '$lib/server/auth';
+import { getEnv } from '$lib/server/env';
 
 const PUBLIC_PATHS = new Set(['/healthz', '/robots.txt', '/favicon.svg']);
 
@@ -23,7 +24,15 @@ export const handle: Handle = ({ event, resolve }) => {
 	}
 	const user = getSessionUser(event);
 	if (!user) {
-		return new Response('Forbidden', { status: 403 });
+		if (event.request.headers.get('remote-user')?.trim())
+			return new Response('Forbidden', { status: 403 });
+		if (event.request.method === 'GET' || event.request.method === 'HEAD') {
+			return new Response(null, {
+				status: 303,
+				headers: { location: authRedirectUrl(getEnv().authLoginUrl, event.url.href) }
+			});
+		}
+		return new Response('Unauthorized', { status: 401 });
 	}
 	event.locals.user = user;
 	return paraglideHandle({ event, resolve });

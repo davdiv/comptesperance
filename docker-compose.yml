@@ -33,6 +33,8 @@ services:
       DATA_REPO_PATH: /data
       CACHE_DB_PATH: /cache/comptes.sqlite
       AUTH_DISABLED: 'false'
+      AUTH_LOGIN_URL: ${AUTH_LOGIN_URL:-https://auth.comptes.localhost:8443/}
+      AUTH_LOGOUT_URL: ${AUTH_LOGOUT_URL:-https://auth.comptes.localhost:8443/logout}
       AUTH_READWRITE_GROUP: comptes-readwrite
       AUTH_READONLY_GROUP: comptes-readonly
     volumes:

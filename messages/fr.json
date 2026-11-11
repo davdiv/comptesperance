@@ -205,5 +205,10 @@
 	"transfers_groups": "Groupes de virements",
 	"transfers_create": "Créer un groupe de virements",
 	"transfer_remove_member": "Retirer du groupe",
-	"transfer_group_title": "Virement"
+	"transfer_group_title": "Virement",
+	"auth_sign_out": "Se déconnecter",
+	"auth_read_mode": "Revenir en lecture seule",
+	"auth_edit_mode_start": "Passer en mode édition",
+	"auth_edit_mode_active": "Mode édition",
+	"auth_enable_edit_mode": "Passez en mode édition avant de modifier les données."
 }
