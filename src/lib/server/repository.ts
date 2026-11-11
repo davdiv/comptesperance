@@ -83,7 +83,7 @@ export function slugify(value: string): string {
 	return slug || 'item';
 }
 
-const ENTITY_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+const ENTITY_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function isValidEntityId(id: string): boolean {
 	return ENTITY_ID_PATTERN.test(id);
