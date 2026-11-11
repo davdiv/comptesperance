@@ -118,7 +118,9 @@
 								>
 									{tx.description}
 								</p>{/if}
-							{#if allocations.length}<div class="mt-1.5 flex flex-wrap items-center gap-1">
+							{#if allocations.length || remaining !== 0}<div
+									class="mt-1.5 flex flex-wrap items-center gap-1"
+								>
 									{#each allocations as a (a.project_id)}
 										<span
 											class="inline-flex max-w-full min-w-0 flex-wrap items-center gap-1 rounded-md bg-brand-50 px-1.5 py-0.5 text-xs text-brand-800"
@@ -140,9 +142,16 @@
 												>{/if}
 										</span>
 									{/each}
-									{#if remaining !== 0}<span class="text-xs text-stone-500 tabular-nums"
-											>{m.allocation_remaining({ amount: formatMoney(remaining) })}</span
-										>{/if}
+									{#if remaining !== 0}<FilterLink
+											field="allocation_status"
+											value={allocations.some((a) => a.project_name !== null)
+												? 'partial'
+												: 'unallocated'}
+											label={m.allocation_remaining({ amount: formatMoney(remaining) })}
+											current={filterUrl}
+											fixed={fixedFilters}
+											class="text-xs text-stone-500 tabular-nums hover:underline"
+										/>{/if}
 								</div>{/if}
 							<div class="mt-1 flex flex-wrap items-center gap-1.5">
 								{#if tx.category_id}<FilterLink
