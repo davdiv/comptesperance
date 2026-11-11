@@ -477,11 +477,12 @@ export async function listThirdPartiesWithCounts(): Promise<ThirdPartyWithCounts
 export async function getUnallocatedDetails(includeTransfers = false) {
 	const db = await getDatabase();
 	const remainder = `t.amount_cents - COALESCE((SELECT SUM(pa.amount_cents)
-		FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id), 0)`;
+		FROM project_allocations pa JOIN projects p ON p.id = pa.project_id
+		WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id), 0)`;
 	const rows = db
 		.prepare(
-			TRANSACTION_SELECT +
-				` WHERE t.excluded = 0 AND (${remainder}) != 0 ORDER BY t.date DESC, t.account_id, t.id`
+			`SELECT t.*, (${remainder}) AS unallocated_cents FROM (${TRANSACTION_SELECT}) t
+			 WHERE t.excluded = 0 AND (${remainder}) != 0 ORDER BY t.date DESC, t.account_id, t.id`
 		)
 		.all() as Record<string, unknown>[];
 	const names = new Map(
@@ -489,12 +490,10 @@ export async function getUnallocatedDetails(includeTransfers = false) {
 			(account) => [account.id, account.name]
 		)
 	);
-	const transactions = rows.map(transactionFromRow).map((transaction) => ({
-		...transaction,
-		account_name: names.get(transaction.account_id) ?? transaction.account_id,
-		unallocated_cents:
-			transaction.amount_cents -
-			transaction.allocation_details.reduce((sum, item) => sum + item.amount_cents, 0)
+	const transactions = rows.map((row) => ({
+		...transactionFromRow(row),
+		account_name: names.get(String(row.account_id)) ?? String(row.account_id),
+		unallocated_cents: Number(row.unallocated_cents)
 	}));
 	const byAccount = new Map<
 		string,

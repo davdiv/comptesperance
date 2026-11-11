@@ -185,6 +185,56 @@ describe('getProjectDetails', () => {
 });
 
 describe('unallocated pseudo-project', () => {
+	it('ignores missing projects in row selection, remainders and totals', async () => {
+		for (const [id, amount, allocated, orphan, transfer] of [
+			['orphan-only', 2500, 0, 2500, null],
+			['mixed', 10000, 3000, 7000, 'group'],
+			['expense', -5000, -2000, -3000, null],
+			['full', 1500, 1500, 0, null]
+		] as const) {
+			db.prepare(
+				'INSERT INTO transactions (account_id,id,date,amount_cents,label,excluded,transfer_id) VALUES (?,?,?,?,?,0,?)'
+			).run('cash', id, '2026-10-03', amount, id, transfer);
+			for (const [project, value] of [
+				['project', allocated],
+				['missing', orphan]
+			] as const)
+				if (value)
+					db.prepare('INSERT INTO project_allocations VALUES (?,?,?,?,NULL)').run(
+						project,
+						'cash',
+						id,
+						value
+					);
+		}
+		const overall = (await listTransactions({ include_transfers: true })).total_cents;
+		const projects = await listProjectsWithTotals();
+		expect(projects[0].total_cents).toBe(2500);
+		for (const included of [false, true]) {
+			const result = await getUnallocatedDetails(included);
+			expect(result).toMatchObject({
+				incoming_cents: 9500,
+				outgoing_cents: -3000,
+				total_cents: 6500,
+				transaction_count: 3,
+				by_account: [{ account_id: 'cash', amount_cents: 6500, count: 3 }]
+			});
+			expect(
+				Object.fromEntries(result.transactions.map((item) => [item.id, item.unallocated_cents]))
+			).toEqual(
+				included
+					? { 'orphan-only': 2500, mixed: 7000, expense: -3000 }
+					: { 'orphan-only': 2500, expense: -3000 }
+			);
+			expect(
+				result.total_cents + projects.reduce((sum, project) => sum + project.total_cents, 0)
+			).toBe(overall);
+		}
+		db.exec('DELETE FROM projects');
+		const afterDeletion = await getUnallocatedDetails(true);
+		expect(afterDeletion.transaction_count).toBe(4);
+		expect(afterDeletion.total_cents).toBe(overall);
+	});
 	it('uses full or partial remainders, excludes excluded and fully allocated rows, and keeps totals stable when transfers are hidden', async () => {
 		db.exec("INSERT INTO accounts VALUES ('bank','Bank')");
 		for (const [account, id, amount, allocated, transfer, excluded] of [
