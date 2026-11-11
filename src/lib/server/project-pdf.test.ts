@@ -48,6 +48,27 @@ const details: ProjectDetails = {
 };
 
 describe('project PDF', () => {
+	it.each(['fr', 'en'] as const)(
+		'formats generation time in the server timezone for %s',
+		(language) => {
+			vi.stubEnv('TZ', 'Pacific/Honolulu');
+			const locale = vi.spyOn(runtime, 'getLocale').mockReturnValue(language);
+			try {
+				const generatedAt = new Date('2026-10-03T12:00:00Z');
+				const text = JSON.stringify(buildProjectPdfDefinition(details, config, state, generatedAt));
+				const expected = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-GB', {
+					dateStyle: 'medium',
+					timeStyle: 'short'
+				}).format(generatedAt);
+				expect(expected).toContain('02:00');
+				expect(text).toContain(expected);
+				expect(text).not.toContain('12:00');
+			} finally {
+				locale.mockRestore();
+				vi.unstubAllEnvs();
+			}
+		}
+	);
 	it('includes resolved rows, summary, totals, repeated headings and valid PDF bytes', async () => {
 		const definition = buildProjectPdfDefinition(
 			details,
