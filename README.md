@@ -171,6 +171,12 @@ legacy-format compatibility is provided.
   `[{ "id": "...", "date": "2026-10-02", "balance_cents": 20000, "note": "Cash count" }]`.
   They are available for both manual and CSV accounts. Statement checkpoints are
   derived only in SQLite from every CCP header date and balance; SumUp has none.
+  In edit mode, CSV checkpoints can be ignored or restored on the account page;
+  ignored rows stay visible but never anchor balances or produce reconciliation warnings.
+  `ignored_statement_checkpoints` in `account.json` stores SHA-256 fingerprints of
+  ignored CSV contents. Re-importing identical contents, even under another filename,
+  preserves the decision; restoring any identical copy restores all of them.
+  Each ignore/restore mutation makes one data commit. Manual checkpoints remain deletable.
   Current balance uses the latest checkpoint (statement preferred on date ties)
   plus non-excluded transactions on later calendar days. Without a checkpoint,
   balance starts at zero. Every earlier checkpoint is reconciled against the latest

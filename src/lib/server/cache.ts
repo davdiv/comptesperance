@@ -14,6 +14,7 @@ import { enrichSumupSales } from './csv/sumup';
 import { readConfig } from './config';
 import { getEnv } from './env';
 import { statusFingerprint } from './git';
+import { statementCheckpointKey } from './statement-checkpoints';
 import {
 	ensureDataRepo,
 	listDocuments,
@@ -91,6 +92,7 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
    source TEXT NOT NULL,
    note TEXT,
    statement_file TEXT,
+   ignored INTEGER NOT NULL DEFAULT 0,
    PRIMARY KEY (account_id, id)
   );
 		CREATE TABLE transactions (
@@ -188,7 +190,7 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
 	const insertCheckpoint = db.prepare(
-		'INSERT INTO balance_checkpoints (account_id, id, date, balance_cents, source, note, statement_file) VALUES (?, ?, ?, ?, ?, ?, ?)'
+		'INSERT INTO balance_checkpoints (account_id, id, date, balance_cents, source, note, statement_file, ignored) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 	);
 	const insertIssue = db.prepare(
 		'INSERT INTO issues (account_id, source_file, message) VALUES (?, ?, ?)'
@@ -214,7 +216,8 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 				checkpoint.balance_cents,
 				'manual',
 				checkpoint.note ?? null,
-				null
+				null,
+				0
 			);
 		}
 
@@ -249,7 +252,12 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 						parsed.account.closing_balance_cents,
 						'statement',
 						null,
-						relativeFile
+						relativeFile,
+						Number(
+							accountFile.ignored_statement_checkpoints?.includes(
+								statementCheckpointKey(content)
+							) ?? false
+						)
 					);
 				}
 				for (const error of parsed.errors) {

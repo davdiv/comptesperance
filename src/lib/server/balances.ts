@@ -27,7 +27,7 @@ export function calculateBalance(
 			Number(b.source === 'statement') - Number(a.source === 'statement') ||
 			a.id.localeCompare(b.id)
 	);
-	const anchor = ordered[0] ?? null;
+	const anchor = ordered.find((checkpoint) => !checkpoint.ignored) ?? null;
 	const included = transactions.filter((transaction) => !transaction.excluded);
 	const sumBetween = (after: string, through?: string) =>
 		included
@@ -38,7 +38,11 @@ export function calculateBalance(
 			)
 			.reduce((sum, transaction) => sum + transaction.amount_cents, 0);
 	const reconciled = ordered.map((checkpoint) => {
-		const computed = anchor!.balance_cents - sumBetween(checkpoint.date, anchor!.date);
+		const computed = !anchor
+			? sumBetween('', checkpoint.date)
+			: checkpoint.date > anchor.date
+				? anchor.balance_cents + sumBetween(anchor.date, checkpoint.date)
+				: anchor.balance_cents - sumBetween(checkpoint.date, anchor.date);
 		return {
 			...checkpoint,
 			computed_balance_cents: computed,
@@ -50,6 +54,8 @@ export function calculateBalance(
 		current_balance_cents: anchor ? anchor.balance_cents + sumBetween(anchor.date) : sumBetween(''),
 		anchor,
 		checkpoints: reconciled,
-		mismatch_count: reconciled.filter((checkpoint) => checkpoint.difference_cents !== 0).length
+		mismatch_count: reconciled.filter(
+			(checkpoint) => !checkpoint.ignored && checkpoint.difference_cents !== 0
+		).length
 	};
 }
