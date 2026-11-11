@@ -331,14 +331,21 @@ type TransferFields = Pick<
 async function applyTransferFields(
 	root: string,
 	ref: TransactionRef,
-	fields: TransferFields
+	fields: TransferFields,
+	options: { ignoreMissing?: boolean } = {}
 ): Promise<void> {
 	const file = await readStoredAccount(root, ref.account_id);
-	if (!file) throw new Error('Account not found');
+	if (!file) {
+		if (options.ignoreMissing) return;
+		throw new Error('Account not found');
+	}
 	if (file.account.source === 'manual') {
 		const transactions = file.transactions ?? [];
 		const index = transactions.findIndex((transaction) => transaction.id === ref.transaction_id);
-		if (index === -1) throw new Error('Transaction not found');
+		if (index === -1) {
+			if (options.ignoreMissing) return;
+			throw new Error('Transaction not found');
+		}
 		transactions[index] = { ...transactions[index], ...fields, updated_at: now() };
 		file.transactions = transactions;
 	} else {
@@ -398,7 +405,7 @@ export async function linkTransfer(
 				counterpart.transaction_id === keep.transaction_id
 			)
 		) {
-			await applyTransferFields(repo, counterpart, EMPTY_TRANSFER);
+			await applyTransferFields(repo, counterpart, EMPTY_TRANSFER, { ignoreMissing: true });
 		}
 	};
 	await clearCounterpart(firstCounterpart, second);
@@ -421,7 +428,9 @@ export async function unlinkTransfer(ref: TransactionRef, root?: string): Promis
 	const repo = await repoRoot(root);
 	const counterpart = await readTransferCounterpart(repo, ref);
 	await applyTransferFields(repo, ref, EMPTY_TRANSFER);
-	if (counterpart) await applyTransferFields(repo, counterpart, EMPTY_TRANSFER);
+	if (counterpart) {
+		await applyTransferFields(repo, counterpart, EMPTY_TRANSFER, { ignoreMissing: true });
+	}
 	await commitData(repo, `data: unlink transfer for ${ref.account_id}/${ref.transaction_id}`);
 }
 
