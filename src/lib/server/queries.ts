@@ -43,12 +43,16 @@ export interface ProjectAllocationView {
 export interface ProjectDetails {
 	project: Project;
 	total_cents: number;
+	incoming_cents: number;
+	outgoing_cents: number;
 	transaction_count: number;
 	hidden_transfer_count: number;
 	by_account: {
 		account_id: string;
 		account_name: string | null;
 		amount_cents: number;
+		incoming_cents: number;
+		outgoing_cents: number;
 		count: number;
 	}[];
 	allocations: ProjectAllocationView[];
@@ -342,9 +346,13 @@ export async function getProjectDetails(
 			account_id: allocation.account_id,
 			account_name: allocation.account_name,
 			amount_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0,
 			count: 0
 		};
 		account.amount_cents += allocation.amount_cents;
+		account.incoming_cents += Math.max(allocation.amount_cents, 0);
+		account.outgoing_cents += Math.min(allocation.amount_cents, 0);
 		account.count++;
 		byAccount.set(allocation.account_id, account);
 	}
@@ -352,6 +360,8 @@ export async function getProjectDetails(
 	return {
 		project,
 		total_cents: allocations.reduce((sum, a) => sum + a.amount_cents, 0),
+		incoming_cents: allocations.reduce((sum, a) => sum + Math.max(a.amount_cents, 0), 0),
+		outgoing_cents: allocations.reduce((sum, a) => sum + Math.min(a.amount_cents, 0), 0),
 		transaction_count: allocations.length,
 		hidden_transfer_count: page.hidden_transfer_count,
 		by_account: [...byAccount.values()]

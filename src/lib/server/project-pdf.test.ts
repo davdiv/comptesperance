@@ -23,9 +23,20 @@ const details: ProjectDetails = {
 		updated_at: ''
 	},
 	total_cents: 123456,
+	incoming_cents: 123456,
+	outgoing_cents: 0,
 	transaction_count: 1,
 	hidden_transfer_count: 0,
-	by_account: [{ account_id: 'a', account_name: 'Cash', amount_cents: 123456, count: 1 }],
+	by_account: [
+		{
+			account_id: 'a',
+			account_name: 'Cash',
+			amount_cents: 123456,
+			incoming_cents: 123456,
+			outgoing_cents: 0,
+			count: 1
+		}
+	],
 	allocations: [
 		{
 			project_id: 'p',
@@ -48,6 +59,50 @@ const details: ProjectDetails = {
 };
 
 describe('project PDF', () => {
+	it('shows signed summary and account totals without allocation counts, separately from displayed-row totals', () => {
+		const definition = buildProjectPdfDefinition(
+			{
+				...details,
+				total_cents: 120000,
+				incoming_cents: 150000,
+				outgoing_cents: -30000,
+				by_account: [
+					{
+						...details.by_account[0],
+						amount_cents: 120000,
+						incoming_cents: 150000,
+						outgoing_cents: -30000
+					}
+				],
+				allocations: [...details.allocations, { ...details.allocations[0], amount_cents: -5000 }]
+			},
+			config,
+			state
+		);
+		const content = definition.content as { text?: string; table?: { body: unknown[][] } }[];
+		expect(content.find((c) => c.text?.startsWith('Project total:'))?.text).toBe(
+			'Project total: €1,200.00'
+		);
+		expect(content.find((c) => c.text?.startsWith('Incoming:'))?.text).toBe(
+			'Incoming: €1,500.00   ·   Outgoing: -€300.00'
+		);
+		const accountTable = content.find((c) => c.table)?.table;
+		expect(accountTable?.body[0]).toEqual([
+			'Account',
+			{ text: 'Incoming', alignment: 'right' },
+			{ text: 'Outgoing', alignment: 'right' },
+			{ text: 'Amount', alignment: 'right' }
+		]);
+		expect(accountTable?.body[1]).toEqual([
+			'Cash',
+			{ text: '€1,500.00', alignment: 'right', noWrap: true },
+			{ text: '-€300.00', alignment: 'right', noWrap: true },
+			{ text: '€1,200.00', alignment: 'right', noWrap: true }
+		]);
+		expect(content.find((c) => c.text?.startsWith('Total (displayed rows)'))?.text).toBe(
+			'Total (displayed rows) — Incoming: €1,234.56   ·   Outgoing: -€50.00'
+		);
+	});
 	it.each(['fr', 'en'] as const)(
 		'formats generation time in the server timezone for %s',
 		(language) => {
@@ -105,7 +160,14 @@ describe('project PDF', () => {
 	});
 	it('handles empty allocations and missing transaction references', async () => {
 		const empty = buildProjectPdfDefinition(
-			{ ...details, allocations: [], by_account: [], total_cents: 0 },
+			{
+				...details,
+				allocations: [],
+				by_account: [],
+				total_cents: 0,
+				incoming_cents: 0,
+				outgoing_cents: 0
+			},
 			config,
 			state
 		);
