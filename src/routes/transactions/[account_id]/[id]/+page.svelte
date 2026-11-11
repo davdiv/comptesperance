@@ -267,7 +267,8 @@
 						<a
 							class="link"
 							href="/transactions/{transaction.counterpart_account_id}/{transaction.counterpart_transaction_id}"
-							>{transaction.counterpart_account_id}/{transaction.counterpart_transaction_id}</a
+							>{#if data.counterpart}{formatDate(data.counterpart.date)} · {data.counterpart.label} ·
+								{formatMoney(data.counterpart.amount_cents, data.counterpart.currency)} · {data.counterpartAccountName}{:else}{m.empty_state()}{/if}</a
 						>
 					</p>
 					{#if data.user.canWrite}<form method="POST" action="?/unlink_transfer" class="mt-4">
