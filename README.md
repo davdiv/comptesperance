@@ -69,10 +69,13 @@ legacy-format compatibility is provided.
   in the same data-repository commit.
 - Manual transactions have `id`, `date`, `amount_cents`, `label` and optional
   `description`, `notes`, `third_party_id`, `category_id`, `payment_mode_id`,
-  `excluded`, `evidence`, transfer/counterpart references and timestamps.
+  `excluded`, `evidence`, a shared `transfer_id` and timestamps.
 - `accounts/<id>/annotations.json` for CSV accounts maps transaction IDs to
   annotation objects: optional notes, category/payment-mode/third-party IDs,
-  evidence, transfer references, excluded and allocations. CSV parsed value dates
+  evidence, a shared `transfer_id`, excluded and allocations.
+  Transfers group two or more transactions across at least two accounts. Groups may
+  be unbalanced; amount and per-project allocation imbalances are warnings. Removing
+  a member dissolves groups with fewer than two members or accounts. CSV parsed value dates
   and statuses are retained for display. Cancelled SumUp transactions default to
   excluded; an explicit annotation overrides that default.
 - Allocations belong to each manual transaction or CSV annotation:

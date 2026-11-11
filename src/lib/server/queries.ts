@@ -1,3 +1,4 @@
+import { summarizeTransferGroup } from './transfer-groups';
 import type {
 	AccountSource,
 	AccountTotals,
@@ -125,8 +126,6 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 		category_name: stringOrNull(row.category_name),
 		payment_mode_name: stringOrNull(row.payment_mode_name),
 		transfer_id: stringOrNull(row.transfer_id),
-		counterpart_account_id: stringOrNull(row.counterpart_account_id),
-		counterpart_transaction_id: stringOrNull(row.counterpart_transaction_id),
 		evidence: parseJsonArray<string>(row.evidence_json),
 		excluded: Number(row.excluded) === 1,
 		third_party_name: stringOrNull(row.third_party_name)
@@ -353,8 +352,7 @@ export async function getProjectDetails(
 				a.name AS account_name,
 				t.id, t.date, t.value_date, t.amount_cents AS transaction_amount_cents,
 				t.label, t.description, t.record_type, t.status, t.third_party_id,
-				tp.name AS third_party_name, t.transfer_id, t.counterpart_account_id,
-				t.counterpart_transaction_id, t.notes, t.category_id, t.payment_mode_id, t.allocations_json, t.evidence_json,
+ tp.name AS third_party_name, t.transfer_id, t.notes, t.category_id, t.payment_mode_id, t.allocations_json, t.evidence_json,
 				t.excluded, t.source, t.source_files_json, t.raw_json, t.attributes_json
 			FROM project_allocations pa
 			LEFT JOIN accounts a ON a.id = pa.account_id
@@ -380,8 +378,6 @@ export async function getProjectDetails(
 					third_party_id: row.third_party_id,
 					third_party_name: row.third_party_name,
 					transfer_id: row.transfer_id,
-					counterpart_account_id: row.counterpart_account_id,
-					counterpart_transaction_id: row.counterpart_transaction_id,
 					notes: row.notes,
 					category_id: row.category_id,
 					payment_mode_id: row.payment_mode_id,
@@ -526,4 +522,22 @@ export async function listTransferPool(): Promise<TransactionView[]> {
 			)
 			.all() as Record<string, unknown>[]
 	).map(transactionFromRow);
+}
+
+export async function listTransferGroups() {
+	const db = await getDatabase();
+	const rows = db
+		.prepare(
+			TRANSACTION_SELECT +
+				" WHERE t.transfer_id IS NOT NULL AND t.transfer_id != '' ORDER BY t.date, t.account_id, t.id"
+		)
+		.all() as Record<string, unknown>[];
+	const groups = new Map<string, TransactionView[]>();
+	for (const row of rows) {
+		const item = transactionFromRow(row);
+		const members = groups.get(item.transfer_id!) ?? [];
+		members.push(item);
+		groups.set(item.transfer_id!, members);
+	}
+	return [...groups].map(([id, members]) => summarizeTransferGroup(id, members));
 }

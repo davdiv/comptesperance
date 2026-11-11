@@ -26,8 +26,7 @@ beforeEach(() => {
 		CREATE TABLE project_allocations (project_id TEXT, account_id TEXT, transaction_id TEXT, amount_cents INTEGER, note TEXT);
 		CREATE TABLE transactions (
 			account_id TEXT, id TEXT, date TEXT, value_date TEXT, amount_cents INTEGER,
-			label TEXT, description TEXT, record_type TEXT, status TEXT, third_party_id TEXT,
-			transfer_id TEXT, counterpart_account_id TEXT, counterpart_transaction_id TEXT,
+			label TEXT, description TEXT, record_type TEXT, status TEXT, third_party_id TEXT, transfer_id TEXT,
 			notes TEXT, category_id TEXT, evidence_json TEXT, excluded INTEGER, payment_mode_id TEXT, allocations_json TEXT,
 			source TEXT, source_files_json TEXT, raw_json TEXT, attributes_json TEXT
 		);

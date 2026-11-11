@@ -22,8 +22,6 @@ export interface ManualTransaction {
 	category_id?: string;
 	notes?: string;
 	transfer_id?: string | null;
-	counterpart_account_id?: string | null;
-	counterpart_transaction_id?: string | null;
 	evidence?: string[];
 	payment_mode_id?: string;
 	allocations?: ProjectAllocation[];
@@ -37,8 +35,6 @@ export interface TransactionAnnotation {
 	category_id?: string;
 	third_party_id?: string | null;
 	transfer_id?: string | null;
-	counterpart_account_id?: string | null;
-	counterpart_transaction_id?: string | null;
 	evidence?: string[];
 	payment_mode_id?: string;
 	allocations?: ProjectAllocation[];
@@ -110,8 +106,6 @@ export interface CachedTransaction extends ParsedTransaction {
 	payment_mode_id: string;
 	allocations: ProjectAllocation[];
 	transfer_id: string | null;
-	counterpart_account_id: string | null;
-	counterpart_transaction_id: string | null;
 	evidence: string[];
 	excluded: boolean;
 }

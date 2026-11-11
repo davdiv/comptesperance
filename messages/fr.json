@@ -82,7 +82,6 @@
 	"transaction_record_type": "Type d’enregistrement",
 	"transaction_status": "Statut",
 	"transaction_source": "Source",
-	"transaction_counterpart": "Contrepartie",
 	"transaction_transfer_id": "ID de virement",
 	"transaction_link_transfer": "Lier le virement",
 	"transaction_unlink_transfer": "Dissocier le virement",
@@ -190,5 +189,11 @@
 	"allocation_remaining": "Reste à imputer : {amount}",
 	"sumup_gross": "Vente brute",
 	"sumup_fee": "Frais SumUp",
-	"sumup_net": "Versement net"
+	"sumup_net": "Versement net",
+	"transfer_balanced": "Équilibré",
+	"transfer_unbalanced": "Virement non équilibré",
+	"transfer_allocations_balanced": "Imputations équilibrées",
+	"transfer_allocations_unbalanced": "Les imputations par projet ne sont pas équilibrées",
+	"transfer_add_member": "Ajouter un membre",
+	"transfer_invalid": "Choisissez des transactions non liées sur au moins deux comptes."
 }

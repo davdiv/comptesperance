@@ -13,7 +13,11 @@ import {
 	setTransactionAllocations,
 	updateManualTransaction,
 	validateAllocations,
-	linkTransfer,
+	createTransferGroup,
+	createTransferGroups,
+	addTransferMember,
+	unlinkTransfer,
+	createManualTransaction,
 	uploadEvidence,
 	linkDocument,
 	deleteDocument,
@@ -39,8 +43,6 @@ beforeEach(async () => {
 						date: '2026-10-03',
 						amount_cents: 1000,
 						allocations: [{ project_id: 'project', amount_cents: 100 }],
-						counterpart_account_id: 'bank',
-						counterpart_transaction_id: 'other',
 						transfer_id: 'transfer'
 					},
 					{ id: 'keep', amount_cents: 500, allocations: [] }
@@ -53,8 +55,6 @@ beforeEach(async () => {
 		JSON.stringify({
 			other: {
 				transfer_id: 'transfer',
-				counterpart_account_id: 'cash',
-				counterpart_transaction_id: 'sale',
 				notes: 'Keep notes'
 			}
 		})
@@ -73,7 +73,7 @@ afterEach(async () => {
 	await rm(root, { recursive: true, force: true });
 });
 
-it('deletes the transaction, its allocations and counterpart link in one commit', async () => {
+it('deletes the transaction, its allocations and transfer membership in one commit', async () => {
 	await deleteManualTransaction('cash', 'sale', root);
 	const account = JSON.parse(
 		await readFile(path.join(root, 'accounts', 'cash', 'account.json'), 'utf8')
@@ -86,8 +86,6 @@ it('deletes the transaction, its allocations and counterpart link in one commit'
 	expect(project).not.toHaveProperty('allocations');
 	expect(annotations.other).toMatchObject({
 		transfer_id: null,
-		counterpart_account_id: null,
-		counterpart_transaction_id: null,
 		notes: 'Keep notes'
 	});
 	expect(commitAll).toHaveBeenCalledExactlyOnceWith(
@@ -196,44 +194,50 @@ it('saves library uploads together in one commit', async () => {
 	expect(commitAll).toHaveBeenCalledTimes(1);
 	await expect(saveDocuments([], root)).rejects.toThrow('Select at least one file');
 });
-it.each(['missing-account', 'cash'])(
-	'deletes safely when the counterpart is missing in %s',
-	async (accountId) => {
-		const accountPath = path.join(root, 'accounts/cash/account.json');
-		const account = JSON.parse(await readFile(accountPath, 'utf8'));
-		account.transactions[0].counterpart_account_id = accountId;
-		account.transactions[0].counterpart_transaction_id = 'missing';
-		await writeFile(accountPath, JSON.stringify(account));
-		await deleteManualTransaction('cash', 'sale', root);
-		const updated = JSON.parse(await readFile(accountPath, 'utf8'));
-		expect(updated.transactions.map((transaction: { id: string }) => transaction.id)).toEqual([
-			'keep'
-		]);
-		expect(commitAll).toHaveBeenCalledTimes(1);
-	}
-);
 
-it('relinks a transfer whose old manual counterpart was deleted', async () => {
-	const annotationPath = path.join(root, 'accounts/bank/annotations.json');
-	const annotations = JSON.parse(await readFile(annotationPath, 'utf8'));
-	annotations.other.counterpart_transaction_id = 'missing';
-	await writeFile(annotationPath, JSON.stringify(annotations));
-	await linkTransfer(
-		{ account_id: 'bank', transaction_id: 'other' },
-		{ account_id: 'cash', transaction_id: 'keep' },
-		'new-transfer',
+it('validates groups before writes, adds members, removes members and dissolves small groups in one commit each', async () => {
+	const bank = await createAccount({ name: 'Group bank', source: 'manual' }, root);
+	const third = await createAccount({ name: 'Third', source: 'manual' }, root);
+	const incoming = await createManualTransaction(
+		bank.id,
+		{ date: '2026-10-03', label: 'Incoming', amount_cents: -300 },
 		root
 	);
-	const updated = JSON.parse(await readFile(annotationPath, 'utf8'));
-	expect(updated.other).toMatchObject({
-		transfer_id: 'new-transfer',
-		counterpart_account_id: 'cash',
-		counterpart_transaction_id: 'keep',
-		notes: 'Keep notes'
-	});
+	const extra = await createManualTransaction(
+		third.id,
+		{ date: '2026-10-03', label: 'Extra', amount_cents: -200 },
+		root
+	);
+	const a = { account_id: 'cash', transaction_id: 'keep' },
+		b = { account_id: bank.id, transaction_id: incoming.id },
+		c = { account_id: third.id, transaction_id: extra.id };
+	vi.clearAllMocks();
+	await expect(createTransferGroup([a, a], root)).rejects.toThrow('transfer_invalid');
+	await expect(
+		createTransferGroups(
+			[
+				[a, b],
+				[b, c]
+			],
+			root
+		)
+	).rejects.toThrow('transfer_invalid');
+	await expect(createTransferGroup([a, { ...b, transaction_id: 'missing' }], root)).rejects.toThrow(
+		'transfer_invalid'
+	);
+	expect(commitAll).not.toHaveBeenCalled();
+	const id = await createTransferGroup([a, b], root);
 	expect(commitAll).toHaveBeenCalledTimes(1);
+	await expect(createTransferGroup([a, c], root)).rejects.toThrow('transfer_invalid');
+	await addTransferMember(id, c, root);
+	expect(commitAll).toHaveBeenCalledTimes(2);
+	await unlinkTransfer(a, root);
+	expect(commitAll).toHaveBeenCalledTimes(3);
+	expect((await readStoredAccountById(bank.id, root))?.transactions?.[0].transfer_id).toBe(id);
+	await deleteManualTransaction(bank.id, incoming.id, root);
+	expect(commitAll).toHaveBeenCalledTimes(4);
+	expect((await readStoredAccountById(third.id, root))?.transactions?.[0].transfer_id).toBeNull();
 });
-
 it('stores allocations on a manual transaction and leaves project metadata alone', async () => {
 	await setTransactionAllocations(
 		{ account_id: 'cash', transaction_id: 'sale' },
