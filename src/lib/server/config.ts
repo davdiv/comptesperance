@@ -10,7 +10,16 @@ import type {
 } from '$lib/types';
 import { getEnv } from './env';
 import { commitAll } from './git';
-import { listDirectoryNames, pathExists, readJsonFile, writeJsonFile } from './store';
+import { detectCsvFormat, parseCsvStatement } from './csv';
+import { guessPaymentMode } from './payment-modes';
+import {
+	listDirectoryNames,
+	listFilesRecursive,
+	pathExists,
+	readJsonFile,
+	readTextFile,
+	writeJsonFile
+} from './store';
 
 const defaults: DataConfig = {
 	app: { name: 'Comptesperance' },
@@ -81,22 +90,36 @@ export async function saveAppName(name: string, root = getEnv().dataRepoPath): P
 async function isUsed(
 	root: string,
 	field: 'category_id' | 'payment_mode_id',
-	id: string
+	id: string,
+	modes: PaymentMode[]
 ): Promise<boolean> {
 	for (const accountId of await listDirectoryNames(path.join(root, 'accounts'))) {
 		const dir = path.join(root, 'accounts', accountId);
 		const file = await readJsonFile<AccountFile | null>(path.join(dir, 'account.json'), null);
 		if (!file) continue;
+		const annotations =
+			file.account.source === 'csv'
+				? await readJsonFile<Record<string, TransactionAnnotation>>(
+						path.join(dir, 'annotations.json'),
+						{}
+					)
+				: {};
 		const items =
-			file.account.source === 'manual'
-				? (file.transactions ?? [])
-				: Object.values(
-						await readJsonFile<Record<string, TransactionAnnotation>>(
-							path.join(dir, 'annotations.json'),
-							{}
-						)
-					);
+			file.account.source === 'manual' ? (file.transactions ?? []) : Object.values(annotations);
 		if (items.some((item) => item[field] === id)) return true;
+		if (field === 'payment_mode_id' && file.account.source === 'csv') {
+			for (const statement of await listFilesRecursive(path.join(dir, 'statements'))) {
+				if (!statement.toLowerCase().endsWith('.csv')) continue;
+				const content = await readTextFile(path.join(dir, 'statements', statement));
+				const format = detectCsvFormat(content);
+				if (!format) continue;
+				for (const transaction of parseCsvStatement(content, format).transactions) {
+					const effectiveMode =
+						annotations[transaction.id]?.payment_mode_id ?? guessPaymentMode(transaction, modes);
+					if (effectiveMode === id) return true;
+				}
+			}
+		}
 	}
 	return false;
 }
@@ -116,7 +139,8 @@ export async function mutateConfig(
 			await isUsed(
 				root,
 				collection === 'categories' ? 'category_id' : 'payment_mode_id',
-				current.id
+				current.id,
+				config.paymentModes
 			)
 		)
 			throw new Error('config_in_use');

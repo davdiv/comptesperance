@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { commitAll } from './git';
 import { ensureConfig, mutateConfig, readConfig, saveAppName } from './config';
+import { parseCsvStatement } from './csv';
 
 vi.mock('./git', () => ({ commitAll: vi.fn().mockResolvedValue(true) }));
 let root: string;
@@ -110,6 +111,43 @@ it('rejects unknown ids, empty names and invalid kinds without writes', async ()
 	);
 	expect(commitAll).not.toHaveBeenCalled();
 });
+
+it.each([
+	['ccp', 'virement', ''],
+	['ccp', 'virement', 'cheque'],
+	['sumup', 'carte', ''],
+	['sumup', 'carte', 'cheque']
+] as const)(
+	'blocks deletion of a guessed %s mode unless overridden with %j',
+	async (format, mode, override) => {
+		const dir = path.join(root, 'accounts/imported');
+		await mkdir(path.join(dir, 'statements'), { recursive: true });
+		const content = await readFile(
+			new URL('./csv/testdata/' + format + '-sample.csv', import.meta.url),
+			'utf8'
+		);
+		await writeFile(
+			path.join(dir, 'account.json'),
+			JSON.stringify({ account: { id: 'imported', source: 'csv' } })
+		);
+		await writeFile(path.join(dir, 'statements/sample.csv'), content);
+		await expect(mutateConfig('paymentModes', { id: mode, remove: true }, root)).rejects.toThrow(
+			'config_in_use'
+		);
+		expect(commitAll).not.toHaveBeenCalled();
+		expect((await readConfig(root)).paymentModes.some((entry) => entry.id === mode)).toBe(true);
+		const annotations = Object.fromEntries(
+			parseCsvStatement(content, format).transactions.map((transaction) => [
+				transaction.id,
+				{ payment_mode_id: override }
+			])
+		);
+		await writeFile(path.join(dir, 'annotations.json'), JSON.stringify(annotations));
+		await mutateConfig('paymentModes', { id: mode, remove: true }, root);
+		expect((await readConfig(root)).paymentModes.some((entry) => entry.id === mode)).toBe(false);
+		expect(commitAll).toHaveBeenCalledTimes(1);
+	}
+);
 
 it('initializes defaults once for concurrent readers', async () => {
 	await rm(path.join(root, 'config'), { recursive: true });
