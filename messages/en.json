@@ -222,5 +222,6 @@
 	"upload_select_files": "Select at least one file.",
 	"upload_invalid": "The upload could not be read. Select your files and try again.",
 	"upload_unsupported_type": "Choose a PDF, PNG, JPEG or WebP file.",
-	"error_title": "Unable to complete the request"
+	"error_title": "Unable to complete the request",
+	"allocation_deleted_project": "Deleted or missing project"
 }

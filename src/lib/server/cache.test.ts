@@ -41,6 +41,42 @@ afterEach(async () => {
 	vi.unstubAllEnvs();
 	await rm(root, { recursive: true, force: true });
 });
+it('reallocates a CSV transaction despite orphan allocations, preserving unrelated annotations', async () => {
+	const account = await createAccount({ name: 'SumUp', source: 'csv' }, root);
+	const project = await createProject({ name: 'Active project' }, root);
+	const content = await readFile(
+		new URL('./csv/testdata/sumup-sample.csv', import.meta.url),
+		'utf8'
+	);
+	await writeFile(path.join(root, 'accounts', account.id, 'statements/sample.csv'), content);
+	const sale = parseCsvStatement(content, 'sumup').transactions.find(
+		(item) => item.record_type === 'vente' && !item.excluded
+	)!;
+	const orphan = { project_id: 'deleted', amount_cents: sale.amount_cents };
+	await upsertAnnotation(
+		account.id,
+		sale.id,
+		{ notes: 'Keep notes', payment_mode_id: '', allocations: [orphan] },
+		root
+	);
+	for (const amount of [sale.amount_cents, 500, 0]) {
+		const allocations = amount
+			? [{ project_id: project.id, amount_cents: amount, note: 'Current' }]
+			: [];
+		await setTransactionAllocations(
+			{ account_id: account.id, transaction_id: sale.id },
+			[orphan, ...allocations],
+			root
+		);
+		vi.mocked(statusFingerprint).mockResolvedValue('allocation-' + amount);
+		const transaction = await getTransaction(account.id, sale.id);
+		expect(transaction).toMatchObject({ allocations, notes: 'Keep notes', payment_mode_id: '' });
+		const stored = JSON.parse(
+			await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8')
+		);
+		expect(stored[sale.id].allocations ?? []).toEqual(allocations);
+	}
+});
 it('merges parser exclusion defaults with annotation overrides, retaining EUR amounts', async () => {
 	const account = await createAccount({ name: 'Sumup', source: 'csv' }, root);
 	const content = await readFile(

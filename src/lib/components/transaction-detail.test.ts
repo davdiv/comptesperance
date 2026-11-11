@@ -46,3 +46,49 @@ it('titles grouped transactions Transfer rather than Link transfer', () => {
 		expect(html).not.toContain('class="card-title">' + rejected + '</h2>');
 	}
 });
+it('ignores orphan allocations in the add-form remainder and exposes removal only to writers', () => {
+	for (const canWrite of [false, true]) {
+		const html = render(TransactionDetail, {
+			props: {
+				data: {
+					transaction: {
+						id: 'sale',
+						account_id: 'cash',
+						date: '2026-10-03',
+						label: 'Sale',
+						source: 'csv',
+						amount_cents: 10000,
+						allocations: [
+							{ project_id: 'active', amount_cents: 2000 },
+							{ project_id: 'gone', amount_cents: 8000, note: 'Old allocation' }
+						],
+						evidence: [],
+						raw: []
+					},
+					account: { account_id: 'cash', name: 'Cash', source: 'csv' },
+					config: { categories: [], paymentModes: [] },
+					projects: [
+						{ id: 'active', name: 'Active project' },
+						{ id: 'available', name: 'Available project' }
+					],
+					accounts: [],
+					documents: [],
+					thirdParties: [],
+					candidates: [],
+					user: { canWrite },
+					groupSuggestions: [],
+					suggestion: null,
+					group: null,
+					sumupLinks: null
+				},
+				form: null
+			} as never
+		}).body;
+		expect(html).toContain(m.allocation_deleted_project());
+		expect(html).toContain('Old allocation');
+		expect(html).not.toContain('href="/projects/gone"');
+		expect(html.includes('action="?/add_project_allocation"')).toBe(canWrite);
+		expect(html.includes('value="80.00"')).toBe(canWrite);
+		expect(html.includes('name="project_id" value="gone"')).toBe(canWrite);
+	}
+});
