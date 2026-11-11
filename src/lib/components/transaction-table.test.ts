@@ -20,38 +20,25 @@ it('shows a distinct, clamped description with its complete text in a title', ()
 		).not.toContain('line-clamp-2');
 	}
 });
-it('shows linked allocation chips and non-zero remainders with or without allocations', () => {
-	const html = render(TransactionTable, {
-		props: {
-			transactions: [
-				{
-					...row,
-					allocation_details: [{ project_id: 'p', project_name: 'Project name', amount_cents: 400 }]
-				}
-			]
-		}
-	}).body;
-	expect(html).toContain('href="/projects/p"');
-	expect(html).toContain('Project name');
-	expect(html).toContain(formatMoney(600));
-	const full = render(TransactionTable, {
-		props: {
-			transactions: [
-				{
-					...row,
-					allocation_details: [
-						{ project_id: 'p', project_name: 'Project name', amount_cents: 1000 }
-					]
-				}
-			]
-		}
-	}).body;
-	expect(full).not.toContain('· ');
-	const empty = render(TransactionTable, { props: { transactions: [row] } }).body;
-	expect(empty).not.toContain('/projects/');
-});
 
-it('shows non-zero unallocated amounts, including excluded rows, and never a zero remainder', () => {
+it('shows project names without allocation amounts or hints when fully allocated', () => {
+	for (const allocations of [
+		[{ project_id: 'p', project_name: 'Project', amount_cents: 1000 }],
+		[
+			{ project_id: 'p', project_name: 'Project', amount_cents: 400 },
+			{ project_id: 'q', project_name: 'Other project', amount_cents: 600 }
+		]
+	]) {
+		const html = render(TransactionTable, {
+			props: { transactions: [{ ...row, allocation_details: allocations }] }
+		}).body;
+		expect(html).toContain('href="/projects/p"');
+		expect(html).toContain('Project');
+		expect(html).not.toContain('Unallocated:');
+		expect(html).not.toContain('· ');
+	}
+});
+it('omits hints on fully unallocated and zero-amount rows, including excluded and orphan-only rows', () => {
 	for (const [amount, excluded] of [
 		[1000, false],
 		[-1000, false],
@@ -59,41 +46,11 @@ it('shows non-zero unallocated amounts, including excluded rows, and never a zer
 		[0, false]
 	] as const) {
 		const html = render(TransactionTable, {
-			props: {
-				transactions: [{ ...row, amount_cents: amount, excluded }],
-				filterUrl: '/transactions?search=sale&offset=5'
-			}
+			props: { transactions: [{ ...row, amount_cents: amount, excluded }] }
 		}).body;
-		if (amount === 0) expect(html).not.toContain('data-filter="allocation_status"');
-		else {
-			expect(html).toContain('href="/transactions?search=sale&amp;allocation_status=unallocated"');
-			expect(html).toContain('Unallocated: ' + formatMoney(amount));
-		}
+		expect(html).not.toContain('Unallocated:');
+		expect(html).not.toContain('data-filter="allocation_status"');
 	}
-	const partial = render(TransactionTable, {
-		props: {
-			transactions: [
-				{
-					...row,
-					amount_cents: -1000,
-					allocation_details: [{ project_id: 'p', project_name: 'Project', amount_cents: -400 }]
-				}
-			]
-		}
-	}).body;
-	expect(partial).toContain('allocation_status=partial');
-	expect(partial).toContain('Unallocated: ' + formatMoney(-600));
-	const full = render(TransactionTable, {
-		props: {
-			transactions: [
-				{
-					...row,
-					allocation_details: [{ project_id: 'p', project_name: 'Project', amount_cents: 1000 }]
-				}
-			]
-		}
-	}).body;
-	expect(full).not.toContain('data-filter="allocation_status"');
 	const orphan = render(TransactionTable, {
 		props: {
 			transactions: [
@@ -104,6 +61,32 @@ it('shows non-zero unallocated amounts, including excluded rows, and never a zer
 			]
 		}
 	}).body;
-	expect(orphan).toContain('allocation_status=unallocated');
-	expect(orphan).toContain('Unallocated: ' + formatMoney(1000));
+	expect(orphan).not.toContain('Unallocated:');
+	expect(orphan).not.toContain('· ');
+});
+it('shows amounts and a clickable remainder only for partially allocated rows in either perspective', () => {
+	for (const [amount, allocated, remainder, excluded] of [
+		[1000, 400, 600, false],
+		[-1000, -400, -600, false],
+		[1000, 400, 600, true]
+	] as const) {
+		const html = render(TransactionTable, {
+			props: {
+				transactions: [
+					{
+						...row,
+						amount_cents: amount,
+						excluded,
+						allocation_details: [
+							{ project_id: 'p', project_name: 'Project', amount_cents: allocated }
+						]
+					}
+				],
+				filterUrl: '/transactions?search=sale&offset=5'
+			}
+		}).body;
+		expect(html).toContain('· ' + formatMoney(allocated));
+		expect(html).toContain('Unallocated: ' + formatMoney(remainder));
+		expect(html).toContain('href="/transactions?search=sale&amp;allocation_status=partial"');
+	}
 });

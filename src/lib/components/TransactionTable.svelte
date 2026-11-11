@@ -100,6 +100,7 @@
 						allocations
 							.filter((a) => a.project_name !== null)
 							.reduce((sum, a) => sum + a.amount_cents, 0)}
+					{@const isPartial = remaining !== 0 && remaining !== tx.amount_cents}
 					<tr class="group">
 						<td class="hidden whitespace-nowrap text-stone-500 tabular-nums sm:table-cell"
 							>{formatDate(tx.date)}</td
@@ -118,9 +119,7 @@
 								>
 									{tx.description}
 								</p>{/if}
-							{#if allocations.length || remaining !== 0}<div
-									class="mt-1.5 flex flex-wrap items-center gap-1"
-								>
+							{#if allocations.length}<div class="mt-1.5 flex flex-wrap items-center gap-1">
 									{#each allocations as a (a.project_id)}
 										<span
 											class="inline-flex max-w-full min-w-0 flex-wrap items-center gap-1 rounded-md bg-brand-50 px-1.5 py-0.5 text-xs text-brand-800"
@@ -137,16 +136,14 @@
 													entityHref="/projects/{a.project_id}"
 													class="truncate hover:underline"
 												/>{/if}
-											{#if a.amount_cents !== tx.amount_cents}<span class="shrink-0 tabular-nums"
+											{#if isPartial}<span class="shrink-0 tabular-nums"
 													>· {formatMoney(a.amount_cents)}</span
 												>{/if}
 										</span>
 									{/each}
-									{#if remaining !== 0}<FilterLink
+									{#if isPartial}<FilterLink
 											field="allocation_status"
-											value={allocations.some((a) => a.project_name !== null)
-												? 'partial'
-												: 'unallocated'}
+											value="partial"
 											label={m.allocation_remaining({ amount: formatMoney(remaining) })}
 											current={filterUrl}
 											fixed={fixedFilters}
