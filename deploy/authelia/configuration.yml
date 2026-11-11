@@ -19,8 +19,8 @@ identity_validation:
 session:
   secret: ${AUTHELIA_SESSION_SECRET}
   cookies:
-    - domain: comptes.lvh.me
-      authelia_url: https://auth.comptes.lvh.me:8443
+    - domain: comptes.localhost
+      authelia_url: https://auth.comptes.localhost:8443
       name: authelia_session
       same_site: lax
       expiration: 8h
@@ -38,7 +38,7 @@ notifier:
 access_control:
   default_policy: deny
   rules:
-    - domain: auth.comptes.lvh.me
+    - domain: auth.comptes.localhost
       policy: bypass
-    - domain: comptes.lvh.me
+    - domain: comptes.localhost
       policy: one_factor

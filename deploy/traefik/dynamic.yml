@@ -1,7 +1,7 @@
 http:
   routers:
     comptes-app:
-      rule: HostRegexp(`^comptes\.lvh\.me(:\d+)?$`)
+      rule: HostRegexp(`^comptes\.localhost(:\d+)?$`)
       entryPoints:
         - websecure
       service: comptes-app
@@ -9,7 +9,7 @@ http:
         - authelia-forwardauth
       tls: {}
     authelia-portal:
-      rule: HostRegexp(`^auth\.comptes\.lvh\.me(:\d+)?$`)
+      rule: HostRegexp(`^auth\.comptes\.localhost(:\d+)?$`)
       entryPoints:
         - websecure
       service: authelia
