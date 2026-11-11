@@ -30,6 +30,7 @@
 	},
 	"dependencies": {
 		"csv-parse": "^7.0.3",
+		"dejavu-fonts-ttf": "^2.37.3",
 		"he": "^2.0.0",
 		"pdfmake": "^0.2.23"
 	},
