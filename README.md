@@ -40,9 +40,10 @@ Ready-to-use local users:
 
 Compose mounts the data git repo at `/data` and the disposable SQLite cache at `/cache`.
 
-Authentication uses Authelia's trusted identity headers. Unauthenticated page
-requests redirect to `AUTH_LOGIN_URL` with the full requested URL in `rd`;
-unauthenticated actions return 401. The sidebar/mobile menu Sign out link uses
+Traefik uses Authelia's `/api/authz/forward-auth` endpoint, which handles redirects
+to sign-in and supplies trusted identity headers. The app itself returns 401 for
+requests without identity headers and 403 for signed-in users without an allowed
+group; it does not redirect to sign-in. The sidebar/mobile menu Sign out link uses
 `AUTH_LOGOUT_URL` with the app origin in `rd`. Defaults match the Compose URLs
 above. Deployments using other domains must also update Authelia's cookie domain,
 portal/default redirect URLs and access rules, and Traefik's host rules.

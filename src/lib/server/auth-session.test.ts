@@ -51,21 +51,14 @@ it('defaults writers and development users to read mode; a cookie never grants a
 	expect(getSessionUser(event())).toMatchObject({ name: 'dev', canEdit: true, canWrite: false });
 	expect(getSessionUser(event({}, '1'))).toMatchObject({ canWrite: true, editMode: true });
 });
-it('redirects missing identities to configurable login with the full destination, but rejects unauthenticated posts', async () => {
+it('rejects missing identities with 401 for all methods and users outside allowed groups with 403', async () => {
 	vi.stubEnv('AUTH_DISABLED', 'false');
-	vi.stubEnv('AUTH_LOGIN_URL', 'https://auth.comptes.localhost:8443/?theme=dark');
 	const resolve = vi.fn(async () => new Response('Page'));
-	const response = await handle({ event: event(), resolve } as never);
-	expect(response.status).toBe(303);
-	const location = new URL(response.headers.get('location')!);
-	expect(location.origin).toBe('https://auth.comptes.localhost:8443');
-	expect(location.searchParams.get('rd')).toBe(
-		'https://comptes.localhost:8443/accounts/caisse?search=one'
-	);
-	expect(location.searchParams.get('theme')).toBe('dark');
-	expect((await handle({ event: event({}, undefined, 'POST'), resolve } as never)).status).toBe(
-		401
-	);
+	for (const method of ['GET', 'HEAD', 'POST']) {
+		const response = await handle({ event: event({}, undefined, method), resolve } as never);
+		expect(response.status).toBe(401);
+		expect(response.headers.has('location')).toBe(false);
+	}
 	expect(
 		(
 			await handle({
@@ -76,6 +69,7 @@ it('redirects missing identities to configurable login with the full destination
 	).toBe(403);
 	expect(resolve).not.toHaveBeenCalled();
 });
+
 it('sets effective permissions on authenticated page requests', async () => {
 	vi.stubEnv('AUTH_DISABLED', 'false');
 	const request = event({ 'remote-user': 'alice', 'remote-groups': 'comptes-readwrite' }, '1');
