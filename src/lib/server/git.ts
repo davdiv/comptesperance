@@ -6,6 +6,7 @@ import { getEnv } from './env';
 import { getCommitAuthor, identityForUser } from './commit-author';
 
 const execFileAsync = promisify(execFile);
+const initializations = new Map<string, Promise<void>>();
 
 export interface GitResult {
 	stdout: string;
@@ -31,7 +32,15 @@ export async function git(
 	}
 }
 
-export async function ensureGitRepo(root: string): Promise<void> {
+export function ensureGitRepo(root: string): Promise<void> {
+	const existing = initializations.get(root);
+	if (existing) return existing;
+	const pending = initializeGitRepo(root).finally(() => initializations.delete(root));
+	initializations.set(root, pending);
+	return pending;
+}
+
+async function initializeGitRepo(root: string): Promise<void> {
 	await mkdir(root, { recursive: true });
 	if (existsSync(`${root}/.git`)) return;
 	await execFileAsync('git', ['init', '-b', 'main', root], {
