@@ -365,7 +365,7 @@ export async function getProjectDetails(
 		transaction_count: allocations.length,
 		hidden_transfer_count: page.hidden_transfer_count,
 		by_account: [...byAccount.values()]
-			.filter((a) => a.amount_cents !== 0)
+			.filter((a) => a.incoming_cents !== 0 || a.outgoing_cents !== 0)
 			.sort((a, b) =>
 				(a.account_name ?? a.account_id).localeCompare(b.account_name ?? b.account_id)
 			),

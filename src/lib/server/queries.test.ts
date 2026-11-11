@@ -137,7 +137,7 @@ describe('getProjectDetails', () => {
 			by_account: []
 		});
 	});
-	it('omits net-zero accounts while retaining their allocations in overall totals and counts', async () => {
+	it('retains net-zero accounts with income and expenses even when transfers are hidden', async () => {
 		addAllocation('in', 'group');
 		addAllocation('out', 'group');
 		db.exec("UPDATE project_allocations SET amount_cents = -1250 WHERE transaction_id = 'out'");
@@ -146,12 +146,32 @@ describe('getProjectDetails', () => {
 			expect(details?.total_cents).toBe(0);
 			expect(details?.incoming_cents).toBe(1250);
 			expect(details?.outgoing_cents).toBe(-1250);
-			expect(details?.by_account).toEqual([]);
+			expect(details?.by_account).toEqual([
+				{
+					account_id: 'cash',
+					account_name: 'Cash',
+					amount_cents: 0,
+					incoming_cents: 1250,
+					outgoing_cents: -1250,
+					count: 2
+				}
+			]);
 			expect(details?.allocations).toHaveLength(includeTransfers ? 2 : 0);
 		}
 		expect((await listProjectsWithTotals())[0]).toMatchObject({
 			total_cents: 0,
 			allocation_count: 2
+		});
+	});
+	it('omits accounts whose allocations are all zero', async () => {
+		addAllocation('zero');
+		db.exec('UPDATE project_allocations SET amount_cents = 0');
+		expect(await getProjectDetails('project')).toMatchObject({
+			total_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0,
+			by_account: [],
+			transaction_count: 1
 		});
 	});
 	it.each([

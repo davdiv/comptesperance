@@ -59,6 +59,40 @@ const details: ProjectDetails = {
 };
 
 describe('project PDF', () => {
+	it('includes a net-zero account with matching income and expense summary totals', async () => {
+		const definition = buildProjectPdfDefinition(
+			{
+				...details,
+				total_cents: 0,
+				incoming_cents: 10000,
+				outgoing_cents: -10000,
+				by_account: [
+					{
+						...details.by_account[0],
+						amount_cents: 0,
+						incoming_cents: 10000,
+						outgoing_cents: -10000,
+						count: 2
+					}
+				],
+				allocations: [],
+				hidden_transfer_count: 2
+			},
+			config,
+			state
+		);
+		const content = definition.content as { text?: string; table?: { body: unknown[][] } }[];
+		expect(content.find((c) => c.text?.startsWith('Incoming:'))?.text).toBe(
+			'Incoming: €100.00   ·   Outgoing: -€100.00'
+		);
+		expect(content.find((c) => c.table)?.table?.body[1]).toEqual([
+			'Cash',
+			{ text: '€100.00', alignment: 'right', noWrap: true },
+			{ text: '-€100.00', alignment: 'right', noWrap: true },
+			{ text: '€0.00', alignment: 'right', noWrap: true }
+		]);
+		expect((await renderProjectPdf(definition)).subarray(0, 4).toString()).toBe('%PDF');
+	});
 	it('shows signed summary and account totals without allocation counts, separately from displayed-row totals', () => {
 		const definition = buildProjectPdfDefinition(
 			{
