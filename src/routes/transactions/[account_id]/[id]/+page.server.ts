@@ -1,3 +1,4 @@
+import { m } from '$lib/paraglide/messages.js';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
@@ -15,14 +16,13 @@ import {
 import {
 	deleteManualTransaction,
 	linkTransfer,
-	listProjects,
 	readProject,
 	linkDocument,
 	listDocuments,
 	uploadEvidence,
 	unlinkTransfer,
 	updateManualTransaction,
-	updateProject,
+	setTransactionAllocations,
 	upsertAnnotation
 } from '$lib/server/repository';
 import type { TransactionAnnotation } from '$lib/types';
@@ -33,7 +33,9 @@ function annotationFromTransaction(
 ): TransactionAnnotation {
 	return {
 		notes: transaction.notes || undefined,
-		category: transaction.category || undefined,
+		category_id: transaction.category_id || undefined,
+		payment_mode_id: transaction.payment_mode_id || undefined,
+		allocations: transaction.allocations,
 		third_party_id: transaction.third_party_id,
 		transfer_id: transaction.transfer_id,
 		counterpart_account_id: transaction.counterpart_account_id,
@@ -106,7 +108,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				value: `${item.account_id}:${item.id}`,
 				account_id: item.account_id,
 				transaction_id: item.id,
-				label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} ${item.currency}`
+				label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} EUR`
 			}))
 	};
 };
@@ -120,21 +122,20 @@ export const actions: Actions = {
 		]);
 		if (!transaction || !account) error(404, 'Transaction not found');
 		const form = await request.formData();
-		const countsInTotal = form.get('counts_in_total') === 'on';
+		const excluded = form.get('excluded') === 'on';
 		try {
 			if (account.source === 'manual') {
 				const amount = parseDecimalToCents(String(form.get('amount') ?? ''));
 				await updateManualTransaction(account.account_id, transaction.id, {
 					date: String(form.get('date') ?? transaction.date),
-					value_date: String(form.get('value_date') ?? '').trim() || undefined,
 					amount_cents: amount ?? transaction.amount_cents,
 					label: String(form.get('label') ?? transaction.label),
 					description: String(form.get('description') ?? '').trim() || undefined,
-					category: String(form.get('category') ?? '').trim() || undefined,
+					category_id: String(form.get('category_id') ?? '').trim() || undefined,
+					payment_mode_id: String(form.get('payment_mode_id') ?? '').trim() || undefined,
 					notes: String(form.get('notes') ?? '').trim() || undefined,
 					third_party_id: String(form.get('third_party_id') ?? '') || null,
-					counts_in_total: countsInTotal,
-					excluded: !countsInTotal
+					excluded
 				});
 			} else {
 				await upsertAnnotation(
@@ -142,14 +143,22 @@ export const actions: Actions = {
 					transaction.id,
 					annotationFromTransaction(transaction, {
 						notes: String(form.get('notes') ?? '').trim() || undefined,
-						category: String(form.get('category') ?? '').trim() || undefined,
+						category_id: String(form.get('category_id') ?? '').trim() || undefined,
+						payment_mode_id: String(form.get('payment_mode_id') ?? '').trim() || undefined,
 						third_party_id: String(form.get('third_party_id') ?? '') || null,
-						excluded: !countsInTotal
+						excluded
 					})
 				);
 			}
 		} catch (e) {
-			return fail(400, { error: e instanceof Error ? e.message : 'Save failed' });
+			return fail(400, {
+				error:
+					e instanceof Error && e.message.startsWith('allocation_')
+						? m.allocation_invalid()
+						: e instanceof Error
+							? e.message
+							: 'Save failed'
+			});
 		}
 		return { ok: true };
 	},
@@ -267,39 +276,30 @@ export const actions: Actions = {
 			transaction.amount_cents === 0 ||
 			Math.sign(amount) !== Math.sign(transaction.amount_cents)
 		) {
-			return fail(400, { error: 'Allocation must have the transaction sign' });
+			return fail(400, { error: m.allocation_invalid() });
 		}
 		if (Math.abs(amount) > Math.abs(transaction.amount_cents)) {
-			return fail(400, { error: 'Allocation exceeds transaction amount' });
+			return fail(400, { error: m.allocation_invalid() });
 		}
 		const project = await readProject(projectId);
 		if (!project) return fail(400, { error: 'Project not found' });
-		const allocatedElsewhere = (await listProjects())
-			.filter((item) => item.id !== projectId)
-			.flatMap((item) => item.allocations)
-			.filter(
-				(allocation) =>
-					allocation.account_id === transaction.account_id &&
-					allocation.transaction_id === transaction.id
-			)
-			.reduce((sum, allocation) => sum + allocation.amount_cents, 0);
-		if (Math.abs(allocatedElsewhere + amount) > Math.abs(transaction.amount_cents)) {
-			return fail(400, { error: 'Allocations exceed transaction amount' });
-		}
-		const allocations = project.allocations.filter(
-			(allocation) =>
-				!(
-					allocation.account_id === transaction.account_id &&
-					allocation.transaction_id === transaction.id
-				)
+
+		const allocations = transaction.allocations.filter(
+			(allocation) => allocation.project_id !== projectId
 		);
 		allocations.push({
-			account_id: transaction.account_id,
-			transaction_id: transaction.id,
+			project_id: projectId,
 			amount_cents: amount,
 			note: String(form.get('note') ?? '').trim() || undefined
 		});
-		await updateProject(projectId, { allocations });
+		try {
+			await setTransactionAllocations(
+				{ account_id: transaction.account_id, transaction_id: transaction.id },
+				allocations
+			);
+		} catch {
+			return fail(400, { error: m.allocation_invalid() });
+		}
 		return { ok: true };
 	}
 };

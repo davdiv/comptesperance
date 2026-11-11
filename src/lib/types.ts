@@ -1,13 +1,10 @@
-export type AccountType = 'bank' | 'sumup' | 'stripe' | 'cash' | 'other';
 export type AccountSource = 'csv' | 'manual';
 
 export interface Account {
 	id: string;
 	name: string;
-	type: AccountType;
-	currency: string;
-	opening_balance_cents: number;
 	source: AccountSource;
+	notes?: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -17,19 +14,19 @@ export interface ManualTransaction {
 	date: string;
 	value_date?: string;
 	amount_cents: number;
-	currency: string;
 	label: string;
 	description?: string;
 	record_type?: string;
 	status?: string;
 	third_party_id?: string | null;
-	category?: string;
+	category_id?: string;
 	notes?: string;
 	transfer_id?: string | null;
 	counterpart_account_id?: string | null;
 	counterpart_transaction_id?: string | null;
 	evidence?: string[];
-	counts_in_total?: boolean;
+	payment_mode_id?: string;
+	allocations?: ProjectAllocation[];
 	excluded?: boolean;
 	created_at?: string;
 	updated_at?: string;
@@ -37,12 +34,14 @@ export interface ManualTransaction {
 
 export interface TransactionAnnotation {
 	notes?: string;
-	category?: string;
+	category_id?: string;
 	third_party_id?: string | null;
 	transfer_id?: string | null;
 	counterpart_account_id?: string | null;
 	counterpart_transaction_id?: string | null;
 	evidence?: string[];
+	payment_mode_id?: string;
+	allocations?: ProjectAllocation[];
 	excluded?: boolean;
 }
 
@@ -53,8 +52,7 @@ export interface AccountFile {
 }
 
 export interface ProjectAllocation {
-	account_id: string;
-	transaction_id: string;
+	project_id: string;
 	amount_cents: number;
 	note?: string;
 }
@@ -63,7 +61,6 @@ export interface Project {
 	id: string;
 	name: string;
 	description?: string;
-	allocations: ProjectAllocation[];
 	created_at: string;
 	updated_at: string;
 }
@@ -82,13 +79,12 @@ export interface ParsedTransaction {
 	date: string;
 	value_date?: string;
 	amount_cents: number;
-	currency: string;
 	label: string;
 	description?: string;
 	record_type: string;
 	status?: string;
 	attributes?: Record<string, string>;
-	counts_in_total: boolean;
+	excluded: boolean;
 }
 
 export interface CachedTransaction extends ParsedTransaction {
@@ -97,7 +93,9 @@ export interface CachedTransaction extends ParsedTransaction {
 	source_files: string[];
 	third_party_id: string | null;
 	notes: string;
-	category: string;
+	category_id: string;
+	payment_mode_id: string;
+	allocations: ProjectAllocation[];
 	transfer_id: string | null;
 	counterpart_account_id: string | null;
 	counterpart_transaction_id: string | null;
@@ -107,9 +105,25 @@ export interface CachedTransaction extends ParsedTransaction {
 
 export interface AccountTotals {
 	account_id: string;
-	opening_balance_cents: number;
 	incoming_cents: number;
 	outgoing_cents: number;
 	transaction_count: number;
 	current_balance_cents: number;
+}
+
+export interface AppConfig {
+	name: string;
+}
+export interface PaymentMode {
+	id: string;
+	name: string;
+	archived?: boolean;
+}
+export interface Category extends PaymentMode {
+	kind: 'income' | 'expense';
+}
+export interface DataConfig {
+	app: AppConfig;
+	categories: Category[];
+	paymentModes: PaymentMode[];
 }

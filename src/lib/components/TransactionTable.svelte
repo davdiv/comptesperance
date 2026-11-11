@@ -12,9 +12,11 @@
 		label: string;
 		description?: string | null;
 		amount_cents: number;
-		currency: string;
 		record_type?: string | null;
-		category?: string | null;
+		category_id?: string | null;
+		category_name?: string | null;
+		payment_mode_id?: string | null;
+		payment_mode_name?: string | null;
 		third_party_name?: string | null;
 		transfer_id?: string | null;
 		evidence?: string[];
@@ -42,6 +44,7 @@
 				<th>{m.common_label()}</th>
 				{#if accountNames}<th>{m.import_account()}</th>{/if}
 				{#if !compact}<th>{m.common_third_party()}</th>{/if}
+				{#if !compact}<th>{m.payment_mode()}</th>{/if}
 				<th class="num">{m.common_amount()}</th>
 			</tr>
 		</thead>
@@ -54,8 +57,10 @@
 							>{tx.label || tx.description || '—'}</a
 						>
 						<div class="mt-1 flex flex-wrap items-center gap-1.5">
-							{#if tx.record_type}<span class="badge badge-neutral">{tx.record_type}</span>{/if}
-							{#if tx.category}<span class="badge badge-blue">{tx.category}</span>{/if}
+							{#if tx.category_id}<span
+									class="badge {tx.category_name ? 'badge-blue' : 'badge-amber'}"
+									>{tx.category_name ?? m.config_unknown() + ' (' + tx.category_id + ')'}</span
+								>{/if}
 							{#if tx.transfer_id}<span class="badge badge-violet"
 									><Icon name="transactions" class="size-3" />{m.common_transfers()}</span
 								>{/if}
@@ -72,7 +77,13 @@
 							>{accountNames[tx.account_id] ?? tx.account_id}</td
 						>{/if}
 					{#if !compact}<td class="text-stone-600">{tx.third_party_name ?? '—'}</td>{/if}
-					<td class="num font-medium"><Amount cents={tx.amount_cents} currency={tx.currency} /></td>
+					{#if !compact}<td
+							>{tx.payment_mode_name ??
+								(tx.payment_mode_id
+									? m.config_unknown() + ' (' + tx.payment_mode_id + ')'
+									: '—')}</td
+						>{/if}
+					<td class="num font-medium"><Amount cents={tx.amount_cents} /></td>
 				</tr>
 			{/each}
 		</tbody>

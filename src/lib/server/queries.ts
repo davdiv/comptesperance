@@ -1,22 +1,17 @@
-import type {
-	AccountSource,
-	AccountTotals,
-	AccountType,
-	CachedTransaction,
-	Project
-} from '$lib/types';
+import type { AccountSource, AccountTotals, CachedTransaction, Project } from '$lib/types';
 import { getDatabase } from './cache';
 import { listDocuments } from './repository';
 
 export interface AccountWithTotals extends AccountTotals {
 	name: string;
-	type: AccountType;
-	currency: string;
+	notes?: string;
 	source: AccountSource;
 }
 
 export interface TransactionView extends CachedTransaction {
 	third_party_name: string | null;
+	category_name: string | null;
+	payment_mode_name: string | null;
 }
 
 export interface TransactionFilters {
@@ -26,6 +21,8 @@ export interface TransactionFilters {
 	date_from?: string;
 	date_to?: string;
 	record_type?: string;
+	category_id?: string;
+	payment_mode_id?: string;
 	include_transfers?: boolean;
 	limit?: number;
 	offset?: number;
@@ -99,7 +96,6 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 		date: String(row.date),
 		value_date: stringOrNull(row.value_date) ?? undefined,
 		amount_cents: Number(row.amount_cents),
-		currency: String(row.currency),
 		label: String(row.label ?? ''),
 		description: stringOrNull(row.description) ?? undefined,
 		record_type: String(row.record_type),
@@ -108,10 +104,13 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 		attributes: parseJsonObject<Record<string, string>>(row.attributes_json),
 		source: row.source as AccountSource,
 		source_files: parseJsonArray<string>(row.source_files_json),
-		counts_in_total: Number(row.counts_in_total) === 1,
 		third_party_id: stringOrNull(row.third_party_id),
 		notes: String(row.notes ?? ''),
-		category: String(row.category ?? ''),
+		category_id: String(row.category_id ?? ''),
+		payment_mode_id: String(row.payment_mode_id ?? ''),
+		allocations: parseJsonArray(row.allocations_json),
+		category_name: stringOrNull(row.category_name),
+		payment_mode_name: stringOrNull(row.payment_mode_name),
 		transfer_id: stringOrNull(row.transfer_id),
 		counterpart_account_id: stringOrNull(row.counterpart_account_id),
 		counterpart_transaction_id: stringOrNull(row.counterpart_transaction_id),
@@ -122,43 +121,47 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 }
 
 const TRANSACTION_SELECT = `
-	SELECT t.*, tp.name AS third_party_name
+	SELECT t.*, tp.name AS third_party_name, c.name AS category_name, pm.name AS payment_mode_name
 	FROM transactions t
 	LEFT JOIN third_parties tp ON tp.id = t.third_party_id
+	LEFT JOIN categories c ON c.id = t.category_id
+	LEFT JOIN payment_modes pm ON pm.id = t.payment_mode_id
 `;
 
 const NON_TRANSFER_CONDITION = 't.transfer_id IS NULL';
+
+// Balance policy: sum of non-excluded transactions.
+export function currentBalance(incoming: number, outgoing: number): number {
+	return incoming + outgoing;
+}
 
 export async function listAccountsWithTotals(): Promise<AccountWithTotals[]> {
 	const db = await getDatabase();
 	const rows = db
 		.prepare(
 			`SELECT
-				a.id, a.name, a.type, a.currency, a.source, a.opening_balance_cents,
-				COALESCE(SUM(CASE WHEN t.counts_in_total = 1 AND t.excluded = 0 AND t.amount_cents > 0 THEN t.amount_cents ELSE 0 END), 0) AS incoming_cents,
-				COALESCE(SUM(CASE WHEN t.counts_in_total = 1 AND t.excluded = 0 AND t.amount_cents < 0 THEN t.amount_cents ELSE 0 END), 0) AS outgoing_cents,
+				a.id, a.name, a.notes, a.source,
+				COALESCE(SUM(CASE WHEN t.excluded = 0 AND t.amount_cents > 0 THEN t.amount_cents ELSE 0 END), 0) AS incoming_cents,
+				COALESCE(SUM(CASE WHEN t.excluded = 0 AND t.amount_cents < 0 THEN t.amount_cents ELSE 0 END), 0) AS outgoing_cents,
 				COUNT(t.id) AS transaction_count
 			FROM accounts a
 			LEFT JOIN transactions t ON t.account_id = a.id
-			GROUP BY a.id, a.name, a.type, a.currency, a.source, a.opening_balance_cents
+			GROUP BY a.id, a.name, a.notes, a.source
 			ORDER BY a.name`
 		)
 		.all() as Record<string, unknown>[];
 	return rows.map((row) => {
-		const opening = Number(row.opening_balance_cents);
 		const incoming = Number(row.incoming_cents);
 		const outgoing = Number(row.outgoing_cents);
 		return {
 			account_id: String(row.id),
 			name: String(row.name),
-			type: String(row.type) as AccountType,
-			currency: String(row.currency),
+			notes: stringOrNull(row.notes) ?? undefined,
 			source: row.source as AccountSource,
-			opening_balance_cents: opening,
 			incoming_cents: incoming,
 			outgoing_cents: outgoing,
 			transaction_count: Number(row.transaction_count),
-			current_balance_cents: opening + incoming + outgoing
+			current_balance_cents: currentBalance(incoming, outgoing)
 		};
 	});
 }
@@ -191,6 +194,12 @@ export async function listTransactions(
 		where.push("t.date < date(?, '+1 day')");
 		params.push(filters.date_to);
 	}
+	for (const field of ['category_id', 'payment_mode_id'] as const) {
+		if (filters[field]) {
+			where.push(`t.${field} = ?`);
+			params.push(filters[field]!);
+		}
+	}
 	if (filters.record_type) {
 		where.push('t.record_type = ?');
 		params.push(filters.record_type);
@@ -201,7 +210,7 @@ export async function listTransactions(
 	if (filters.search?.trim()) {
 		const search = `%${filters.search.trim()}%`;
 		where.push(
-			`(t.label LIKE ? OR COALESCE(t.description, '') LIKE ? OR t.notes LIKE ? OR t.category LIKE ? OR COALESCE(tp.name, '') LIKE ?)`
+			`(t.label LIKE ? OR COALESCE(t.description, '') LIKE ? OR t.notes LIKE ? OR t.category_id LIKE ? OR COALESCE(tp.name, '') LIKE ?)`
 		);
 		params.push(search, search, search, search, search);
 	}
@@ -269,7 +278,6 @@ export async function listProjectsWithTotals(): Promise<
 		id: String(row.id),
 		name: String(row.name),
 		description: stringOrNull(row.description) ?? undefined,
-		allocations: parseJsonArray(row.allocations_json) as Project['allocations'],
 		created_at: String(row.created_at),
 		updated_at: String(row.updated_at),
 		total_cents: Number(row.total_cents),
@@ -291,11 +299,11 @@ export async function getProjectDetails(
 			`SELECT
 				pa.project_id, pa.account_id, pa.transaction_id, pa.amount_cents, pa.note,
 				a.name AS account_name,
-				t.id, t.date, t.value_date, t.amount_cents AS transaction_amount_cents, t.currency,
+				t.id, t.date, t.value_date, t.amount_cents AS transaction_amount_cents,
 				t.label, t.description, t.record_type, t.status, t.third_party_id,
 				tp.name AS third_party_name, t.transfer_id, t.counterpart_account_id,
-				t.counterpart_transaction_id, t.notes, t.category, t.evidence_json,
-				t.excluded, t.counts_in_total, t.source, t.source_files_json, t.raw_json, t.attributes_json
+				t.counterpart_transaction_id, t.notes, t.category_id, t.payment_mode_id, t.allocations_json, t.evidence_json,
+				t.excluded, t.source, t.source_files_json, t.raw_json, t.attributes_json
 			FROM project_allocations pa
 			LEFT JOIN accounts a ON a.id = pa.account_id
 			JOIN transactions t ON t.account_id = pa.account_id AND t.id = pa.transaction_id
@@ -313,7 +321,6 @@ export async function getProjectDetails(
 					date: row.date,
 					value_date: row.value_date,
 					amount_cents: row.transaction_amount_cents,
-					currency: row.currency,
 					label: row.label,
 					description: row.description,
 					record_type: row.record_type,
@@ -324,10 +331,11 @@ export async function getProjectDetails(
 					counterpart_account_id: row.counterpart_account_id,
 					counterpart_transaction_id: row.counterpart_transaction_id,
 					notes: row.notes,
-					category: row.category,
+					category_id: row.category_id,
+					payment_mode_id: row.payment_mode_id,
+					allocations_json: row.allocations_json,
 					evidence_json: row.evidence_json,
 					excluded: row.excluded,
-					counts_in_total: row.counts_in_total,
 					source: row.source,
 					source_files_json: row.source_files_json,
 					raw_json: row.raw_json,
@@ -365,7 +373,6 @@ export async function getProjectDetails(
 		id: String(projectRow.id),
 		name: String(projectRow.name),
 		description: stringOrNull(projectRow.description) ?? undefined,
-		allocations: parseJsonArray(projectRow.allocations_json) as Project['allocations'],
 		created_at: String(projectRow.created_at),
 		updated_at: String(projectRow.updated_at)
 	};
@@ -386,7 +393,7 @@ export async function listThirdPartiesWithCounts(): Promise<ThirdPartyWithCounts
 		.prepare(
 			`SELECT tp.id, tp.name, tp.aliases_json, tp.created_at, tp.updated_at,
 				COUNT(t.id) AS transaction_count,
-				COALESCE(SUM(CASE WHEN t.counts_in_total = 1 AND t.excluded = 0 THEN t.amount_cents ELSE 0 END), 0) AS total_cents
+				COALESCE(SUM(CASE WHEN t.excluded = 0 THEN t.amount_cents ELSE 0 END), 0) AS total_cents
 			FROM third_parties tp
 			LEFT JOIN transactions t ON t.third_party_id = tp.id
 			GROUP BY tp.id

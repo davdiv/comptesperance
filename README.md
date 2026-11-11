@@ -39,3 +39,39 @@ Ready-to-use local users:
 - `bob` / `bob` — `comptes-readonly`
 
 Compose mounts the data git repo at `/data` and the disposable SQLite cache at `/cache`.
+
+## Data repository format
+
+The git data repository is the source of truth; SQLite is disposable and rebuilt
+from these files. All monetary amounts are integer cents in EUR. No migration or
+legacy-format compatibility is provided.
+
+- `config/app.json`: `{ "name": "Comptesperance" }`.
+- `config/categories.json`: `[{ "id": "dons", "name": "Dons", "kind": "income", "archived": false }]`;
+  kind is `income` or `expense`.
+- `config/payment-modes.json`: `[{ "id": "carte", "name": "Carte bancaire", "archived": false }]`.
+  Missing config files are initialized with French defaults and committed.
+  Settings edits each make one data-repository commit. Used entries can be archived
+  but not deleted.
+- `accounts/<id>/account.json`: `{ "account": { "id": "...", "name": "...", "source": "manual", "notes": "...", "created_at": "...", "updated_at": "..." }, "transactions": [] }`.
+  CSV accounts omit `transactions` and keep unchanged CSV imports in `statements/`.
+  Accounts have no type, currency or opening balance. The current balance is the
+  sum of non-excluded transactions; the balance policy is isolated in `currentBalance`.
+- Manual transactions have `id`, `date`, `amount_cents`, `label` and optional
+  `description`, `notes`, `third_party_id`, `category_id`, `payment_mode_id`,
+  `excluded`, `evidence`, transfer/counterpart references and timestamps.
+- `accounts/<id>/annotations.json` for CSV accounts maps transaction IDs to
+  annotation objects: optional notes, category/payment-mode/third-party IDs,
+  evidence, transfer references, excluded and allocations. CSV parsed value dates
+  and statuses are retained for display. Cancelled SumUp transactions default to
+  excluded; an explicit annotation overrides that default.
+- Allocations belong to each manual transaction or CSV annotation:
+  `"allocations": [{ "project_id": "kermesse", "amount_cents": 1250, "note": "Part" }]`.
+  A project appears at most once per transaction; amounts have the transaction's
+  sign and their absolute sum cannot exceed its absolute amount.
+- `projects/<id>.json` contains only `id`, `name`, optional `description`,
+  `created_at`, `updated_at`. Project summaries exclude transfer allocations by
+  default. Deleting a project removes its allocations from all manual transactions
+  and CSV annotations in the same commit.
+- `third-parties/<id>.json` and `documents/` retain their existing formats.
+  Evidence paths can be shared by multiple transactions.

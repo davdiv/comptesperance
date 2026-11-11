@@ -4,8 +4,10 @@ function locale(): string {
 	return getLocale() === 'fr' ? 'fr-FR' : 'en-GB';
 }
 
-export function formatMoney(cents: number, currency = 'EUR'): string {
-	return new Intl.NumberFormat(locale(), { style: 'currency', currency }).format(cents / 100);
+export function formatMoney(cents: number): string {
+	return new Intl.NumberFormat(locale(), { style: 'currency', currency: 'EUR' }).format(
+		cents / 100
+	);
 }
 
 export function formatDate(value: string | null | undefined): string {
