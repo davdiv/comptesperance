@@ -1,4 +1,5 @@
 import PdfPrinter from 'pdfmake';
+import { createRequire } from 'node:module';
 import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { m } from '#lib/paraglide/messages.js';
 import { formatDate, formatMoney } from '#lib/format.ts';
@@ -7,9 +8,9 @@ import type { transactionFilterState } from '#lib/server/transaction-list.ts';
 import type { DataConfig } from '#lib/types.ts';
 
 export type PdfFilterState = Awaited<ReturnType<typeof transactionFilterState>>;
-const clean = (value: string) => value.replace(/[\u202f\u00a0]/g, ' ');
+const require = createRequire(import.meta.url);
 const money = (value: number): TableCell => ({
-	text: clean(formatMoney(value)),
+	text: formatMoney(value),
 	alignment: 'right',
 	noWrap: true
 });
@@ -58,7 +59,7 @@ export function projectFilterSummary(state: PdfFilterState, config: DataConfig):
 	);
 	if (f.include_transfers !== undefined)
 		parts.push(f.include_transfers ? m.common_include_transfers() : m.common_hide_transfers());
-	return clean(parts.join(' · '));
+	return parts.join(' · ');
 }
 
 export function buildProjectPdfDefinition(
@@ -81,7 +82,7 @@ export function buildProjectPdfDefinition(
 	const rows: TableCell[][] = details.allocations.map((a) => {
 		const t = a.transaction;
 		return [
-			clean(formatDate(t?.date)),
+			formatDate(t?.date),
 			a.account_name ?? a.account_id,
 			{
 				stack: [
@@ -114,14 +115,14 @@ export function buildProjectPdfDefinition(
 			? [{ text: details.project.description, margin: [0, 0, 0, 6] } as Content]
 			: []),
 		{
-			text: m.pdf_generated({ date: clean(formatDate(generatedAt.toISOString().slice(0, 19))) }),
+			text: m.pdf_generated({ date: formatDate(generatedAt.toISOString().slice(0, 19)) }),
 			color: '#57534e'
 		},
 		...(summary
 			? [{ text: `${m.filters_title()}: ${summary}`, margin: [0, 5, 0, 0] } as Content]
 			: []),
 		{
-			text: `${m.project_total()}: ${clean(formatMoney(details.total_cents))}`,
+			text: `${m.project_total()}: ${formatMoney(details.total_cents)}`,
 			fontSize: 15,
 			bold: true,
 			margin: [0, 16, 0, 10]
@@ -204,7 +205,7 @@ export function buildProjectPdfDefinition(
 		pageSize: 'A4',
 		pageOrientation: 'landscape',
 		pageMargins: [28, 28, 28, 36],
-		defaultStyle: { font: 'Helvetica', fontSize: 8 },
+		defaultStyle: { font: 'DejaVuSans', fontSize: 8 },
 		styles: { section: { fontSize: 12, bold: true, margin: [0, 15, 0, 7] } },
 		content,
 		footer: (page, pages) => ({
@@ -219,11 +220,11 @@ export function buildProjectPdfDefinition(
 
 export async function renderProjectPdf(definition: TDocumentDefinitions): Promise<Buffer> {
 	const printer = new PdfPrinter({
-		Helvetica: {
-			normal: 'Helvetica',
-			bold: 'Helvetica-Bold',
-			italics: 'Helvetica-Oblique',
-			bolditalics: 'Helvetica-BoldOblique'
+		DejaVuSans: {
+			normal: require.resolve('dejavu-fonts-ttf/ttf/DejaVuSans.ttf'),
+			bold: require.resolve('dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf'),
+			italics: require.resolve('dejavu-fonts-ttf/ttf/DejaVuSans.ttf'),
+			bolditalics: require.resolve('dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf')
 		}
 	});
 	return new Promise((resolve, reject) => {

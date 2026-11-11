@@ -17,7 +17,7 @@ const state = {
 const details: ProjectDetails = {
 	project: {
 		id: 'p',
-		name: 'Été solidaire',
+		name: 'Été solidaire — Łódź Žižek',
 		description: 'Description',
 		created_at: '',
 		updated_at: ''
@@ -58,7 +58,7 @@ describe('project PDF', () => {
 		const text = JSON.stringify(definition);
 		for (const value of [
 			'Test app',
-			'Été solidaire',
+			'Été solidaire — Łódź Žižek',
 			'Cash',
 			'Cake sale',
 			'Homemade cakes',
@@ -70,16 +70,14 @@ describe('project PDF', () => {
 			'headerRows'
 		])
 			expect(text).toContain(value);
-		expect(text).not.toMatch(/[\u202f\u00a0]/);
 		expect(text).toContain('€1,234.56');
 		expect((await renderProjectPdf(definition)).subarray(0, 4).toString()).toBe('%PDF');
 	});
-	it('normalizes French currency spaces for standard fonts', () => {
+	it('preserves French currency spaces supported by the embedded font', () => {
 		const locale = vi.spyOn(runtime, 'getLocale').mockReturnValue('fr');
 		try {
 			const text = JSON.stringify(buildProjectPdfDefinition(details, config, state));
-			expect(text).toContain('1 234,56 €');
-			expect(text).not.toMatch(/[\u202f\u00a0]/);
+			expect(text).toContain('1\u202f234,56\u00a0€');
 		} finally {
 			locale.mockRestore();
 		}
