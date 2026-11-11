@@ -10,9 +10,14 @@ const row = {
 	description: 'A long CSV description',
 	amount_cents: 1000
 };
-it('shows a distinct, clamped description with its complete text in a title', () => {
+it('wraps descriptions on desktop while retaining a mobile clamp and complete title', () => {
 	const html = render(TransactionTable, { props: { transactions: [row] } }).body;
 	expect(html).toContain('line-clamp-2');
+	expect(html).toContain('sm:line-clamp-none');
+	expect(html).toContain('sm:whitespace-normal');
+	expect(html).toContain('sm:w-full');
+	expect(html).not.toContain('max-w-md');
+	expect(html).toContain('table w-full table-fixed sm:table-auto');
 	expect(html).toContain('title="A long CSV description"');
 	for (const description of ['', 'Sale', ' Sale ']) {
 		expect(

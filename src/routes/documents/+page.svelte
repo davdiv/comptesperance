@@ -52,7 +52,7 @@
 					<tr class="hover:bg-stone-50">
 						<td
 							><a
-								class="link inline-flex max-w-xs items-center gap-2 break-all"
+								class="link inline-flex items-center gap-2 break-all"
 								href="/documents/download?path={encodeURIComponent(document.path)}"
 								title={document.path}><Icon name="file" />{documentDisplayName(document.path)}</a
 							></td

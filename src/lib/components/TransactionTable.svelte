@@ -75,10 +75,10 @@
 {/snippet}
 {#if transactions.length}
 	<div class="max-w-full overflow-x-auto">
-		<table class="table w-full table-fixed sm:w-auto sm:table-auto">
+		<table class="table w-full table-fixed sm:table-auto">
 			<thead
 				><tr>
-					<th class="hidden w-32 sm:table-cell">{m.common_date()}</th><th>{m.common_label()}</th>
+					<th class="hidden w-px sm:table-cell">{m.common_date()}</th><th>{m.common_label()}</th>
 					{#if accountNames}<th class="hidden sm:table-cell">{m.import_account()}</th>{/if}
 					{#if !compact && !('third_party_id' in fixedFilters)}<th class="hidden sm:table-cell"
 							>{m.common_third_party()}</th
@@ -105,16 +105,18 @@
 						<td class="hidden whitespace-nowrap text-stone-500 tabular-nums sm:table-cell"
 							>{formatDate(tx.date)}</td
 						>
-						<td class="max-w-md min-w-0 sm:min-w-48">
+						<td class="min-w-0 [overflow-wrap:anywhere] sm:w-full sm:min-w-48">
 							<div class="mb-1 text-xs text-stone-500 sm:hidden">
 								{formatDate(tx.date)}{#if accountNames}
 									· {accountNames[tx.account_id] ?? tx.account_id}{/if}
 							</div>
-							<a href="/transactions/{tx.account_id}/{tx.id}" class="row-link block truncate"
+							<a
+								href="/transactions/{tx.account_id}/{tx.id}"
+								class="row-link block truncate sm:overflow-visible sm:whitespace-normal"
 								>{tx.label || tx.description || '—'}</a
 							>
 							{#if tx.description?.trim() && tx.description.trim() !== (tx.label || tx.description).trim()}<p
-									class="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-500"
+									class="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-500 sm:line-clamp-none"
 									title={tx.description}
 								>
 									{tx.description}
@@ -134,7 +136,7 @@
 													current={filterUrl}
 													fixed={fixedFilters}
 													entityHref="/projects/{a.project_id}"
-													class="truncate hover:underline"
+													class="hover:underline"
 												/>{/if}
 											{#if isPartial}<span class="shrink-0 tabular-nums"
 													>· {formatMoney(a.amount_cents)}</span
@@ -180,9 +182,12 @@
 								>{accountNames[tx.account_id] ?? tx.account_id}</td
 							>{/if}
 						{#if !compact && !('third_party_id' in fixedFilters)}<td
-								class="hidden text-stone-600 sm:table-cell">{@render party(tx)}</td
+								class="hidden whitespace-nowrap text-stone-600 sm:table-cell"
+								>{@render party(tx)}</td
 							>{/if}
-						{#if !compact}<td class="hidden sm:table-cell">{@render payment(tx)}</td>{/if}
+						{#if !compact}<td class="hidden whitespace-nowrap sm:table-cell"
+								>{@render payment(tx)}</td
+							>{/if}
 						<td class="num font-medium">
 							{#if projectId && allocation && canWrite}<AllocationEditor
 									accountId={tx.account_id}
