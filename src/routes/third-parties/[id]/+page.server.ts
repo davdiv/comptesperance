@@ -19,10 +19,14 @@ export const actions: Actions = {
 	update: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
 		const form = await request.formData();
-		const aliases = String(form.get('aliases') ?? '')
-			.split(/[\n,]/)
-			.map((alias) => alias.trim())
-			.filter(Boolean);
+		const aliases = [
+			...new Set(
+				String(form.get('aliases') ?? '')
+					.split(/[\n,]/)
+					.map((alias) => alias.trim())
+					.filter(Boolean)
+			)
+		];
 		try {
 			await updateThirdParty(params.id, {
 				name: String(form.get('name') ?? '').trim() || undefined,

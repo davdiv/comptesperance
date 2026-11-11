@@ -24,7 +24,7 @@
 				href="/third-parties/{data.party.id}{data.includeTransfers ? '' : '?include_transfers=1'}"
 				>{data.includeTransfers ? m.common_hide_transfers() : m.common_include_transfers()}</a
 			>{/snippet}
-		{#snippet meta()}{#each data.party.aliases as alias (alias)}<span class="badge badge-neutral"
+		{#snippet meta()}{#each data.party.aliases as alias, i (i)}<span class="badge badge-neutral"
 					>{alias}</span
 				>{/each}{/snippet}
 	</PageHeader>
