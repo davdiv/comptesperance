@@ -665,6 +665,77 @@ export async function saveDocument(
 	return `documents/${safeName}`;
 }
 
+async function appendEvidence(root: string, ref: TransactionRef, paths: string[]): Promise<void> {
+	const file = await readStoredAccount(root, ref.account_id);
+	if (!file) throw new Error('Account not found');
+	if (file.account.source === 'manual') {
+		const transaction = file.transactions?.find((item) => item.id === ref.transaction_id);
+		if (!transaction) throw new Error('Transaction not found');
+		transaction.evidence = [...new Set([...(transaction.evidence ?? []), ...paths])];
+		transaction.updated_at = now();
+	} else {
+		const annotations = file.annotations ?? {};
+		const annotation = annotations[ref.transaction_id] ?? {};
+		annotations[ref.transaction_id] = {
+			...annotation,
+			evidence: [...new Set([...(annotation.evidence ?? []), ...paths])]
+		};
+		file.annotations = annotations;
+	}
+	await writeStoredAccount(root, file);
+}
+
+export async function linkDocument(
+	ref: TransactionRef,
+	documentPath: string,
+	root?: string
+): Promise<void> {
+	const repo = await repoRoot(root);
+	if (!(await listDocuments(repo)).some((document) => document.path === documentPath)) {
+		throw new Error('Document not found');
+	}
+	await appendEvidence(repo, ref, [documentPath]);
+	await commitData(repo, `data: link document to ${ref.account_id}/${ref.transaction_id}`);
+}
+
+export async function uploadEvidence(
+	ref: TransactionRef,
+	files: { name: string; data: Uint8Array }[],
+	root?: string
+): Promise<string[]> {
+	if (!files.length) throw new Error('Select at least one file');
+	for (const file of files) {
+		if (!/\.(pdf|png|jpe?g|webp)$/i.test(file.name)) throw new Error('Unsupported file type');
+		if (file.data.byteLength > getEnv().maxEvidenceBytes) throw new Error('File is too large');
+	}
+	const repo = await repoRoot(root);
+	const account = await readStoredAccount(repo, ref.account_id);
+	if (
+		!account ||
+		(account.account.source === 'manual' &&
+			!account.transactions?.some((t) => t.id === ref.transaction_id))
+	) {
+		throw new Error('Transaction not found');
+	}
+	const paths: string[] = [];
+	try {
+		for (const file of files) {
+			const documentPath = `documents/${safeDocumentName(file.name)}`;
+			paths.push(documentPath);
+			await writeBinaryFile(safeJoin(repo, documentPath), file.data);
+		}
+		await appendEvidence(repo, ref, paths);
+	} catch (error) {
+		await Promise.all(paths.map((documentPath) => removeFile(safeJoin(repo, documentPath))));
+		throw error;
+	}
+	await commitData(
+		repo,
+		`data: attach ${paths.length} documents to ${ref.account_id}/${ref.transaction_id}`
+	);
+	return paths;
+}
+
 export async function deleteDocument(documentPath: string, root?: string): Promise<void> {
 	const repo = await repoRoot(root);
 	const normalizedPath = documentPath.split(path.sep).join('/');
@@ -675,6 +746,26 @@ export async function deleteDocument(documentPath: string, root?: string): Promi
 		throw new Error('Invalid document path');
 	}
 	const fullPath = safeJoin(repo, normalizedPath);
+	for (const file of await listStoredAccounts(repo)) {
+		let changed = false;
+		if (file.account.source === 'manual') {
+			for (const transaction of file.transactions ?? []) {
+				if (transaction.evidence?.includes(normalizedPath)) {
+					transaction.evidence = transaction.evidence.filter((item) => item !== normalizedPath);
+					transaction.updated_at = now();
+					changed = true;
+				}
+			}
+		} else {
+			for (const annotation of Object.values(file.annotations ?? {})) {
+				if (annotation.evidence?.includes(normalizedPath)) {
+					annotation.evidence = annotation.evidence.filter((item) => item !== normalizedPath);
+					changed = true;
+				}
+			}
+		}
+		if (changed) await writeStoredAccount(repo, file);
+	}
 	await removeFile(fullPath);
 	await commitData(repo, `data: delete document ${documentPath}`);
 }

@@ -41,7 +41,7 @@
 				<tr>
 					<th>{m.account_name()}</th>
 					<th>{m.document_size()}</th>
-					<th>{m.document_type()}</th>
+					<th>{m.document_type()}</th><th>{m.document_linked_transactions()}</th>
 					<th></th>
 				</tr>
 			</thead>
@@ -50,19 +50,38 @@
 					<tr class="hover:bg-stone-50">
 						<td
 							><a
-								class="link inline-flex items-center gap-2"
+								class="link inline-flex max-w-xs items-center gap-2 break-all"
 								href="/documents/download?path={encodeURIComponent(document.path)}"
 								><Icon name="file" />{document.name}</a
 							></td
 						>
 						<td>{formatSize(document.size)}</td>
 						<td><span class="badge badge-neutral">{document.path.split('.').pop()}</span></td>
-						<td class="num"
+						<td
+							><ul class="space-y-1">
+								{#each document.transactions as transaction (transaction.account_id + transaction.id)}<li
+									>
+										<a
+											class="link text-sm"
+											href="/transactions/{transaction.account_id}/{transaction.id}"
+											>{transaction.label}
+											<span class="text-xs text-stone-500">· {transaction.account_name}</span></a
+										>
+									</li>{:else}<li class="text-stone-400">—</li>{/each}
+							</ul></td
+						><td class="num"
 							>{#if data.user.canWrite}<form
 									method="POST"
 									action="?/delete"
 									onsubmit={(event) => {
-										if (!confirm(m.common_confirm_delete())) event.preventDefault();
+										if (
+											!confirm(
+												document.transactions.length
+													? m.document_confirm_delete_linked()
+													: m.common_confirm_delete()
+											)
+										)
+											event.preventDefault();
 									}}
 								>
 									<input type="hidden" name="path" value={document.path} /><button
@@ -73,7 +92,7 @@
 						>
 					</tr>
 				{:else}
-					<tr><td colspan="4"><EmptyState message={m.document_no_documents()} /></td></tr>
+					<tr><td colspan="5"><EmptyState message={m.document_no_documents()} /></td></tr>
 				{/each}
 			</tbody>
 		</table>

@@ -1,8 +1,15 @@
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDatabase } from './cache';
-import { getProjectDetails, listProjectsWithTotals, listTransactions } from './queries';
+import { listDocuments } from './repository';
+import {
+	getProjectDetails,
+	listProjectsWithTotals,
+	listTransactions,
+	listDocumentsWithLinks
+} from './queries';
 
+vi.mock('./repository', () => ({ listDocuments: vi.fn() }));
 vi.mock('./cache', () => ({ getDatabase: vi.fn() }));
 
 let db: DatabaseSync;
@@ -114,4 +121,20 @@ describe('transaction date filters', () => {
 	it('returns no results for an empty date range', async () => {
 		expect((await listTransactions({ date_to: '2026-10-03' })).total).toBe(0);
 	});
+});
+it('lists linked transactions for each document including shared files', async () => {
+	vi.mocked(listDocuments).mockResolvedValue([
+		{ path: 'documents/shared.pdf', name: 'shared.pdf', size: 1, modified_at: '' },
+		{ path: 'documents/unused.pdf', name: 'unused.pdf', size: 1, modified_at: '' }
+	]);
+	for (const id of ['first', 'second']) {
+		db.prepare(
+			'INSERT INTO transactions (account_id, id, label, evidence_json) VALUES (?, ?, ?, ?)'
+		).run('cash', id, id, '["documents/shared.pdf"]');
+	}
+	const documents = await listDocumentsWithLinks();
+	expect(documents[0].transactions.map((t) => t.id)).toEqual(['first', 'second']);
+	expect(documents[1].transactions).toEqual([]);
+	vi.mocked(listDocuments).mockResolvedValue([]);
+	expect(await listDocumentsWithLinks()).toEqual([]);
 });
