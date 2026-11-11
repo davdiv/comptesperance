@@ -18,7 +18,7 @@
 	</div>
 	<ul class="divide-y divide-stone-100">
 		{#each group.members as member (member.account_id + '/' + member.id)}
-			<li class="flex flex-wrap items-center justify-between gap-2 py-3">
+			<li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-3">
 				<a class="row-link min-w-0 flex-1" href="/transactions/{member.account_id}/{member.id}"
 					><span class="block text-xs text-stone-500"
 						>{accountNames[member.account_id] ?? member.account_id} · {formatDate(
@@ -27,9 +27,13 @@
 					>{member.label}</a
 				>
 				<Amount cents={member.amount_cents} />
-				{#if canWrite}<form method="POST" action="?/unlink_transfer">
+				{#if canWrite}<form
+						method="POST"
+						action="?/unlink_transfer"
+						class="col-span-2 justify-self-end"
+					>
 						<input type="hidden" name="member" value={member.account_id + ':' + member.id} /><button
-							class="btn-ghost btn-sm">{m.common_delete()}</button
+							class="btn-ghost btn-sm">{m.transfer_remove_member()}</button
 						>
 					</form>{/if}
 			</li>{/each}

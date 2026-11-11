@@ -195,5 +195,12 @@
 	"transfer_allocations_balanced": "Project allocations balanced",
 	"transfer_allocations_unbalanced": "Project allocations are not balanced",
 	"transfer_add_member": "Add member",
-	"transfer_invalid": "Select unlinked transactions from at least two accounts."
+	"transfer_invalid": "Select unlinked transactions from at least two accounts.",
+	"nav_transfers": "Transfers",
+	"transfers_subtitle": "Group account movements and reconcile balanced settlements.",
+	"transfers_link_all": "Link all balanced suggestions",
+	"transfers_no_suggestions": "No balanced suggestions available.",
+	"transfers_groups": "Transfer groups",
+	"transfers_create": "Create a transfer group",
+	"transfer_remove_member": "Remove member"
 }

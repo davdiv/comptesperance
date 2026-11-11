@@ -86,5 +86,15 @@ legacy-format compatibility is provided.
   `created_at`, `updated_at`. Project summaries exclude transfer allocations by
   default. Deleting a project removes its allocations from all manual transactions
   and CSV annotations in the same commit.
+- SumUp CSV formats are unchanged. Accepted sales use gross amounts; a derived
+  fee transaction has id `<sale fingerprint>:fee` and a negative amount.
+  Fees support the same annotations and exclusions as any CSV transaction.
+  Settlements use the net payout on the payout date. Sale descriptions and detail
+  links join the sale, fee and settlement across the account's statement set.
+- `/transfers` suggests complete balanced payout-ID groups (SumUp settlements
+  plus the CCP credit), followed by exact opposite-amount pairs within seven days.
+  Suggestions exclude linked/excluded transactions and do not overlap; bulk linking
+  writes all groups in one data-repository commit. Amount and project-allocation
+  imbalances on manually assembled groups remain visible warnings.
 - `third-parties/<id>.json` and `documents/` retain their existing formats.
   Evidence paths can be shared by multiple transactions.

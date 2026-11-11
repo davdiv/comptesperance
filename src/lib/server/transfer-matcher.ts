@@ -8,6 +8,7 @@ export interface TransferTransaction {
 	attributes?: Record<string, string>;
 	transfer_id?: string | null;
 	excluded?: boolean;
+	record_type?: string | null;
 }
 export interface TransferMatch<T extends TransferTransaction = TransferTransaction> {
 	transaction: T;
@@ -78,4 +79,50 @@ export function suggestedTransferPairs<T extends TransferTransaction>(pool: T[])
 				.map((match) => ({ first, ...match }))
 		)
 		.sort((a, b) => a.days - b.days);
+}
+
+export function suggestTransferGroups<T extends TransferTransaction>(pool: T[]) {
+	const available = pool.filter(
+		(item) => !item.transfer_id && !item.excluded && item.amount_cents !== 0
+	);
+	const proposals: { key: string; reference: string | null; members: T[] }[] = [];
+	const key = (members: T[]) =>
+		JSON.stringify(members.map((item) => [item.account_id, item.id]).sort());
+	const payouts = new Map<string, T[]>();
+	for (const item of available) {
+		if (item.record_type !== 'virement' || item.amount_cents >= 0) continue;
+		const id = item.attributes?.payout_id?.toUpperCase().match(/\bPID\d+\b/)?.[0];
+		if (!id) continue;
+		const members = payouts.get(id) ?? [];
+		members.push(item);
+		payouts.set(id, members);
+	}
+	for (const [reference, outgoing] of payouts) {
+		for (const credit of available.filter(
+			(item) => item.record_type === 'bank' && item.amount_cents > 0 && tokens(item).has(reference)
+		)) {
+			const members = [...outgoing, credit];
+			if (
+				new Set(members.map((item) => item.account_id)).size >= 2 &&
+				members.reduce((sum, item) => sum + item.amount_cents, 0) === 0
+			)
+				proposals.push({ key: key(members), reference, members });
+		}
+	}
+	const pairs = available
+		.flatMap((first) =>
+			rankTransferCandidates(first, available).map((match) => ({ first, ...match }))
+		)
+		.sort((a, b) => Number(b.strong) - Number(a.strong) || a.days - b.days);
+	for (const pair of pairs) {
+		const members = [pair.first, pair.transaction];
+		proposals.push({ key: key(members), reference: pair.reference, members });
+	}
+	const used = new Set<string>();
+	return proposals.filter((proposal) => {
+		const keys = proposal.members.map((item) => JSON.stringify([item.account_id, item.id]));
+		if (keys.some((item) => used.has(item))) return false;
+		for (const item of keys) used.add(item);
+		return true;
+	});
 }

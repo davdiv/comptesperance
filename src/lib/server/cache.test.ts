@@ -221,3 +221,43 @@ it('guesses active CSV payment modes, but annotations including explicit empty v
 	const unannotated = parseCsvStatement(content, 'ccp').transactions[1];
 	expect((await getTransaction(account.id, unannotated.id))?.payment_mode_id).toBe('');
 });
+
+it('deduplicates SumUp sales and derived fees across statement sets and supports fee annotations', async () => {
+	const account = await createAccount({ name: 'SumUp gross', source: 'csv' }, root);
+	const content = await readFile(
+		new URL('./csv/testdata/sumup-sample.csv', import.meta.url),
+		'utf8'
+	);
+	const [header, ...rows] = content.trim().split('\n');
+	const statements = path.join(root, 'accounts', account.id, 'statements');
+	await writeFile(
+		path.join(statements, 'sales.csv'),
+		[header, ...rows.filter((row) => row.includes(',Vente,'))].join('\n')
+	);
+	await writeFile(
+		path.join(statements, 'payouts.csv'),
+		[header, ...rows.filter((row) => row.includes(',Virement,'))].join('\n')
+	);
+	await writeFile(path.join(statements, 'duplicate.csv'), content);
+	const result = await listTransactions({ account_id: account.id });
+	expect(result.total).toBe(4);
+	expect((await getAccountWithTotals(account.id))?.current_balance_cents).toBe(0);
+	const fee = result.transactions.find((item) => item.record_type === 'fee')!;
+	expect(fee).toMatchObject({ amount_cents: -44, category_id: 'frais-bancaires' });
+	const sale = result.transactions.find((item) => item.record_type === 'vente' && !item.excluded)!;
+	expect(sale.description).toContain('PID9000007');
+	expect(sale.attributes?.payout_transaction_id).toBeDefined();
+	await upsertAnnotation(
+		account.id,
+		fee.id,
+		{ excluded: true, category_id: 'achats', notes: 'Fee override' },
+		root
+	);
+	vi.mocked(statusFingerprint).mockResolvedValue('fee-override');
+	expect(await getTransaction(account.id, fee.id)).toMatchObject({
+		excluded: true,
+		category_id: 'achats',
+		notes: 'Fee override'
+	});
+	expect((await getAccountWithTotals(account.id))?.current_balance_cents).toBe(44);
+});

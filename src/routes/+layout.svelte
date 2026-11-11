@@ -16,6 +16,7 @@
 		[
 			{ href: '/accounts', label: m.nav_accounts, icon: 'accounts' },
 			{ href: '/transactions', label: m.nav_transactions, icon: 'transactions' },
+			{ href: '/transfers', label: m.nav_transfers, icon: 'transactions' },
 			{ href: '/projects', label: m.nav_projects, icon: 'projects' },
 			{ href: '/third-parties', label: m.nav_third_parties, icon: 'people' }
 		],
