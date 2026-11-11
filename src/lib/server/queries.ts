@@ -1,3 +1,6 @@
+import { transactionWhere, visiblePage } from './transaction-filters';
+import type { TransactionFilters } from '$lib/transaction-filters';
+export type { TransactionFilters } from '$lib/transaction-filters';
 import { summarizeTransferGroup } from './transfer-groups';
 import type {
 	AccountSource,
@@ -27,22 +30,6 @@ export interface TransactionView extends CachedTransaction {
 	payment_mode_name: string | null;
 }
 
-export interface TransactionFilters {
-	account_id?: string;
-	third_party_id?: string;
-	search?: string;
-	project_id?: string;
-	allocation_status?: string;
-	date_from?: string;
-	date_to?: string;
-	record_type?: string;
-	category_id?: string;
-	payment_mode_id?: string;
-	include_transfers?: boolean;
-	limit?: number;
-	offset?: number;
-}
-
 export interface ProjectAllocationView {
 	project_id: string;
 	account_id: string;
@@ -56,6 +43,8 @@ export interface ProjectAllocationView {
 export interface ProjectDetails {
 	project: Project;
 	total_cents: number;
+	transaction_count: number;
+	hidden_transfer_count: number;
 	by_account: {
 		account_id: string;
 		account_name: string | null;
@@ -149,8 +138,11 @@ const TRANSACTION_SELECT = `
 
 const NON_TRANSFER_CONDITION = 't.transfer_id IS NULL';
 
-export async function listAccountsWithTotals(): Promise<AccountWithTotals[]> {
+export async function listAccountsWithTotals(
+	filters: TransactionFilters = {}
+): Promise<AccountWithTotals[]> {
 	const db = await getDatabase();
+	const { where, params } = transactionWhere(filters);
 	const rows = db
 		.prepare(
 			`SELECT
@@ -160,10 +152,11 @@ export async function listAccountsWithTotals(): Promise<AccountWithTotals[]> {
 				COUNT(t.id) AS transaction_count
 			FROM accounts a
 			LEFT JOIN transactions t ON t.account_id = a.id
+ ${where.length ? `AND (t.account_id,t.id) IN (SELECT t.account_id,t.id FROM transactions t LEFT JOIN third_parties tp ON tp.id=t.third_party_id LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN payment_modes pm ON pm.id=t.payment_mode_id WHERE ${where.join(' AND ')})` : ''}
 			GROUP BY a.id, a.name, a.notes, a.source
 			ORDER BY a.name`
 		)
-		.all() as Record<string, unknown>[];
+		.all(...params) as Record<string, unknown>[];
 	const checkpointQuery = db.prepare('SELECT * FROM balance_checkpoints WHERE account_id = ?');
 	const transactionQuery = db.prepare(
 		'SELECT date, amount_cents FROM transactions WHERE account_id = ? AND excluded = 0'
@@ -208,76 +201,31 @@ export async function listTransactions(filters: TransactionFilters = {}): Promis
 	total: number;
 	total_cents: number;
 	hidden_transfer_count: number;
+	incoming_cents: number;
+	outgoing_cents: number;
 }> {
 	const db = await getDatabase();
-	const where: string[] = [];
-	const params: (string | number)[] = [];
-
-	if (filters.account_id) {
-		where.push('t.account_id = ?');
-		params.push(filters.account_id);
-	}
-	if (filters.third_party_id) {
-		where.push('t.third_party_id = ?');
-		params.push(filters.third_party_id);
-	}
-	if (filters.date_from) {
-		where.push('t.date >= ?');
-		params.push(filters.date_from);
-	}
-	if (filters.date_to) {
-		where.push("t.date < date(?, '+1 day')");
-		params.push(filters.date_to);
-	}
-	for (const field of ['category_id', 'payment_mode_id'] as const) {
-		if (filters[field]) {
-			where.push(`t.${field} = ?`);
-			params.push(filters[field]!);
-		}
-	}
-	if (filters.project_id) {
-		where.push(
-			'EXISTS (SELECT 1 FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id AND pa.project_id = ?)'
-		);
-		params.push(filters.project_id);
-	}
-	const allocationExists =
-		'EXISTS (SELECT 1 FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id)';
-	const allocatedAmount =
-		'(SELECT COALESCE(SUM(ABS(pa.amount_cents)), 0) FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id)';
-	if (filters.allocation_status === 'allocated') {
-		where.push(allocationExists);
-		where.push(allocatedAmount + ' = ABS(t.amount_cents)');
-	}
-	if (filters.allocation_status === 'unallocated') where.push('NOT ' + allocationExists);
-	if (filters.allocation_status === 'partial') {
-		where.push(allocationExists);
-		where.push(allocatedAmount + ' > 0');
-		where.push(allocatedAmount + ' < ABS(t.amount_cents)');
-	}
-	if (filters.record_type) {
-		where.push('t.record_type = ?');
-		params.push(filters.record_type);
-	}
-	if (filters.search?.trim()) {
-		const search = `%${filters.search.trim()}%`;
-		where.push(
-			`(t.label LIKE ? OR COALESCE(t.description, '') LIKE ? OR t.notes LIKE ? OR COALESCE(c.name, '') LIKE ? OR COALESCE(pm.name, '') LIKE ? OR COALESCE(tp.name, '') LIKE ?)`
-		);
-		params.push(search, search, search, search, search, search);
-	}
+	const { where, params } = transactionWhere(filters);
 
 	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 	const summary = db
 		.prepare(
 			`SELECT COUNT(*) AS count,
 			 COALESCE(SUM(CASE WHEN t.transfer_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS transfer_count,
-			 COALESCE(SUM(CASE WHEN t.excluded = 0 THEN t.amount_cents ELSE 0 END), 0) AS total_cents FROM transactions t
+			 COALESCE(SUM(CASE WHEN t.excluded = 0 THEN MAX(t.amount_cents,0) ELSE 0 END),0) AS incoming_cents,
+ COALESCE(SUM(CASE WHEN t.excluded = 0 THEN MIN(t.amount_cents,0) ELSE 0 END),0) AS outgoing_cents,
+ COALESCE(SUM(CASE WHEN t.excluded = 0 THEN t.amount_cents ELSE 0 END), 0) AS total_cents FROM transactions t
 					 LEFT JOIN third_parties tp ON tp.id = t.third_party_id
 					 LEFT JOIN categories c ON c.id = t.category_id
 					 LEFT JOIN payment_modes pm ON pm.id = t.payment_mode_id ${whereSql}`
 		)
-		.get(...params) as { count: number; total_cents: number; transfer_count: number };
+		.get(...params) as {
+		count: number;
+		total_cents: number;
+		transfer_count: number;
+		incoming_cents: number;
+		outgoing_cents: number;
+	};
 	const rowWhere = filters.include_transfers ? where : [...where, NON_TRANSFER_CONDITION];
 	const rowWhereSql = rowWhere.length ? `WHERE ${rowWhere.join(' AND ')}` : '';
 	const limit = Math.min(Math.max(filters.limit ?? 200, 1), 1000);
@@ -291,6 +239,8 @@ export async function listTransactions(filters: TransactionFilters = {}): Promis
 		transactions: rows.map(transactionFromRow),
 		total: Number(summary.count),
 		total_cents: Number(summary.total_cents),
+		incoming_cents: Number(summary.incoming_cents),
+		outgoing_cents: Number(summary.outgoing_cents),
 		hidden_transfer_count: filters.include_transfers ? 0 : Number(summary.transfer_count)
 	};
 }
@@ -319,21 +269,22 @@ export async function listTransactionCandidates(
 	return result.transactions;
 }
 
-export async function listProjectsWithTotals(): Promise<
-	(Project & { total_cents: number; allocation_count: number })[]
-> {
+export async function listProjectsWithTotals(
+	filters: TransactionFilters = {}
+): Promise<(Project & { total_cents: number; allocation_count: number })[]> {
 	const db = await getDatabase();
+	const { where, params } = transactionWhere(filters);
 	const projects = db
 		.prepare(
 			`SELECT p.*, COALESCE(SUM(pa.amount_cents), 0) AS total_cents, COUNT(pa.transaction_id) AS allocation_count
 			FROM projects p
 			LEFT JOIN project_allocations pa ON pa.project_id = p.id
-				AND EXISTS (SELECT 1 FROM transactions t
-					WHERE t.account_id = pa.account_id AND t.id = pa.transaction_id)
+				AND EXISTS (SELECT 1 FROM transactions t LEFT JOIN third_parties tp ON tp.id=t.third_party_id LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN payment_modes pm ON pm.id=t.payment_mode_id
+ WHERE t.account_id=pa.account_id AND t.id=pa.transaction_id ${where.length ? ' AND ' + where.join(' AND ') : ''} )
 			GROUP BY p.id
 			ORDER BY p.name`
 		)
-		.all() as Record<string, unknown>[];
+		.all(...params) as Record<string, unknown>[];
 	return projects.map((row) => ({
 		id: String(row.id),
 		name: String(row.name),
@@ -345,108 +296,69 @@ export async function listProjectsWithTotals(): Promise<
 	}));
 }
 
+async function matchingTransactions(filters: TransactionFilters) {
+	const db = await getDatabase();
+	const { where, params } = transactionWhere(filters);
+	return (
+		db
+			.prepare(
+				TRANSACTION_SELECT +
+					(where.length ? ' WHERE ' + where.join(' AND ') : '') +
+					' ORDER BY t.date DESC,t.account_id,t.id'
+			)
+			.all(...params) as Record<string, unknown>[]
+	).map(transactionFromRow);
+}
 export async function getProjectDetails(
 	projectId: string,
-	includeTransfers = false
+	options: boolean | TransactionFilters = false
 ): Promise<ProjectDetails | null> {
 	const db = await getDatabase();
-	const projectRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as
-		Record<string, unknown> | undefined;
-	if (!projectRow) return null;
-	const rows = db
-		.prepare(
-			`SELECT
-				pa.project_id, pa.account_id, pa.transaction_id, pa.amount_cents, pa.note,
-				a.name AS account_name,
-				t.id, t.date, t.value_date, t.amount_cents AS transaction_amount_cents,
-				t.label, t.description, t.record_type, t.status, t.third_party_id,
- tp.name AS third_party_name, t.transfer_id, t.notes, t.category_id, t.payment_mode_id, t.allocations_json, t.evidence_json,
-				t.category_is_guessed, t.payment_mode_is_guessed,
-				t.excluded, t.source, t.source_files_json, t.raw_json, t.attributes_json
-			FROM project_allocations pa
-			LEFT JOIN accounts a ON a.id = pa.account_id
-			JOIN transactions t ON t.account_id = pa.account_id AND t.id = pa.transaction_id
-			LEFT JOIN third_parties tp ON tp.id = t.third_party_id
-			WHERE pa.project_id = ?
-			ORDER BY a.name, t.date DESC`
+	const project = db.prepare('SELECT * FROM projects WHERE id=?').get(projectId) as unknown as
+		Project | undefined;
+	if (!project) return null;
+	const filters = typeof options === 'boolean' ? { include_transfers: options } : options;
+	const transactions = await matchingTransactions({ ...filters, project_id: projectId });
+	const names = new Map(
+		(db.prepare('SELECT id,name FROM accounts').all() as { id: string; name: string }[]).map(
+			(a) => [a.id, a.name]
 		)
-		.all(projectId) as Record<string, unknown>[];
-
-	const allocations: ProjectAllocationView[] = rows.map((row) => {
-		const transaction = row.id
-			? transactionFromRow({
-					account_id: row.account_id,
-					id: row.id,
-					date: row.date,
-					value_date: row.value_date,
-					amount_cents: row.transaction_amount_cents,
-					label: row.label,
-					description: row.description,
-					record_type: row.record_type,
-					status: row.status,
-					third_party_id: row.third_party_id,
-					third_party_name: row.third_party_name,
-					transfer_id: row.transfer_id,
-					notes: row.notes,
-					category_id: row.category_id,
-					payment_mode_id: row.payment_mode_id,
-					category_is_guessed: row.category_is_guessed,
-					payment_mode_is_guessed: row.payment_mode_is_guessed,
-					allocations_json: row.allocations_json,
-					evidence_json: row.evidence_json,
-					excluded: row.excluded,
-					source: row.source,
-					source_files_json: row.source_files_json,
-					raw_json: row.raw_json,
-					attributes_json: row.attributes_json
-				})
-			: null;
+	);
+	const allocations: ProjectAllocationView[] = transactions.map((transaction) => {
+		const allocation = transaction.allocation_details.find((a) => a.project_id === projectId)!;
 		return {
-			project_id: String(row.project_id),
-			account_id: String(row.account_id),
-			account_name: stringOrNull(row.account_name),
-			transaction_id: String(row.transaction_id),
-			amount_cents: Number(row.amount_cents),
-			note: stringOrNull(row.note),
+			...allocation,
+			account_id: transaction.account_id,
+			account_name: names.get(transaction.account_id) ?? null,
+			transaction_id: transaction.id,
+			note: allocation.note ?? null,
 			transaction
 		};
 	});
-
-	const byAccountMap = new Map<
-		string,
-		{ account_id: string; account_name: string | null; amount_cents: number; count: number }
-	>();
+	const byAccount = new Map<string, ProjectDetails['by_account'][number]>();
 	for (const allocation of allocations) {
-		const current = byAccountMap.get(allocation.account_id) ?? {
+		const account = byAccount.get(allocation.account_id) ?? {
 			account_id: allocation.account_id,
 			account_name: allocation.account_name,
 			amount_cents: 0,
 			count: 0
 		};
-		current.amount_cents += allocation.amount_cents;
-		current.count += 1;
-		byAccountMap.set(allocation.account_id, current);
+		account.amount_cents += allocation.amount_cents;
+		account.count++;
+		byAccount.set(allocation.account_id, account);
 	}
-
-	const project: Project = {
-		id: String(projectRow.id),
-		name: String(projectRow.name),
-		description: stringOrNull(projectRow.description) ?? undefined,
-		created_at: String(projectRow.created_at),
-		updated_at: String(projectRow.updated_at)
-	};
-
+	const page = visiblePage(allocations, filters, (a) => !!a.transaction?.transfer_id);
 	return {
 		project,
-		total_cents: allocations.reduce((sum, allocation) => sum + allocation.amount_cents, 0),
-		by_account: [...byAccountMap.values()]
-			.filter((item) => item.amount_cents !== 0)
+		total_cents: allocations.reduce((sum, a) => sum + a.amount_cents, 0),
+		transaction_count: allocations.length,
+		hidden_transfer_count: page.hidden_transfer_count,
+		by_account: [...byAccount.values()]
+			.filter((a) => a.amount_cents !== 0)
 			.sort((a, b) =>
 				(a.account_name ?? a.account_id).localeCompare(b.account_name ?? b.account_id)
 			),
-		allocations: includeTransfers
-			? allocations
-			: allocations.filter((item) => !item.transaction?.transfer_id)
+		allocations: page.rows
 	};
 }
 
@@ -470,31 +382,38 @@ export async function listThirdPartiesWithCounts(): Promise<ThirdPartyWithCounts
 		created_at: String(row.created_at),
 		updated_at: String(row.updated_at),
 		transaction_count: Number(row.transaction_count),
-		total_cents: Number(row.total_cents)
+		total_cents: -Number(row.total_cents) || 0
 	}));
 }
 
-export async function getUnallocatedDetails(includeTransfers = false) {
+export async function getUnallocatedDetails(options: boolean | TransactionFilters = false) {
 	const db = await getDatabase();
-	const remainder = `t.amount_cents - COALESCE((SELECT SUM(pa.amount_cents)
-		FROM project_allocations pa JOIN projects p ON p.id = pa.project_id
-		WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id), 0)`;
-	const rows = db
-		.prepare(
-			`SELECT t.*, (${remainder}) AS unallocated_cents FROM (${TRANSACTION_SELECT}) t
-			 WHERE t.excluded = 0 AND (${remainder}) != 0 ORDER BY t.date DESC, t.account_id, t.id`
-		)
-		.all() as Record<string, unknown>[];
+	const filters = typeof options === 'boolean' ? { include_transfers: options } : options;
+	const projectIds = new Set(
+		(db.prepare('SELECT id FROM projects').all() as { id: string }[]).map((p) => p.id)
+	);
+	const transactions = (
+		await matchingTransactions({
+			...filters,
+			excluded: '0',
+			project_id: undefined,
+			allocation_status: undefined
+		})
+	)
+		.map((transaction) => ({
+			...transaction,
+			unallocated_cents:
+				transaction.amount_cents -
+				transaction.allocation_details
+					.filter((a) => projectIds.has(a.project_id))
+					.reduce((sum, a) => sum + a.amount_cents, 0)
+		}))
+		.filter((t) => t.unallocated_cents !== 0);
 	const names = new Map(
-		(db.prepare('SELECT id, name FROM accounts').all() as { id: string; name: string }[]).map(
-			(account) => [account.id, account.name]
+		(db.prepare('SELECT id,name FROM accounts').all() as { id: string; name: string }[]).map(
+			(a) => [a.id, a.name]
 		)
 	);
-	const transactions = rows.map((row) => ({
-		...transactionFromRow(row),
-		account_name: names.get(String(row.account_id)) ?? String(row.account_id),
-		unallocated_cents: Number(row.unallocated_cents)
-	}));
 	const byAccount = new Map<
 		string,
 		{ account_id: string; account_name: string; amount_cents: number; count: number }
@@ -510,21 +429,20 @@ export async function getUnallocatedDetails(includeTransfers = false) {
 		account.count++;
 		byAccount.set(account.account_id, account);
 	}
+	const page = visiblePage(transactions, filters, (t) => !!t.transfer_id);
 	return {
-		incoming_cents: transactions.reduce(
-			(sum, item) => sum + Math.max(0, item.unallocated_cents),
-			0
-		),
-		outgoing_cents: transactions.reduce(
-			(sum, item) => sum + Math.min(0, item.unallocated_cents),
-			0
-		),
-		total_cents: transactions.reduce((sum, item) => sum + item.unallocated_cents, 0),
+		incoming_cents: transactions.reduce((sum, t) => sum + Math.max(t.unallocated_cents, 0), 0),
+		outgoing_cents: transactions.reduce((sum, t) => sum + Math.min(t.unallocated_cents, 0), 0),
+		total_cents: transactions.reduce((sum, t) => sum + t.unallocated_cents, 0),
 		transaction_count: transactions.length,
+		hidden_transfer_count: page.hidden_transfer_count,
 		by_account: [...byAccount.values()]
-			.filter((account) => account.amount_cents !== 0)
+			.filter((a) => a.amount_cents !== 0)
 			.sort((a, b) => a.account_name.localeCompare(b.account_name)),
-		transactions: includeTransfers ? transactions : transactions.filter((item) => !item.transfer_id)
+		transactions: page.rows.map((t) => ({
+			...t,
+			account_name: names.get(t.account_id) ?? t.account_id
+		}))
 	};
 }
 
