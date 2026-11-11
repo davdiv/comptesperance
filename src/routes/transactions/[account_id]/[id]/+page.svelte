@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TransferGroupSuggestion from '$lib/components/TransferGroupSuggestion.svelte';
 	import TransferGroupCard from '$lib/components/TransferGroupCard.svelte';
 	import TransferSuggestion from '$lib/components/TransferSuggestion.svelte';
 	import AllocationEditor from '$lib/components/AllocationEditor.svelte';
@@ -320,7 +321,17 @@
 			</div>
 			<section class="card p-4">
 				<h2 class="card-title">{m.transaction_link_transfer()}</h2>
-				{#if data.suggestion}<div class="mt-3">
+				{#each data.groupSuggestions as suggestion (suggestion.key)}<div class="mt-3">
+						<TransferGroupSuggestion
+							{suggestion}
+							accountNames={Object.fromEntries(
+								data.accounts.map((item) => [item.account_id, item.name])
+							)}
+							canWrite={data.user.canWrite}
+							action="?/link_group_suggestion"
+						/>
+					</div>{/each}
+				{#if !data.groupSuggestions.length && data.suggestion}<div class="mt-3">
 						<TransferSuggestion
 							first={transaction}
 							match={data.suggestion}

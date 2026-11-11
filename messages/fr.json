@@ -195,5 +195,12 @@
 	"transfer_allocations_balanced": "Imputations équilibrées",
 	"transfer_allocations_unbalanced": "Les imputations par projet ne sont pas équilibrées",
 	"transfer_add_member": "Ajouter un membre",
-	"transfer_invalid": "Choisissez des transactions non liées sur au moins deux comptes."
+	"transfer_invalid": "Choisissez des transactions non liées sur au moins deux comptes.",
+	"nav_transfers": "Virements",
+	"transfers_subtitle": "Regroupez les mouvements entre comptes et rapprochez les versements.",
+	"transfers_link_all": "Lier toutes les suggestions équilibrées",
+	"transfers_no_suggestions": "Aucune suggestion équilibrée disponible.",
+	"transfers_groups": "Groupes de virements",
+	"transfers_create": "Créer un groupe de virements",
+	"transfer_remove_member": "Retirer du groupe"
 }

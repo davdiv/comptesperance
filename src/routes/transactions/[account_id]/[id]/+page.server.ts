@@ -1,3 +1,5 @@
+import { suggestTransferGroups } from '$lib/server/transfer-matcher';
+import { linkBalancedSuggestions } from '$lib/server/transfer-suggestions';
 import { m } from '$lib/paraglide/messages.js';
 import { editAllocation } from '$lib/server/allocation-editor';
 import { rankTransferCandidates } from '$lib/server/transfer-matcher';
@@ -101,6 +103,11 @@ export const load: PageServerLoad = async ({ params }) => {
 					}
 				: null,
 		group,
+		groupSuggestions: suggestTransferGroups(candidates).filter((item) =>
+			item.members.some(
+				(member) => member.account_id === transaction.account_id && member.id === transaction.id
+			)
+		),
 		account,
 		accounts,
 		projects,
@@ -126,6 +133,7 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
+	link_group_suggestion: linkBalancedSuggestions,
 	edit_allocation: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
 		const form = await request.formData();
@@ -205,7 +213,7 @@ export const actions: Actions = {
 					{ account_id: transaction.account_id, transaction_id: transaction.id },
 					counterpart
 				);
-		} catch (e) {
+		} catch {
 			return fail(400, { error: m.transfer_invalid() });
 		}
 		return { ok: true };
