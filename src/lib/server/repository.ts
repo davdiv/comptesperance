@@ -849,19 +849,25 @@ export async function setTransactionAllocations(
 	root?: string
 ): Promise<void> {
 	const repo = await repoRoot(root);
+	const existingAllocations: ProjectAllocation[] = [];
 	for (const allocation of allocations) {
-		if (!(await readProjectFile(repo, allocation.project_id))) throw new Error('Project not found');
+		if (await readProjectFile(repo, allocation.project_id)) existingAllocations.push(allocation);
 	}
 	const file = await readStoredAccount(repo, ref.account_id);
 	if (!file) throw new Error('Account not found');
 	if (file.account.source === 'manual') {
-		await updateManualTransaction(ref.account_id, ref.transaction_id, { allocations }, repo);
+		await updateManualTransaction(
+			ref.account_id,
+			ref.transaction_id,
+			{ allocations: existingAllocations },
+			repo
+		);
 	} else {
 		const annotation = file.annotations?.[ref.transaction_id] ?? {};
 		await upsertAnnotation(
 			ref.account_id,
 			ref.transaction_id,
-			{ ...annotation, allocations },
+			{ ...annotation, allocations: existingAllocations },
 			repo
 		);
 	}

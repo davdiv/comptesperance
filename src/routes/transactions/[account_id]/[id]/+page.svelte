@@ -22,7 +22,9 @@
 
 	const remaining = $derived(
 		transaction.amount_cents -
-			transaction.allocations.reduce((sum, item) => sum + item.amount_cents, 0)
+			transaction.allocations
+				.filter((item) => data.projects.some((project) => project.id === item.project_id))
+				.reduce((sum, item) => sum + item.amount_cents, 0)
 	);
 	const availableProjects = $derived(
 		data.projects.filter(
@@ -32,10 +34,7 @@
 	const projectAllocations = $derived(
 		transaction.allocations.map((allocation) => ({
 			allocation,
-			project: data.projects.find((project) => project.id === allocation.project_id) ?? {
-				id: allocation.project_id,
-				name: allocation.project_id
-			}
+			project: data.projects.find((project) => project.id === allocation.project_id)
 		}))
 	);
 </script>
@@ -237,17 +236,32 @@
 				{/if}
 				{#if projectAllocations.length}
 					<ul class="mt-4 space-y-2 text-sm">
-						{#each projectAllocations as item (item.project.id)}
+						{#each projectAllocations as item (item.allocation.project_id)}
 							<li class="space-y-2 rounded bg-stone-50 px-3 py-2">
-								<a class="link" href="/projects/{item.project.id}">{item.project.name}</a>
-								{#if data.user.canWrite}<AllocationEditor
-										accountId={transaction.account_id}
-										transactionId={transaction.id}
-										projectId={item.project.id}
-										amount={item.allocation.amount_cents}
-										note={item.allocation.note}
-									/>{:else}<span>{formatMoney(item.allocation.amount_cents)}</span
-									>{#if item.allocation.note}<p>{item.allocation.note}</p>{/if}{/if}
+								{#if item.project}
+									<a class="link" href="/projects/{item.project.id}">{item.project.name}</a>
+									{#if data.user.canWrite}<AllocationEditor
+											accountId={transaction.account_id}
+											transactionId={transaction.id}
+											projectId={item.project.id}
+											amount={item.allocation.amount_cents}
+											note={item.allocation.note}
+										/>{:else}<span>{formatMoney(item.allocation.amount_cents)}</span
+										>{#if item.allocation.note}<p>{item.allocation.note}</p>{/if}{/if}
+								{:else}
+									<span class="badge badge-amber">{m.allocation_deleted_project()}</span>
+									<span class="text-stone-500">({item.allocation.project_id})</span>
+									<span>{formatMoney(item.allocation.amount_cents)}</span>
+									{#if item.allocation.note}<p>{item.allocation.note}</p>{/if}
+									{#if data.user.canWrite}
+										<form method="POST" action="?/edit_allocation">
+											<input type="hidden" name="project_id" value={item.allocation.project_id} />
+											<button class="btn-secondary" name="operation" value="remove"
+												>{m.common_delete()}</button
+											>
+										</form>
+									{/if}
+								{/if}
 							</li>
 						{/each}
 					</ul>

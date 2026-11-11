@@ -270,6 +270,24 @@ it('rejects oversubscribed, opposite-sign, duplicate and fractional allocations 
 	);
 	expect(commitAll).not.toHaveBeenCalled();
 });
+it('drops missing-project allocations before validating allocation changes on manual transactions', async () => {
+	for (const active of [1000, 600, 0]) {
+		await setTransactionAllocations(
+			{ account_id: 'cash', transaction_id: 'sale' },
+			[
+				{ project_id: 'deleted', amount_cents: 1000 },
+				{ project_id: 'also-deleted', amount_cents: 1000 },
+				...(active ? [{ project_id: 'project', amount_cents: active, note: 'Keep note' }] : [])
+			],
+			root
+		);
+		const file = await readStoredAccountById('cash', root);
+		expect(file?.transactions?.find((item) => item.id === 'sale')?.allocations).toEqual(
+			active ? [{ project_id: 'project', amount_cents: active, note: 'Keep note' }] : []
+		);
+	}
+	expect(commitAll).toHaveBeenCalledTimes(3);
+});
 it('deletes a project and removes manual and CSV allocations in one commit while keeping other fields', async () => {
 	const annotationsPath = path.join(root, 'accounts/bank/annotations.json');
 	const annotations = JSON.parse(await readFile(annotationsPath, 'utf8'));
