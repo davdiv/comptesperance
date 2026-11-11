@@ -105,14 +105,12 @@ export const load: PageServerLoad = async ({ params }) => {
 			(document) => !transaction.evidence.includes(document.path)
 		),
 		suggestion: rankTransferCandidates(transaction, candidates)[0] ?? null,
-		candidates: rankTransferCandidates(transaction, candidates).map(
-			({ transaction: item, difference_cents }) => ({
-				value: `${item.account_id}:${item.id}`,
-				account_id: item.account_id,
-				transaction_id: item.id,
-				label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} EUR${difference_cents ? ' · ' + m.transfer_amount_difference({ amount: (difference_cents / 100).toFixed(2) + ' EUR' }) : ''}`
-			})
-		)
+		candidates: rankTransferCandidates(transaction, candidates).map(({ transaction: item }) => ({
+			value: `${item.account_id}:${item.id}`,
+			account_id: item.account_id,
+			transaction_id: item.id,
+			label: `${accountNames.get(item.account_id) ?? item.account_id} · ${item.date} · ${item.label} · ${(item.amount_cents / 100).toFixed(2)} EUR`
+		}))
 	};
 };
 

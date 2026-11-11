@@ -11,37 +11,45 @@ vi.mock('./queries', () => ({
 }));
 vi.mock('./repository', () => ({ linkTransfer: vi.fn() }));
 beforeEach(() => vi.resetAllMocks());
-it('allows a strong unequal-amount reference pair and writes one link', async () => {
-	vi.mocked(getTransaction)
-		.mockResolvedValueOnce({
-			account_id: 'sumup',
-			id: 'payout',
-			date: '2026-09-27',
-			amount_cents: -2256,
-			label: 'Payout',
-			attributes: { payout_id: 'SUMUP PID9000007' }
-		} as never)
-		.mockResolvedValueOnce({
-			account_id: 'ccp',
-			id: 'receipt',
-			date: '2026-09-28',
-			amount_cents: 5790,
-			label: 'VIREMENT PID9000007'
+it.each([2256, 5790])(
+	'only links a strong reference pair when the incoming amount %i is exactly opposite',
+	async (incoming) => {
+		vi.mocked(getTransaction)
+			.mockResolvedValueOnce({
+				account_id: 'sumup',
+				id: 'payout',
+				date: '2026-09-27',
+				amount_cents: -2256,
+				label: 'Payout',
+				attributes: { payout_id: 'SUMUP PID9000007' }
+			} as never)
+			.mockResolvedValueOnce({
+				account_id: 'ccp',
+				id: 'receipt',
+				date: '2026-09-28',
+				amount_cents: incoming,
+				label: 'VIREMENT PID9000007'
+			} as never);
+		const form = new FormData();
+		form.set('first_account', 'sumup');
+		form.set('first_transaction', 'payout');
+		form.set('counterpart', 'ccp:receipt');
+		const result = await actions.link_suggestion!({
+			request: new Request('http://localhost/transactions', { method: 'POST', body: form }),
+			locals: { user: { canWrite: true } }
 		} as never);
-	const form = new FormData();
-	form.set('first_account', 'sumup');
-	form.set('first_transaction', 'payout');
-	form.set('counterpart', 'ccp:receipt');
-	const result = await actions.link_suggestion!({
-		request: new Request('http://localhost/transactions', { method: 'POST', body: form }),
-		locals: { user: { canWrite: true } }
-	} as never);
-	expect(result).toEqual({ ok: true });
-	expect(linkTransfer).toHaveBeenCalledExactlyOnceWith(
-		{ account_id: 'sumup', transaction_id: 'payout' },
-		{ account_id: 'ccp', transaction_id: 'receipt' }
-	);
-});
+		if (incoming !== 2256) {
+			expect(result).toMatchObject({ status: 400 });
+			expect(linkTransfer).not.toHaveBeenCalled();
+			return;
+		}
+		expect(result).toEqual({ ok: true });
+		expect(linkTransfer).toHaveBeenCalledExactlyOnceWith(
+			{ account_id: 'sumup', transaction_id: 'payout' },
+			{ account_id: 'ccp', transaction_id: 'receipt' }
+		);
+	}
+);
 it('rejects a stale or absent suggestion without linking', async () => {
 	vi.mocked(getTransaction).mockResolvedValue(null);
 	const result = await actions.link_suggestion!({

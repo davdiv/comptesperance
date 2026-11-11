@@ -144,3 +144,119 @@ it('lists linked transactions for each document including shared files', async (
 	vi.mocked(listDocuments).mockResolvedValue([]);
 	expect(await listDocumentsWithLinks()).toEqual([]);
 });
+
+describe('transaction allocation names and filters', () => {
+	function insert(
+		id: string,
+		amount: number,
+		allocations: [string, number][],
+		account = 'cash',
+		transfer: string | null = null
+	) {
+		db.prepare(
+			'INSERT INTO transactions (account_id, id, date, amount_cents, label, description, transfer_id, allocations_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+		).run(
+			account,
+			id,
+			'2026-10-03',
+			amount,
+			id,
+			'Description ' + id,
+			transfer,
+			JSON.stringify(
+				allocations.map(([project_id, amount_cents]) => ({ project_id, amount_cents }))
+			)
+		);
+		for (const [project, allocated] of allocations)
+			db.prepare('INSERT INTO project_allocations VALUES (?, ?, ?, ?, NULL)').run(
+				project,
+				account,
+				id,
+				allocated
+			);
+	}
+	beforeEach(() => {
+		db.exec("INSERT INTO projects VALUES ('second', 'Second project', NULL, '', '')");
+		insert('full', 1000, [['project', 1000]]);
+		insert('partial', -1000, [
+			['project', -200],
+			['second', -200]
+		]);
+		insert('multi-full', 1000, [
+			['project', 300],
+			['second', 700]
+		]);
+		insert('none', -500, []);
+		insert('zero', 0, []);
+		insert('transfer', 1000, [['project', 1000]], 'cash', 'linked');
+	});
+	it('joins current project names without duplicating rows or polluting stored allocations', async () => {
+		const result = await listTransactions({ allocation_status: 'partial' });
+		expect(result.total).toBe(1);
+		expect(result.transactions[0]).toMatchObject({
+			id: 'partial',
+			description: 'Description partial'
+		});
+		expect(result.transactions[0].allocation_details).toEqual(
+			expect.arrayContaining([
+				{ project_id: 'project', project_name: 'Project', amount_cents: -200, note: null },
+				{ project_id: 'second', project_name: 'Second project', amount_cents: -200, note: null }
+			])
+		);
+		expect(result.transactions[0].allocations[0]).not.toHaveProperty('project_name');
+		db.exec("UPDATE projects SET name = 'Renamed' WHERE id = 'project'");
+		expect(
+			(
+				await listTransactions({ allocation_status: 'partial' })
+			).transactions[0].allocation_details.find((a) => a.project_id === 'project')?.project_name
+		).toBe('Renamed');
+		const paged = await listTransactions({ allocation_status: 'allocated', limit: 1 });
+		expect(paged.transactions).toHaveLength(1);
+		expect(paged.total).toBe(2);
+	});
+	it('distinguishes fully allocated, partially allocated and unallocated transactions', async () => {
+		const ids = async (status: string) =>
+			(await listTransactions({ allocation_status: status })).transactions.map((t) => t.id).sort();
+		expect(await ids('allocated')).toEqual(['full', 'multi-full']);
+		expect(await ids('unallocated')).toEqual(['none', 'zero']);
+		expect(await ids('partial')).toEqual(['partial']);
+		expect(await ids('')).toHaveLength(5);
+		expect(await ids('invalid')).toHaveLength(5);
+		expect(
+			(await listTransactions({ allocation_status: 'allocated', include_transfers: true })).total
+		).toBe(3);
+	});
+	it('combines project, allocation status and account filters using the whole transaction allocation total', async () => {
+		expect((await listTransactions({ project_id: 'second' })).total).toBe(2);
+		expect(
+			(
+				await listTransactions({ project_id: 'second', allocation_status: 'partial' })
+			).transactions.map((t) => t.id)
+		).toEqual(['partial']);
+		expect(
+			(await listTransactions({ project_id: 'project', allocation_status: 'unallocated' })).total
+		).toBe(0);
+		expect((await listTransactions({ project_id: 'missing' })).total).toBe(0);
+		expect((await listTransactions({ project_id: "' OR 1=1 --" })).total).toBe(0);
+		insert('full', 2000, [['second', 2000]], 'bank');
+		const cash = await listTransactions({
+			account_id: 'cash',
+			search: 'full',
+			project_id: 'second'
+		});
+		expect(cash.transactions.map((t) => t.id)).toEqual(['multi-full']);
+		const bank = await listTransactions({ account_id: 'bank', project_id: 'second' });
+		expect(bank.transactions[0].allocation_details).toHaveLength(1);
+		expect(bank.transactions[0].allocation_details[0].amount_cents).toBe(2000);
+	});
+	it('retains unknown-project references and handles empty results', async () => {
+		insert('missing-project', 100, [['removed', 100]]);
+		expect(
+			(await listTransactions({ project_id: 'removed' })).transactions[0].allocation_details[0]
+		).toMatchObject({ project_id: 'removed', project_name: null });
+		expect(await listTransactions({ project_id: 'removed', account_id: 'missing' })).toEqual({
+			transactions: [],
+			total: 0
+		});
+	});
+});

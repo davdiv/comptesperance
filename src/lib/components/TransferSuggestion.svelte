@@ -26,9 +26,6 @@
 	{#if match.reference}<p class="text-xs text-stone-500">
 			{m.transfer_reference({ reference: match.reference })}
 		</p>{/if}
-	{#if match.difference_cents !== 0}<p class="text-xs font-medium text-amber-800">
-			{m.transfer_amount_difference({ amount: formatMoney(match.difference_cents) })}
-		</p>{/if}
 	{#if canWrite}<form method="POST" {action}>
 			<input type="hidden" name="first_account" value={first.account_id} />
 			<input type="hidden" name="first_transaction" value={first.id} />

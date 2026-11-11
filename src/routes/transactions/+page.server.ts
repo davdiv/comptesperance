@@ -8,7 +8,8 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	listAccountsWithTotals,
 	listThirdPartiesWithCounts,
-	listTransactions
+	listTransactions,
+	listProjectsWithTotals
 } from '$lib/server/queries';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -21,18 +22,22 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		date_to: url.searchParams.get('date_to') || undefined,
 		category_id: url.searchParams.get('category_id') || undefined,
 		payment_mode_id: url.searchParams.get('payment_mode_id') || undefined,
+		project_id: url.searchParams.get('project_id') || undefined,
+		allocation_status: url.searchParams.get('allocation_status') || undefined,
 		include_transfers: includeTransfers,
 		limit: 500
 	};
-	const [transactions, accounts, thirdParties] = await Promise.all([
+	const [transactions, accounts, thirdParties, projects] = await Promise.all([
 		listTransactions(filters),
 		listAccountsWithTotals(),
-		listThirdPartiesWithCounts()
+		listThirdPartiesWithCounts(),
+		listProjectsWithTotals()
 	]);
 	return {
 		...transactions,
 		accounts,
 		thirdParties,
+		projects,
 		filters,
 		includeTransfers,
 		suggestions: locals.user?.canWrite

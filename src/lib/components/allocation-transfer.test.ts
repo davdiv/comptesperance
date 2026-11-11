@@ -18,7 +18,7 @@ it('renders inline amount and note values with separate save and remove operatio
 	expect(html).toContain('value="remove"');
 	expect(html).toContain('formnovalidate');
 });
-it('shows a strong-match reference and amount warning, but no form to readers', () => {
+it('shows a strong-match reference but no form to readers', () => {
 	const first = {
 		account_id: 'cash',
 		id: 'out',
@@ -27,11 +27,10 @@ it('shows a strong-match reference and amount warning, but no form to readers', 
 		label: 'Outgoing'
 	};
 	const match = {
-		transaction: { ...first, account_id: 'bank', id: 'in', amount_cents: 200, label: 'Incoming' },
+		transaction: { ...first, account_id: 'bank', id: 'in', amount_cents: 100, label: 'Incoming' },
 		strong: true,
 		reference: 'PID9000007',
-		days: 0,
-		difference_cents: 100
+		days: 0
 	};
 	const props = {
 		first,
@@ -42,7 +41,7 @@ it('shows a strong-match reference and amount warning, but no form to readers', 
 	};
 	const html = render(TransferSuggestion, { props }).body;
 	expect(html).toContain('PID9000007');
-	expect(html).toContain('text-amber-800');
+	expect(html).not.toContain('text-amber-800');
 	expect(html).not.toContain('<form');
 	const writer = render(TransferSuggestion, { props: { ...props, canWrite: true } }).body;
 	expect(writer).toContain('value="bank:in"');

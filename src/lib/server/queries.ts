@@ -16,6 +16,9 @@ export interface AccountWithTotals extends AccountTotals, BalanceResult {
 }
 
 export interface TransactionView extends CachedTransaction {
+	allocation_details: (CachedTransaction['allocations'][number] & {
+		project_name: string | null;
+	})[];
 	third_party_name: string | null;
 	category_name: string | null;
 	payment_mode_name: string | null;
@@ -25,6 +28,8 @@ export interface TransactionFilters {
 	account_id?: string;
 	third_party_id?: string;
 	search?: string;
+	project_id?: string;
+	allocation_status?: string;
 	date_from?: string;
 	date_to?: string;
 	record_type?: string;
@@ -116,6 +121,7 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 		category_id: String(row.category_id ?? ''),
 		payment_mode_id: String(row.payment_mode_id ?? ''),
 		allocations: parseJsonArray(row.allocations_json),
+		allocation_details: parseJsonArray(row.named_allocations_json),
 		category_name: stringOrNull(row.category_name),
 		payment_mode_name: stringOrNull(row.payment_mode_name),
 		transfer_id: stringOrNull(row.transfer_id),
@@ -128,7 +134,10 @@ function transactionFromRow(row: Record<string, unknown>): TransactionView {
 }
 
 const TRANSACTION_SELECT = `
-	SELECT t.*, tp.name AS third_party_name, c.name AS category_name, pm.name AS payment_mode_name
+	SELECT t.*, tp.name AS third_party_name, c.name AS category_name, pm.name AS payment_mode_name,
+  (SELECT json_group_array(json_object('project_id', pa.project_id, 'amount_cents', pa.amount_cents, 'note', pa.note, 'project_name', p.name))
+   FROM project_allocations pa LEFT JOIN projects p ON p.id = pa.project_id
+   WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id) AS named_allocations_json
 	FROM transactions t
 	LEFT JOIN third_parties tp ON tp.id = t.third_party_id
 	LEFT JOIN categories c ON c.id = t.category_id
@@ -219,6 +228,26 @@ export async function listTransactions(
 			where.push(`t.${field} = ?`);
 			params.push(filters[field]!);
 		}
+	}
+	if (filters.project_id) {
+		where.push(
+			'EXISTS (SELECT 1 FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id AND pa.project_id = ?)'
+		);
+		params.push(filters.project_id);
+	}
+	const allocationExists =
+		'EXISTS (SELECT 1 FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id)';
+	const allocatedAmount =
+		'(SELECT COALESCE(SUM(ABS(pa.amount_cents)), 0) FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id)';
+	if (filters.allocation_status === 'allocated') {
+		where.push(allocationExists);
+		where.push(allocatedAmount + ' = ABS(t.amount_cents)');
+	}
+	if (filters.allocation_status === 'unallocated') where.push('NOT ' + allocationExists);
+	if (filters.allocation_status === 'partial') {
+		where.push(allocationExists);
+		where.push(allocatedAmount + ' > 0');
+		where.push(allocatedAmount + ' < ABS(t.amount_cents)');
 	}
 	if (filters.record_type) {
 		where.push('t.record_type = ?');
