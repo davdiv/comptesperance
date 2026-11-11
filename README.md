@@ -97,6 +97,14 @@ group; it does not redirect to sign-in. The sidebar/mobile menu Sign out link us
 above. Deployments using other domains must also update Authelia's cookie domain,
 portal/default redirect URLs and access rules, and Traefik's host rules.
 
+Authelia uses `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET` for its
+reset-password token secret (not the deprecated `AUTHELIA_JWT_SECRET`). Its binary
+starts directly because the mounted configuration files are deliberately read-only;
+the image's ownership-changing wrapper is unnecessary here.
+Traefik rejects encoded path separators/control characters and ambiguous header
+aliases, and caps forward-auth responses at 1 MiB. These settings do not restrict
+encoded query parameters or change the app's upload-body limits below.
+
 Writers start in read-only display. Use **Switch to edit mode** to enable editing,
 and **Return to read-only** to disable it. The POST-only toggle stores an HttpOnly,
 SameSite=Strict session cookie; the server rejects writes unless both the write
