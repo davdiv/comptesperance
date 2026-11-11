@@ -57,7 +57,7 @@ role and edit mode are present. Read-only users cannot enable edit mode.
 
 `/projects/unallocated` is a computed view, not a stored project. It lists non-excluded
 transactions with a non-zero unallocated remainder (transaction amount minus allocations).
-Incoming/outgoing/net totals always include transfers; the transfer toggle only hides rows.
+Incoming/outgoing/net totals always include internal transfers; the internal transfer toggle only hides rows.
 Per-account breakdowns omit net-zero accounts. In edit mode, Allocate links open the existing
 transaction allocation editor.
 
@@ -92,7 +92,7 @@ legacy-format compatibility is provided.
 - `accounts/<id>/annotations.json` for CSV accounts maps transaction IDs to
   annotation objects: optional notes, category/payment-mode/third-party IDs,
   evidence, a shared `transfer_id`, excluded and allocations.
-  Transfers group two or more transactions across at least two accounts. Groups may
+  Internal transfers group two or more transactions across at least two accounts. Groups may
   be unbalanced; amount and per-project allocation imbalances are warnings. Removing
   a member dissolves groups with fewer than two members or accounts. CSV parsed value dates
   and statuses are retained for display. Cancelled SumUp transactions default to
@@ -103,7 +103,7 @@ legacy-format compatibility is provided.
   sign and their absolute sum cannot exceed its absolute amount.
 - `projects/<id>.json` contains only `id`, `name`, optional `description`,
   `created_at`, `updated_at`. Hiding internal transfers only filters displayed rows:
-  totals and summary counts always include transfer members, including project allocations.
+  totals and summary counts always include internal transfer members, including project allocations.
   Orphan allocations are ignored. Deleting a project removes its allocations from all manual transactions
   and CSV annotations in the same commit.
 - SumUp CSV formats are unchanged. Accepted sales use gross amounts; a derived
@@ -111,7 +111,7 @@ legacy-format compatibility is provided.
   Fees support the same annotations and exclusions as any CSV transaction.
   Settlements use the net payout on the payout date. Sale descriptions and detail
   links join the sale, fee and settlement across the account's statement set.
-- `/transfers` suggests complete balanced payout-ID groups (SumUp settlements
+- `/transfers` suggests complete balanced internal transfer payout-ID groups (SumUp settlements
   plus the CCP credit), followed by exact opposite-amount pairs within seven days.
   Suggestions exclude linked/excluded transactions and do not overlap; bulk linking
   writes all groups in one data-repository commit. Amount and project-allocation
