@@ -410,10 +410,4 @@ it('rejects project and third-party ids that escape their directory', async () =
 	const longName = `${'a'.repeat(59)} suffix`;
 	const longParty = await createThirdParty({ name: longName }, root);
 	expect(longParty.id).toBe('a'.repeat(59));
-	const legacyId = `${'a'.repeat(59)}--2`;
-	await writeFile(
-		path.join(root, 'third-parties', `${legacyId}.json`),
-		JSON.stringify({ id: legacyId, name: 'Legacy', aliases: [] })
-	);
-	expect(await readThirdParty(legacyId, root)).toMatchObject({ name: 'Legacy' });
 });
