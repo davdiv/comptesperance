@@ -6,6 +6,7 @@ import type {
 	AccountFile,
 	AccountSource,
 	ManualTransaction,
+	ManualCheckpoint,
 	Project,
 	ProjectAllocation,
 	ThirdParty,
@@ -94,7 +95,7 @@ async function readStoredAccount(root: string, id: string): Promise<StoredAccoun
 	if (!parsed?.account) return null;
 	const account = parsed.account;
 	account.id = account.id || id;
-	const file: StoredAccountFile = { account, dir };
+	const file: StoredAccountFile = { account, dir, checkpoints: parsed.checkpoints ?? [] };
 	if (account.source === 'csv') {
 		file.annotations = await readJsonFile<Record<string, TransactionAnnotation>>(
 			path.join(dir, 'annotations.json'),
@@ -108,13 +109,16 @@ async function readStoredAccount(root: string, id: string): Promise<StoredAccoun
 
 async function writeStoredAccount(root: string, file: StoredAccountFile): Promise<void> {
 	const { dir, ...stored } = file;
-	const payload: AccountFile = { account: stored.account };
+	const payload: AccountFile = { account: stored.account, checkpoints: stored.checkpoints ?? [] };
 	if (stored.account.source === 'manual') {
 		payload.transactions = stored.transactions ?? [];
 		await writeJsonFile(path.join(dir, 'account.json'), payload);
 	} else {
 		payload.annotations = stored.annotations ?? {};
-		await writeJsonFile(path.join(dir, 'account.json'), { account: stored.account });
+		await writeJsonFile(path.join(dir, 'account.json'), {
+			account: stored.account,
+			checkpoints: payload.checkpoints
+		});
 		await writeJsonFile(path.join(dir, 'annotations.json'), payload.annotations);
 	}
 }
@@ -152,11 +156,13 @@ export async function createAccount(
 		name: string;
 		source: AccountSource;
 		notes?: string;
+		initial_checkpoint?: Omit<ManualCheckpoint, 'id'>;
 	},
 	root?: string
 ): Promise<Account> {
 	const repo = await repoRoot(root);
 	if (!ACCOUNT_SOURCES.includes(input.source)) throw new Error('Invalid account source');
+	if (input.initial_checkpoint) validateCheckpoint(input.initial_checkpoint);
 	const id = await uniqueAccountId(repo, input.name);
 	const timestamp = now();
 	const account: Account = {
@@ -167,7 +173,11 @@ export async function createAccount(
 		created_at: timestamp,
 		updated_at: timestamp
 	};
-	const file: StoredAccountFile = { account, dir: path.join(repo, 'accounts', id) };
+	const file: StoredAccountFile = {
+		account,
+		dir: path.join(repo, 'accounts', id),
+		checkpoints: input.initial_checkpoint ? [{ ...input.initial_checkpoint, id: randomUUID() }] : []
+	};
 	if (account.source === 'manual') file.transactions = [];
 	else file.annotations = {};
 	if (account.source === 'csv') await mkdir(path.join(file.dir, 'statements'), { recursive: true });
@@ -866,4 +876,43 @@ export async function setTransactionAllocations(
 			repo
 		);
 	}
+}
+
+function validateCheckpoint(input: Omit<ManualCheckpoint, 'id'>): void {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !Number.isSafeInteger(input.balance_cents))
+		throw new Error('checkpoint_invalid');
+	const parsed = new Date(input.date + 'T00:00:00.000Z');
+	if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== input.date)
+		throw new Error('checkpoint_invalid');
+}
+
+export async function addManualCheckpoint(
+	accountId: string,
+	input: Omit<ManualCheckpoint, 'id'>,
+	root?: string
+): Promise<ManualCheckpoint> {
+	validateCheckpoint(input);
+	const repo = await repoRoot(root);
+	const file = await readStoredAccount(repo, accountId);
+	if (!file) throw new Error('Account not found');
+	const checkpoint = { ...input, note: input.note?.trim() || undefined, id: randomUUID() };
+	file.checkpoints = [...(file.checkpoints ?? []), checkpoint];
+	await writeStoredAccount(repo, file);
+	await commitData(repo, `data: add checkpoint to ${accountId}`);
+	return checkpoint;
+}
+
+export async function deleteManualCheckpoint(
+	accountId: string,
+	id: string,
+	root?: string
+): Promise<void> {
+	const repo = await repoRoot(root);
+	const file = await readStoredAccount(repo, accountId);
+	if (!file) throw new Error('Account not found');
+	if (!file.checkpoints?.some((checkpoint) => checkpoint.id === id))
+		throw new Error('Checkpoint not found');
+	file.checkpoints = file.checkpoints.filter((checkpoint) => checkpoint.id !== id);
+	await writeStoredAccount(repo, file);
+	await commitData(repo, `data: delete checkpoint from ${accountId}`);
 }

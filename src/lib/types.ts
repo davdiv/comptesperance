@@ -45,8 +45,21 @@ export interface TransactionAnnotation {
 	excluded?: boolean;
 }
 
+export interface ManualCheckpoint {
+	id: string;
+	date: string;
+	balance_cents: number;
+	note?: string;
+}
+
+export interface BalanceCheckpoint extends ManualCheckpoint {
+	source: 'statement' | 'manual';
+	statement_file?: string;
+}
+
 export interface AccountFile {
 	account: Account;
+	checkpoints?: ManualCheckpoint[];
 	transactions?: ManualTransaction[];
 	annotations?: Record<string, TransactionAnnotation>;
 }

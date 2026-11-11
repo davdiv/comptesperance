@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatMoney } from '$lib/format';
-	import { accountSourceLabel } from '$lib/labels';
+	import { formatMoney, formatDate } from '$lib/format';
+	import { accountSourceLabel, checkpointSourceLabel } from '$lib/labels';
+	import CheckpointPanel from '$lib/components/CheckpointPanel.svelte';
 	import Alert from '$lib/components/Alert.svelte';
 	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
 	import FormPanel from '$lib/components/FormPanel.svelte';
@@ -36,7 +37,16 @@
 		label={m.account_current_balance()}
 		value={formatMoney(account.current_balance_cents)}
 		tone={account.current_balance_cents < 0 ? 'negative' : 'brand'}
-	/>
+	>
+		{#snippet hint()}<span class="text-stone-500"
+				>{account.anchor
+					? m.checkpoint_as_of({
+							date: formatDate(account.anchor.date),
+							source: checkpointSourceLabel(account.anchor.source)
+						})
+					: m.checkpoint_zero_start()}</span
+			>{/snippet}
+	</StatCard>
 	<StatCard
 		label={m.account_incoming()}
 		value={formatMoney(account.incoming_cents)}
@@ -45,14 +55,24 @@
 	<StatCard label={m.account_outgoing()} value={formatMoney(account.outgoing_cents)} />
 </section>
 
-{#if data.issues.length}
+{#if data.issues.length || account.mismatch_count}
 	<Alert tone="warning">
-		<p class="font-medium">{m.import_errors()}</p>
+		<p class="font-medium">{m.account_issues()}</p>
 		<ul class="mt-1 list-disc pl-4">
 			{#each data.issues as issue (issue.id)}<li>{issue.message}</li>{/each}
+			{#each account.checkpoints.filter((checkpoint) => checkpoint.difference_cents !== 0) as checkpoint (checkpoint.id)}
+				<li>
+					{m.checkpoint_issue({
+						date: formatDate(checkpoint.date),
+						difference: formatMoney(checkpoint.difference_cents)
+					})}
+				</li>
+			{/each}
 		</ul>
 	</Alert>
 {/if}
+
+<CheckpointPanel checkpoints={account.checkpoints} canWrite={data.user.canWrite} />
 
 {#if data.user.canWrite}
 	{#if account.source === 'manual'}

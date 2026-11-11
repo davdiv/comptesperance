@@ -36,6 +36,20 @@
 				><span class="field-label">{m.common_notes()}</span><textarea name="notes" class="control"
 				></textarea></label
 			>
+			<label class="field lg:col-span-3"
+				><span class="field-label">{m.checkpoint_initial_balance()}</span><input
+					name="initial_balance"
+					inputmode="decimal"
+					class="control"
+				/></label
+			>
+			<label class="field lg:col-span-3"
+				><span class="field-label">{m.checkpoint_initial_date()}</span><input
+					name="initial_balance_date"
+					type="date"
+					class="control"
+				/></label
+			>
 			<div class="lg:col-span-6"><button class="btn">{m.common_create()}</button></div>
 		</form>
 	</FormPanel>

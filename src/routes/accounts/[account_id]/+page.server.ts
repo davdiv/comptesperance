@@ -1,9 +1,15 @@
+import { m } from '$lib/paraglide/messages.js';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
 import { parseDecimalToCents } from '$lib/server/money';
 import { getAccountWithTotals, listIssues, listTransactions } from '$lib/server/queries';
-import { createManualTransaction, updateAccount } from '$lib/server/repository';
+import {
+	createManualTransaction,
+	updateAccount,
+	addManualCheckpoint,
+	deleteManualCheckpoint
+} from '$lib/server/repository';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const account = await getAccountWithTotals(params.account_id);
@@ -16,6 +22,32 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
+	add_checkpoint: async ({ request, locals, params }) => {
+		requireWrite(locals.user);
+		const form = await request.formData();
+		const balance = parseDecimalToCents(String(form.get('balance') ?? ''));
+		if (balance === null) return fail(400, { error: m.checkpoint_invalid() });
+		try {
+			await addManualCheckpoint(params.account_id, {
+				date: String(form.get('date') ?? ''),
+				balance_cents: balance,
+				note: String(form.get('note') ?? '')
+			});
+		} catch {
+			return fail(400, { error: m.checkpoint_invalid() });
+		}
+		return { ok: true };
+	},
+	delete_checkpoint: async ({ request, locals, params }) => {
+		requireWrite(locals.user);
+		const form = await request.formData();
+		try {
+			await deleteManualCheckpoint(params.account_id, String(form.get('checkpoint_id') ?? ''));
+		} catch {
+			return fail(400, { error: m.checkpoint_invalid() });
+		}
+		return { ok: true };
+	},
 	update: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
 		const form = await request.formData();

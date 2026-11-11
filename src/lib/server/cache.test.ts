@@ -6,6 +6,7 @@ import { statusFingerprint } from './git';
 import { getDatabase } from './cache';
 import {
 	createAccount,
+	addManualCheckpoint,
 	createManualTransaction,
 	createProject,
 	setTransactionAllocations,
@@ -52,6 +53,7 @@ it('merges parser exclusion defaults with annotation overrides, retaining EUR am
 	)!;
 	const before = await getAccountWithTotals(account.id);
 	expect((await getTransaction(account.id, cancelled.id))?.excluded).toBe(true);
+	expect(before?.checkpoints).toEqual([]);
 	const project = await createProject({ name: 'Project' }, root);
 	await upsertAnnotation(
 		account.id,
@@ -151,4 +153,44 @@ it('rebuilds transaction-owned allocations and config labels, filters references
 	await deleteManualTransaction(account.id, sale.id, root);
 	vi.mocked(statusFingerprint).mockResolvedValue('deleted-transaction');
 	expect(await getTransaction(account.id, sale.id)).toBeNull();
+});
+
+it('derives every CCP header checkpoint, deduplicates transactions, and does not store statement checkpoints in JSON', async () => {
+	const account = await createAccount({ name: 'CCP', source: 'csv' }, root);
+	const content = await readFile(new URL('./csv/testdata/ccp-sample.csv', import.meta.url), 'utf8');
+	const dir = path.join(root, 'accounts', account.id);
+	await writeFile(path.join(dir, 'statements/a.csv'), content);
+	await writeFile(path.join(dir, 'statements/b.csv'), content);
+	await addManualCheckpoint(account.id, { date: '2026-10-02', balance_cents: 274800 }, root);
+	const totals = await getAccountWithTotals(account.id);
+	expect(totals).toMatchObject({
+		current_balance_cents: 274853,
+		transaction_count: 4,
+		mismatch_count: 1,
+		anchor: {
+			date: '2026-10-02',
+			balance_cents: 274853,
+			source: 'statement',
+			statement_file: 'a.csv'
+		}
+	});
+	expect(totals?.checkpoints.filter((c) => c.source === 'statement')).toHaveLength(2);
+	expect(totals?.checkpoints.find((c) => c.source === 'manual')?.difference_cents).toBe(-53);
+	const stored = JSON.parse(await readFile(path.join(dir, 'account.json'), 'utf8'));
+	expect(stored.checkpoints).toHaveLength(1);
+	expect(stored.checkpoints[0]).not.toHaveProperty('source');
+	expect(stored.checkpoints[0]).not.toHaveProperty('statement_file');
+});
+it('loads manual checkpoints for manual and CSV accounts even without transactions', async () => {
+	for (const source of ['manual', 'csv'] as const) {
+		const account = await createAccount(
+			{ name: source, source, initial_checkpoint: { date: '2026-10-01', balance_cents: 20000 } },
+			root
+		);
+		vi.mocked(statusFingerprint).mockResolvedValue(source);
+		expect(await getAccountWithTotals(account.id)).toMatchObject({
+			current_balance_cents: 20000,
+			anchor: { source: 'manual', date: '2026-10-01' }
+		});
+	}
 });

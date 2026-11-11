@@ -55,8 +55,18 @@ legacy-format compatibility is provided.
   but not deleted.
 - `accounts/<id>/account.json`: `{ "account": { "id": "...", "name": "...", "source": "manual", "notes": "...", "created_at": "...", "updated_at": "..." }, "transactions": [] }`.
   CSV accounts omit `transactions` and keep unchanged CSV imports in `statements/`.
-  Accounts have no type, currency or opening balance. The current balance is the
-  sum of non-excluded transactions; the balance policy is isolated in `currentBalance`.
+  Accounts have no type, currency or opening-balance field. Optional top-level
+  `checkpoints` in `account.json` store manual end-of-day balances:
+  `[{ "id": "...", "date": "2026-10-02", "balance_cents": 20000, "note": "Cash count" }]`.
+  They are available for both manual and CSV accounts. Statement checkpoints are
+  derived only in SQLite from every CCP header date and balance; SumUp has none.
+  Current balance uses the latest checkpoint (statement preferred on date ties)
+  plus non-excluded transactions on later calendar days. Without a checkpoint,
+  balance starts at zero. Every earlier checkpoint is reconciled against the latest
+  anchor; differences are recorded minus computed balances. Same-source/date ties
+  use checkpoint ID order for a stable anchor, retaining all checkpoints for comparison.
+  Optional initial balance/date on account creation creates one manual checkpoint
+  in the same data-repository commit.
 - Manual transactions have `id`, `date`, `amount_cents`, `label` and optional
   `description`, `notes`, `third_party_id`, `category_id`, `payment_mode_id`,
   `excluded`, `evidence`, transfer/counterpart references and timestamps.

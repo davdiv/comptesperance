@@ -75,6 +75,16 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		);
+		CREATE TABLE balance_checkpoints (
+   account_id TEXT NOT NULL,
+   id TEXT NOT NULL,
+   date TEXT NOT NULL,
+   balance_cents INTEGER NOT NULL,
+   source TEXT NOT NULL,
+   note TEXT,
+   statement_file TEXT,
+   PRIMARY KEY (account_id, id)
+  );
 		CREATE TABLE transactions (
 			account_id TEXT NOT NULL,
 			id TEXT NOT NULL,
@@ -169,6 +179,9 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			counterpart_account_id, counterpart_transaction_id, evidence_json, excluded
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
+	const insertCheckpoint = db.prepare(
+		'INSERT INTO balance_checkpoints (account_id, id, date, balance_cents, source, note, statement_file) VALUES (?, ?, ?, ?, ?, ?, ?)'
+	);
 	const insertIssue = db.prepare(
 		'INSERT INTO issues (account_id, source_file, message) VALUES (?, ?, ?)'
 	);
@@ -184,6 +197,18 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			account.created_at,
 			account.updated_at
 		);
+
+		for (const checkpoint of accountFile.checkpoints ?? []) {
+			insertCheckpoint.run(
+				account.id,
+				checkpoint.id,
+				checkpoint.date,
+				checkpoint.balance_cents,
+				'manual',
+				checkpoint.note ?? null,
+				null
+			);
+		}
 
 		if (account.source === 'manual') {
 			for (const transaction of accountFile.transactions ?? []) {
@@ -204,6 +229,21 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 					continue;
 				}
 				const parsed = parseCsvStatement(content, format);
+				if (
+					format === 'ccp' &&
+					parsed.account?.statement_date &&
+					parsed.account.closing_balance_cents !== null
+				) {
+					insertCheckpoint.run(
+						account.id,
+						'statement:' + relativeFile,
+						parsed.account.statement_date,
+						parsed.account.closing_balance_cents,
+						'statement',
+						null,
+						relativeFile
+					);
+				}
 				for (const error of parsed.errors) {
 					insertIssue.run(account.id, relativeFile, error);
 				}

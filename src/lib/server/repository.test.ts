@@ -5,6 +5,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { commitAll } from './git';
 import {
 	deleteManualTransaction,
+	createAccount,
+	addManualCheckpoint,
+	deleteManualCheckpoint,
+	readStoredAccountById,
 	deleteProject,
 	setTransactionAllocations,
 	updateManualTransaction,
@@ -294,4 +298,64 @@ it('validates the absolute total across projects, negative amounts and empty all
 			{ project_id: 'second', amount_cents: 500 }
 		])
 	).toThrow('allocation_exceeded');
+});
+
+it.each(['cash', 'bank'])(
+	'adds and deletes manual checkpoints on %s with one commit each and preserves account data',
+	async (accountId) => {
+		const before = await readStoredAccountById(accountId, root);
+		const added = await addManualCheckpoint(
+			accountId,
+			{ date: '2026-10-02', balance_cents: 0, note: ' Count ' },
+			root
+		);
+		expect(added).toMatchObject({ date: '2026-10-02', balance_cents: 0, note: 'Count' });
+		expect(added.id).toBeTruthy();
+		expect(commitAll).toHaveBeenCalledTimes(1);
+		const file = await readStoredAccountById(accountId, root);
+		expect(file?.checkpoints).toEqual([added]);
+		expect(file?.transactions).toEqual(before?.transactions);
+		expect(file?.annotations).toEqual(before?.annotations);
+		await deleteManualCheckpoint(accountId, added.id, root);
+		expect((await readStoredAccountById(accountId, root))?.checkpoints).toEqual([]);
+		expect(commitAll).toHaveBeenCalledTimes(2);
+	}
+);
+it('rejects invalid checkpoint dates, amounts and missing ids without committing', async () => {
+	for (const [date, balance_cents] of [
+		['2026-02-30', 100],
+		['2026-1-01', 100],
+		['', 100],
+		['2026-10-02', 1.5]
+	] as const) {
+		await expect(addManualCheckpoint('cash', { date, balance_cents }, root)).rejects.toThrow(
+			'checkpoint_invalid'
+		);
+	}
+	await expect(deleteManualCheckpoint('cash', 'statement:file.csv', root)).rejects.toThrow(
+		'Checkpoint not found'
+	);
+	expect(commitAll).not.toHaveBeenCalled();
+});
+it('creates an account and initial manual checkpoint in the same commit', async () => {
+	const account = await createAccount(
+		{
+			name: 'New cash',
+			source: 'manual',
+			initial_checkpoint: { date: '2026-10-02', balance_cents: -100 }
+		},
+		root
+	);
+	expect((await readStoredAccountById(account.id, root))?.checkpoints?.[0]).toMatchObject({
+		date: '2026-10-02',
+		balance_cents: -100
+	});
+	expect(commitAll).toHaveBeenCalledTimes(1);
+	await expect(
+		createAccount(
+			{ name: 'Invalid', source: 'csv', initial_checkpoint: { date: 'invalid', balance_cents: 0 } },
+			root
+		)
+	).rejects.toThrow('checkpoint_invalid');
+	expect(commitAll).toHaveBeenCalledTimes(1);
 });
