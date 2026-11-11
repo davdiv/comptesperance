@@ -20,7 +20,7 @@ it('shows a distinct, clamped description with its complete text in a title', ()
 		).not.toContain('line-clamp-2');
 	}
 });
-it('shows linked allocation chips and a remainder only for partial allocations', () => {
+it('shows linked allocation chips and non-zero remainders with or without allocations', () => {
 	const html = render(TransactionTable, {
 		props: {
 			transactions: [
@@ -49,4 +49,61 @@ it('shows linked allocation chips and a remainder only for partial allocations',
 	expect(full).not.toContain('· ');
 	const empty = render(TransactionTable, { props: { transactions: [row] } }).body;
 	expect(empty).not.toContain('/projects/');
+});
+
+it('shows non-zero unallocated amounts, including excluded rows, and never a zero remainder', () => {
+	for (const [amount, excluded] of [
+		[1000, false],
+		[-1000, false],
+		[1000, true],
+		[0, false]
+	] as const) {
+		const html = render(TransactionTable, {
+			props: {
+				transactions: [{ ...row, amount_cents: amount, excluded }],
+				filterUrl: '/transactions?search=sale&offset=5'
+			}
+		}).body;
+		if (amount === 0) expect(html).not.toContain('data-filter="allocation_status"');
+		else {
+			expect(html).toContain('href="/transactions?search=sale&amp;allocation_status=unallocated"');
+			expect(html).toContain('Unallocated: ' + formatMoney(amount));
+		}
+	}
+	const partial = render(TransactionTable, {
+		props: {
+			transactions: [
+				{
+					...row,
+					amount_cents: -1000,
+					allocation_details: [{ project_id: 'p', project_name: 'Project', amount_cents: -400 }]
+				}
+			]
+		}
+	}).body;
+	expect(partial).toContain('allocation_status=partial');
+	expect(partial).toContain('Unallocated: ' + formatMoney(-600));
+	const full = render(TransactionTable, {
+		props: {
+			transactions: [
+				{
+					...row,
+					allocation_details: [{ project_id: 'p', project_name: 'Project', amount_cents: 1000 }]
+				}
+			]
+		}
+	}).body;
+	expect(full).not.toContain('data-filter="allocation_status"');
+	const orphan = render(TransactionTable, {
+		props: {
+			transactions: [
+				{
+					...row,
+					allocation_details: [{ project_id: 'missing', project_name: null, amount_cents: 1000 }]
+				}
+			]
+		}
+	}).body;
+	expect(orphan).toContain('allocation_status=unallocated');
+	expect(orphan).toContain('Unallocated: ' + formatMoney(1000));
 });
