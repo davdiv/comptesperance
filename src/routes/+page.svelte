@@ -58,6 +58,12 @@
 							</span>
 							<div class="min-w-0 flex-1">
 								<div class="truncate text-sm font-medium text-stone-900">{account.name}</div>
+								{#if account.mismatch_count}<span
+										class="mt-1 inline-flex items-center gap-1 text-xs text-amber-700"
+										><Icon name="alert" class="size-3" />{m.checkpoint_mismatches({
+											count: account.mismatch_count
+										})}</span
+									>{/if}
 								<div class="text-xs text-stone-500">
 									{account.transaction_count}
 									{m.stat_transactions().toLowerCase()}

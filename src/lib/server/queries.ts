@@ -1,8 +1,15 @@
-import type { AccountSource, AccountTotals, CachedTransaction, Project } from '$lib/types';
+import type {
+	AccountSource,
+	AccountTotals,
+	CachedTransaction,
+	Project,
+	BalanceCheckpoint
+} from '$lib/types';
+import { calculateBalance, type BalanceResult } from './balances';
 import { getDatabase } from './cache';
 import { listDocuments } from './repository';
 
-export interface AccountWithTotals extends AccountTotals {
+export interface AccountWithTotals extends AccountTotals, BalanceResult {
 	name: string;
 	notes?: string;
 	source: AccountSource;
@@ -130,11 +137,6 @@ const TRANSACTION_SELECT = `
 
 const NON_TRANSFER_CONDITION = 't.transfer_id IS NULL';
 
-// Balance policy: sum of non-excluded transactions.
-export function currentBalance(incoming: number, outgoing: number): number {
-	return incoming + outgoing;
-}
-
 export async function listAccountsWithTotals(): Promise<AccountWithTotals[]> {
 	const db = await getDatabase();
 	const rows = db
@@ -150,7 +152,25 @@ export async function listAccountsWithTotals(): Promise<AccountWithTotals[]> {
 			ORDER BY a.name`
 		)
 		.all() as Record<string, unknown>[];
+	const checkpointQuery = db.prepare('SELECT * FROM balance_checkpoints WHERE account_id = ?');
+	const transactionQuery = db.prepare(
+		'SELECT date, amount_cents FROM transactions WHERE account_id = ? AND excluded = 0'
+	);
 	return rows.map((row) => {
+		const checkpoints = checkpointQuery
+			.all(String(row.id))
+			.map((checkpoint): BalanceCheckpoint => ({
+				id: String(checkpoint.id),
+				date: String(checkpoint.date),
+				balance_cents: Number(checkpoint.balance_cents),
+				source: checkpoint.source as BalanceCheckpoint['source'],
+				note: stringOrNull(checkpoint.note) ?? undefined,
+				statement_file: stringOrNull(checkpoint.statement_file) ?? undefined
+			}));
+		const transactions = transactionQuery.all(String(row.id)).map((transaction) => ({
+			date: String(transaction.date),
+			amount_cents: Number(transaction.amount_cents)
+		}));
 		const incoming = Number(row.incoming_cents);
 		const outgoing = Number(row.outgoing_cents);
 		return {
@@ -161,7 +181,7 @@ export async function listAccountsWithTotals(): Promise<AccountWithTotals[]> {
 			incoming_cents: incoming,
 			outgoing_cents: outgoing,
 			transaction_count: Number(row.transaction_count),
-			current_balance_cents: currentBalance(incoming, outgoing)
+			...calculateBalance(checkpoints, transactions)
 		};
 	});
 }
