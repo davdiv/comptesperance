@@ -1,5 +1,27 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+
+async function expectWriterCommit() {
+	const { stdout } = await execFileAsync('docker', [
+		'compose',
+		'exec',
+		'-T',
+		'app',
+		'git',
+		'-C',
+		'/data',
+		'log',
+		'-1',
+		'--format=%an <%ae>|%cn <%ce>'
+	]);
+	expect(stdout.trim()).toBe(
+		'Alice Read-write <alice@example.local>|comptes app <comptes@app.local>'
+	);
+}
 
 async function signIn(page: Page, user: 'alice' | 'bob', destination = '/accounts') {
 	await page.goto(destination);
@@ -105,6 +127,7 @@ test('writer edit mode, account, transaction, allocation, large evidence and CSV
 	const projectUrl = new URL(page.url()).pathname;
 
 	const accountUrl = await createAccount(page, 'E2E cash', 'manual');
+	await expectWriterCommit();
 	await page.getByText('New transaction', { exact: true }).click();
 	const transactionForm = page.locator('form[action="?/add_transaction"]');
 	await transactionForm.locator('[name="date"]').fill('2026-01-15');
@@ -139,6 +162,7 @@ test('writer edit mode, account, transaction, allocation, large evidence and CSV
 		buffer: evidence
 	});
 	await upload.locator('button').click();
+	await expectWriterCommit();
 	await expect(page.getByRole('link', { name: filename, exact: true })).toBeVisible();
 	await page.goto('/documents');
 	await expect(page.locator('tbody tr').filter({ hasText: filename })).toContainText('2.0 MB');
@@ -160,6 +184,7 @@ test('writer edit mode, account, transaction, allocation, large evidence and CSV
 		const accountName = `E2E ${format}`;
 		const csvAccountUrl = await createAccount(page, accountName, 'csv');
 		await importStatement(page, accountName, format);
+		await expectWriterCommit();
 		await page.goto(csvAccountUrl);
 		const rows = page.locator('tbody tr:has(a[href^="/transactions/"])');
 		await expect(rows).toHaveCount(count);

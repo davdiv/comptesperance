@@ -1,5 +1,6 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { getEnv } from './env';
+import { identityForUser } from './commit-author';
 import { m } from '#lib/paraglide/messages.js';
 
 export const EDIT_MODE_COOKIE = 'comptes_edit_mode';
@@ -12,6 +13,8 @@ export function authRedirectUrl(base: string, destination: string): string {
 
 export interface SessionUser {
 	name: string;
+	displayName?: string;
+	email?: string;
 	groups: string[];
 	canWrite: boolean;
 	canEdit: boolean;
@@ -24,6 +27,8 @@ export function getSessionUser(event: RequestEvent): SessionUser | null {
 	if (env.authDisabled) {
 		return {
 			name: 'dev',
+			displayName: 'Development user',
+			email: 'dev@users.invalid',
 			groups: [env.readwriteGroup],
 			canEdit: true,
 			editMode,
@@ -39,8 +44,15 @@ export function getSessionUser(event: RequestEvent): SessionUser | null {
 		.filter(Boolean);
 	if (!groups.includes(env.readwriteGroup) && !groups.includes(env.readonlyGroup)) return null;
 	const canEdit = groups.includes(env.readwriteGroup);
+	const identity = identityForUser({
+		name: remoteUser,
+		displayName: event.request.headers.get('remote-name') ?? undefined,
+		email: event.request.headers.get('remote-email') ?? undefined
+	});
 	return {
 		name: remoteUser,
+		displayName: identity.name,
+		email: identity.email,
 		groups,
 		canEdit,
 		editMode: canEdit && editMode,

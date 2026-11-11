@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { getEnv } from './env';
+import { getCommitAuthor, identityForUser } from './commit-author';
 
 const execFileAsync = promisify(execFile);
 
@@ -11,10 +12,14 @@ export interface GitResult {
 	stderr: string;
 }
 
-export async function git(root: string, args: string[]): Promise<GitResult> {
+export async function git(
+	root: string,
+	args: string[],
+	envOverrides: NodeJS.ProcessEnv = {}
+): Promise<GitResult> {
 	try {
 		const result = await execFileAsync('git', ['-C', root, ...args], {
-			env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+			env: { ...process.env, ...envOverrides, GIT_TERMINAL_PROMPT: '0' },
 			maxBuffer: 10 * 1024 * 1024
 		});
 		return { stdout: result.stdout.trim(), stderr: result.stderr.trim() };
@@ -39,15 +44,14 @@ export async function commitAll(root: string, message: string): Promise<boolean>
 	if (!status.stdout) return false;
 	await git(root, ['add', '-A']);
 	const env = getEnv();
-	await git(root, [
-		'-c',
-		`user.name=${env.gitAuthorName}`,
-		'-c',
-		`user.email=${env.gitAuthorEmail}`,
-		'commit',
-		'-m',
-		message
-	]);
+	const committer = identityForUser({ name: env.gitAuthorName, email: env.gitAuthorEmail });
+	const author = getCommitAuthor() ?? committer;
+	await git(root, ['commit', '-m', message], {
+		GIT_AUTHOR_NAME: author.name,
+		GIT_AUTHOR_EMAIL: author.email,
+		GIT_COMMITTER_NAME: committer.name,
+		GIT_COMMITTER_EMAIL: committer.email
+	});
 	return true;
 }
 

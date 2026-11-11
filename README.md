@@ -50,8 +50,7 @@ are created by that same user. Bind mounts must likewise be writable by UID 1000
 
 Do not run the app as root or make volumes world-writable. Ownership also makes
 the data repository safe for Git; no `safe.directory=*` exemption is needed.
-Commits use the existing `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` settings through
-per-command Git configuration, so no writable global Git config is required.
+No writable global Git configuration is required.
 
 ### Full-stack Playwright tests
 
@@ -110,6 +109,23 @@ and **Return to read-only** to disable it. The POST-only toggle stores an HttpOn
 SameSite=Strict session cookie; the server rejects writes unless both the write
 role and edit mode are present. Read-only users cannot enable edit mode.
 `AUTH_DISABLED=true` behaves as a writer but also starts read-only and hides Sign out.
+
+### Data commit identities
+
+Request-driven data commits use the authenticated Authelia identity as author:
+`Remote-Name` (falling back to `Remote-User`) and `Remote-Email`. Missing or invalid
+emails fall back to `<username>@users.invalid`, with unsafe local-part characters
+replaced by hyphens. Names are stripped of control characters and angle brackets.
+Development mode uses `Development user <dev@users.invalid>`.
+
+The app remains the committer, configured by the existing `GIT_AUTHOR_NAME` and
+`GIT_AUTHOR_EMAIL` environment variables (defaults: `comptes app <comptes@app.local>`).
+Despite their legacy names, these settings control the committer; operations outside
+an HTTP request also use them as the author. Request identity is scoped with
+AsyncLocalStorage, so all repository/configuration/import commit paths inherit the
+same author without process-global identity changes or per-action omissions.
+Only trust identity headers supplied by the authenticating proxy; do not expose
+the app port directly to untrusted clients.
 
 ## Upload limits
 
