@@ -1,6 +1,11 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"app_title": "Comptes d’espérance",
+	"pdf_export": "Exporter en PDF",
+	"pdf_generated": "Généré le {date}",
+	"pdf_page": "Page {page} / {pages}",
+	"pdf_visible_total": "Total (lignes affichées)",
+	"pdf_hidden_transfers": "{count} virement(s) interne(s) masqué(s). Les totaux du projet et des comptes les incluent.",
 	"nav_dashboard": "Tableau de bord",
 	"nav_accounts": "Comptes",
 	"nav_projects": "Projets",

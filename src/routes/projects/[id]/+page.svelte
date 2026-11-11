@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
+	import Icon from '#lib/components/Icon.svelte';
 	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
 	import TransactionTable from '#lib/components/TransactionTable.svelte';
 
@@ -21,7 +22,18 @@
 		title={data.project.name}
 		subtitle={data.project.description ?? m.projects_subtitle()}
 		back={{ href: '/projects', label: m.projects_title() }}
-	></PageHeader>
+	>
+		{#snippet actions()}
+			<a
+				class="btn"
+				href="/projects/{encodeURIComponent(data.project.id)}/export.pdf{new URL(
+					data.filterUrl,
+					'http://localhost'
+				).search}"
+				download><Icon name="documents" />{m.pdf_export()}</a
+			>
+		{/snippet}
+	</PageHeader>
 	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 
 	<TransactionFilters
