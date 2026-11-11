@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { documentDisplayName } from '$lib/documents';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatDate, formatMoney } from '$lib/format';
 	import { accountSourceLabel } from '$lib/labels';
@@ -227,7 +228,7 @@
 								<Icon name="paperclip" /><a
 									class="link min-w-0 flex-1 truncate"
 									href="/documents/download?path={encodeURIComponent(item)}"
-									title={item}>{item.split(/[\\/]/).pop()}</a
+									title={item}>{documentDisplayName(item)}</a
 								>
 								{#if data.user.canWrite}<form method="POST" action="?/delete_evidence">
 										<input type="hidden" name="path" value={item} /><button
@@ -270,8 +271,9 @@
 								><span class="field-label">{m.evidence_existing()}</span>
 								<select name="path" required class="control"
 									><option value="">—</option>
-									{#each data.documents as document (document.path)}<option value={document.path}
-											>{document.name}</option
+									{#each data.documents as document (document.path)}<option
+											value={document.path}
+											title={document.path}>{documentDisplayName(document.path)}</option
 										>{/each}
 								</select></label
 							>

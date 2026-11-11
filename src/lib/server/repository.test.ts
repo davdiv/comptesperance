@@ -8,7 +8,8 @@ import {
 	uploadEvidence,
 	linkDocument,
 	deleteDocument,
-	listDocuments
+	listDocuments,
+	saveDocuments
 } from './repository';
 
 vi.mock('./git', () => ({ commitAll: vi.fn().mockResolvedValue(true) }));
@@ -172,4 +173,17 @@ it('deleting a shared document unlinks manual and CSV references in one commit',
 	expect(annotations.other.notes).toBe('Keep notes');
 	expect(await listDocuments(root)).toEqual([]);
 	expect(commitAll).toHaveBeenCalledTimes(1);
+});
+it('saves library uploads together in one commit', async () => {
+	const paths = await saveDocuments(
+		[
+			{ name: 'one.pdf', data: new Uint8Array([1]) },
+			{ name: 'two.pdf', data: new Uint8Array([2]) }
+		],
+		root
+	);
+	expect(paths).toHaveLength(2);
+	expect(await listDocuments(root)).toHaveLength(2);
+	expect(commitAll).toHaveBeenCalledTimes(1);
+	await expect(saveDocuments([], root)).rejects.toThrow('Select at least one file');
 });
