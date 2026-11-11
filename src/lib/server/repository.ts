@@ -83,6 +83,17 @@ export function slugify(value: string): string {
 	return slug || 'item';
 }
 
+const ENTITY_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function isValidEntityId(id: string): boolean {
+	return ENTITY_ID_PATTERN.test(id);
+}
+
+function entityFilePath(root: string, dir: 'projects' | 'third-parties', id: string): string {
+	if (!isValidEntityId(id)) throw new Error('Invalid id');
+	return safeJoin(root, dir, `${id}.json`);
+}
+
 async function commitData(root: string, message: string): Promise<void> {
 	await commitAll(root, message);
 }
@@ -444,7 +455,8 @@ export async function linkTransfer(
 }
 
 async function readProjectFile(root: string, id: string): Promise<Project | null> {
-	return readJsonFile<Project | null>(path.join(root, 'projects', `${id}.json`), null);
+	if (!isValidEntityId(id)) return null;
+	return readJsonFile<Project | null>(entityFilePath(root, 'projects', id), null);
 }
 
 export async function listProjects(root?: string): Promise<Project[]> {
@@ -472,7 +484,7 @@ async function uniqueProjectId(root: string, name: string): Promise<string> {
 	const base = slugify(name);
 	let candidate = base;
 	let index = 2;
-	while (await pathExists(path.join(root, 'projects', `${candidate}.json`))) {
+	while (await pathExists(entityFilePath(root, 'projects', candidate))) {
 		candidate = `${base}-${index}`;
 		index += 1;
 	}
@@ -493,7 +505,7 @@ export async function createProject(
 		created_at: timestamp,
 		updated_at: timestamp
 	};
-	await writeJsonFile(path.join(repo, 'projects', `${id}.json`), project);
+	await writeJsonFile(entityFilePath(repo, 'projects', id), project);
 	await commitData(repo, `data: create project ${id}`);
 	return project;
 }
@@ -513,7 +525,7 @@ export async function updateProject(
 			patch.description === undefined ? project.description : patch.description.trim() || undefined,
 		updated_at: now()
 	};
-	await writeJsonFile(path.join(repo, 'projects', `${id}.json`), next);
+	await writeJsonFile(entityFilePath(repo, 'projects', id), next);
 	await commitData(repo, `data: update project ${id}`);
 	return next;
 }
@@ -534,12 +546,13 @@ export async function deleteProject(id: string, root?: string): Promise<void> {
 		}
 		if (changed) await writeStoredAccount(repo, file);
 	}
-	await removeFile(path.join(repo, 'projects', `${id}.json`));
+	await removeFile(entityFilePath(repo, 'projects', id));
 	await commitData(repo, `data: delete project ${id}`);
 }
 
 async function readThirdPartyFile(root: string, id: string): Promise<ThirdParty | null> {
-	return readJsonFile<ThirdParty | null>(path.join(root, 'third-parties', `${id}.json`), null);
+	if (!isValidEntityId(id)) return null;
+	return readJsonFile<ThirdParty | null>(entityFilePath(root, 'third-parties', id), null);
 }
 
 export async function listThirdParties(root?: string): Promise<ThirdParty[]> {
@@ -566,7 +579,7 @@ async function uniqueThirdPartyId(root: string, name: string): Promise<string> {
 	const base = slugify(name);
 	let candidate = base;
 	let index = 2;
-	while (await pathExists(path.join(root, 'third-parties', `${candidate}.json`))) {
+	while (await pathExists(entityFilePath(root, 'third-parties', candidate))) {
 		candidate = `${base}-${index}`;
 		index += 1;
 	}
@@ -587,7 +600,7 @@ export async function createThirdParty(
 		created_at: timestamp,
 		updated_at: timestamp
 	};
-	await writeJsonFile(path.join(repo, 'third-parties', `${id}.json`), party);
+	await writeJsonFile(entityFilePath(repo, 'third-parties', id), party);
 	await commitData(repo, `data: create third party ${id}`);
 	return party;
 }
@@ -609,7 +622,7 @@ export async function updateThirdParty(
 				: patch.aliases.map((alias) => alias.trim()).filter(Boolean),
 		updated_at: now()
 	};
-	await writeJsonFile(path.join(repo, 'third-parties', `${id}.json`), next);
+	await writeJsonFile(entityFilePath(repo, 'third-parties', id), next);
 	await commitData(repo, `data: update third party ${id}`);
 	return next;
 }
@@ -617,7 +630,7 @@ export async function updateThirdParty(
 export async function deleteThirdParty(id: string, root?: string): Promise<void> {
 	const repo = await repoRoot(root);
 	if (!(await readThirdPartyFile(repo, id))) throw new Error('Third party not found');
-	await removeFile(path.join(repo, 'third-parties', `${id}.json`));
+	await removeFile(entityFilePath(repo, 'third-parties', id));
 	await commitData(repo, `data: delete third party ${id}`);
 }
 
