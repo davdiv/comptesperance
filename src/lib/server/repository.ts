@@ -15,6 +15,7 @@ import type {
 } from '#lib/types.ts';
 import { ensureConfig, readConfig } from './config';
 import { importPattern, resolveImport } from './import-rules';
+import { accountCsvTransactions } from './csv/account-transactions';
 import { detectCsvFormat, parseCsvStatement } from './csv';
 import { getEnv } from './env';
 import { commitAll, ensureGitRepo } from './git';
@@ -682,30 +683,22 @@ export async function deleteThirdParty(id: string, root?: string): Promise<void>
 			if (file.transactions?.some((transaction) => transaction.third_party_id === id))
 				throw new Error('config_in_use');
 		} else {
-			for (const name of await listFilesRecursive(path.join(file.dir, 'statements'))) {
-				if (!name.toLowerCase().endsWith('.csv')) continue;
-				const content = await readTextFile(path.join(file.dir, 'statements', name));
-				const format = detectCsvFormat(content);
-				if (!format) continue;
+			for (const { transaction, format } of await accountCsvTransactions(file.dir)) {
 				if (
-					parseCsvStatement(content, format).transactions.some(
-						(transaction) =>
-							resolveImport(
-								transaction,
-								file.annotations?.[transaction.id] ?? {},
-								file.account.id,
-								format,
-								config,
-								parties,
-								projects
-							).values.third_party_id === id
-					)
+					resolveImport(
+						transaction,
+						file.annotations?.[transaction.id] ?? {},
+						file.account.id,
+						format,
+						config,
+						parties,
+						projects
+					).values.third_party_id === id
 				)
 					throw new Error('config_in_use');
 			}
 		}
 	}
-	if (!(await readThirdPartyFile(repo, id))) throw new Error('Third party not found');
 	await removeFile(entityFilePath(repo, 'third-parties', id));
 	await commitData(repo, `data: delete third party ${id}`);
 }
@@ -749,8 +742,8 @@ export async function saveImportRule(
 		}
 	}
 	if (
-		(c.direction && !['in', 'out'].includes(c.direction)) ||
-		(c.format && !['ccp', 'sumup'].includes(c.format))
+		('direction' in c && !['in', 'out'].includes(c.direction ?? '')) ||
+		('format' in c && !['ccp', 'sumup'].includes(c.format ?? ''))
 	)
 		throw new Error('config_invalid');
 	for (const value of [c.min_cents, c.max_cents])

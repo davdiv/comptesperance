@@ -1,4 +1,5 @@
 {
+	"import_reference_in_use": "Cet élément est utilisé par des opérations ou des règles d’import et ne peut pas être supprimé.",
 	"import_source_none": "Aucune valeur automatique",
 	"import_source_explicit": "Défini manuellement",
 	"import_source_rule": "Par la règle : {name}",

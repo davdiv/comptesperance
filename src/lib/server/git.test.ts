@@ -1,11 +1,26 @@
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { commitAll, ensureGitRepo, git } from './git';
+import { commitAll, ensureGitRepo, git, statusFingerprint } from './git';
 import { withCommitAuthor } from './commit-author';
 
 const roots: string[] = [];
+it('invalidates the cache fingerprint when import rule content or order changes', async () => {
+	const root = await mkdtemp(path.join(tmpdir(), 'comptes-rules-fingerprint-'));
+	roots.push(root);
+	await ensureGitRepo(root);
+	await mkdir(path.join(root, 'config'));
+	const file = path.join(root, 'config/rules.json');
+	await writeFile(file, '[]');
+	await commitAll(root, 'initialize rules');
+	const initial = await statusFingerprint(root);
+	await writeFile(file, '[{"id":"a"},{"id":"b"}]');
+	const edited = await statusFingerprint(root);
+	expect(edited).not.toBe(initial);
+	await writeFile(file, '[{"id":"b"},{"id":"a"}]');
+	expect(await statusFingerprint(root)).not.toBe(edited);
+});
 afterEach(async () => {
 	vi.unstubAllEnvs();
 	await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));

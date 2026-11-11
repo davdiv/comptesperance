@@ -168,7 +168,7 @@ export const actions: Actions = {
 					account.account_id,
 					transaction.id,
 					annotationFromTransaction(transaction, {
-						notes: String(form.get('notes') ?? '').trim() || undefined,
+						notes: String(form.get('notes') ?? '').trim(),
 						...editedClassification(transaction, form),
 						third_party_id:
 							transaction.sources.third_party_id.source !== 'explicit' &&

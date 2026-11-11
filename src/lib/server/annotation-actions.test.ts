@@ -100,5 +100,10 @@ it('persists changed or deliberately cleared classifications from the main form'
 			'sale',
 			expect.objectContaining({ category_id: '', payment_mode_id: value })
 		);
+		expect(upsertAnnotation).toHaveBeenLastCalledWith(
+			'sumup',
+			'sale',
+			expect.objectContaining({ notes: '' })
+		);
 	}
 });

@@ -41,8 +41,24 @@
 </script>
 
 <div class="max-w-6xl space-y-6">
+	<PageHeader
+		title={transaction.label || m.transactions_title()}
+		subtitle={formatDate(transaction.date)}
+		back={{ href: '/accounts/' + account.account_id, label: account.name }}
+	>
+		{#snippet actions()}<Amount
+				cents={transaction.amount_cents}
+				class="text-3xl font-semibold"
+			/>{/snippet}
+		{#snippet meta()}<span class="badge badge-blue">{accountSourceLabel(account.source)}</span>
+			{#if transaction.transfer_id}<span class="badge badge-violet">{m.common_transfers()}</span
+				>{/if}
+			{#if transaction.excluded}<span class="badge badge-amber">{m.transaction_excluded()}</span
+				>{/if}
+		{/snippet}
+	</PageHeader>
 	{#if !isManual}
-		<div class="panel space-y-2 p-4">
+		<div class="card space-y-2 p-4">
 			{#each [['third_party_id', m.common_third_party()], ['category_id', m.common_category()], ['payment_mode_id', m.payment_mode()], ['excluded', m.transaction_excluded()]] as [field, label]}
 				<FieldSourceHint
 					source={transaction.sources[field as keyof typeof transaction.sources]}
@@ -69,21 +85,6 @@
 			{/if}
 		</div>
 	{/if}
-	<PageHeader
-		title={transaction.label || m.transactions_title()}
-		subtitle={formatDate(transaction.date)}
-		back={{ href: '/accounts/' + account.account_id, label: account.name }}
-	>
-		{#snippet actions()}<Amount
-				cents={transaction.amount_cents}
-				class="text-3xl font-semibold"
-			/>{/snippet}
-		{#snippet meta()}<span class="badge badge-blue">{accountSourceLabel(account.source)}</span
-			>{#if transaction.transfer_id}<span class="badge badge-violet">{m.common_transfers()}</span
-				>{/if}{#if transaction.excluded}<span class="badge badge-amber"
-					>{m.transaction_excluded()}</span
-				>{/if}{/snippet}
-	</PageHeader>
 	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 
 	<div class="grid gap-6 lg:grid-cols-3">

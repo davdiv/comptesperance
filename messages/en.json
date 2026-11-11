@@ -1,4 +1,5 @@
 {
+	"import_reference_in_use": "This entry is used by transactions or import rules and cannot be deleted.",
 	"import_source_none": "No automatic value",
 	"import_source_explicit": "Set manually",
 	"import_source_rule": "By rule: {name}",

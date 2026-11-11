@@ -1,4 +1,5 @@
 import { transactionFilterState } from '#lib/server/transaction-list.ts';
+import { m } from '#lib/paraglide/messages.js';
 import { editAllocation } from '#lib/server/allocation-editor.ts';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -43,7 +44,18 @@ export const actions: Actions = {
 	},
 	delete: async ({ locals, params }) => {
 		requireWrite(locals.user);
-		await deleteProject(params.id);
+		try {
+			await deleteProject(params.id);
+		} catch (e) {
+			return fail(400, {
+				error:
+					e instanceof Error && e.message === 'config_in_use'
+						? m.import_reference_in_use()
+						: e instanceof Error
+							? e.message
+							: 'Delete failed'
+			});
+		}
 		redirect(303, '/projects');
 	},
 	remove_allocation: async ({ request, locals, params }) => {

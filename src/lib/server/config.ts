@@ -1,4 +1,5 @@
 import { resolveImport } from './import-rules';
+import { accountCsvTransactions } from './csv/account-transactions';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -13,13 +14,11 @@ import type {
 } from '#lib/types.ts';
 import { getEnv } from './env';
 import { commitAll } from './git';
-import { detectCsvFormat, parseCsvStatement } from './csv';
 import {
 	listDirectoryNames,
 	listFilesRecursive,
 	pathExists,
 	readJsonFile,
-	readTextFile,
 	writeJsonFile
 } from './store';
 
@@ -128,23 +127,17 @@ async function isUsed(
 			file.account.source === 'manual' ? (file.transactions ?? []) : Object.values(annotations);
 		if (items.some((item) => item[field] === id)) return true;
 		if (file.account.source === 'csv') {
-			for (const statement of await listFilesRecursive(path.join(dir, 'statements'))) {
-				if (!statement.toLowerCase().endsWith('.csv')) continue;
-				const content = await readTextFile(path.join(dir, 'statements', statement));
-				const format = detectCsvFormat(content);
-				if (!format) continue;
-				for (const transaction of parseCsvStatement(content, format).transactions) {
-					const effectiveValue = resolveImport(
-						transaction,
-						annotations[transaction.id] ?? {},
-						accountId,
-						format,
-						config,
-						parties.filter(Boolean),
-						projects
-					).values[field];
-					if (effectiveValue === id) return true;
-				}
+			for (const { transaction, format } of await accountCsvTransactions(dir)) {
+				const effectiveValue = resolveImport(
+					transaction,
+					annotations[transaction.id] ?? {},
+					accountId,
+					format,
+					config,
+					parties.filter(Boolean),
+					projects
+				).values[field];
+				if (effectiveValue === id) return true;
 			}
 		}
 	}

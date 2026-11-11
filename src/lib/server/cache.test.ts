@@ -22,7 +22,9 @@ import {
 	resetAutomaticField,
 	createThirdParty,
 	deleteThirdParty,
-	uploadEvidence
+	uploadEvidence,
+	linkTransfer,
+	unlinkTransfer
 } from './repository';
 import {
 	getAccountWithTotals,
@@ -42,6 +44,51 @@ vi.mock('./git', () => ({
 	statusFingerprint: vi.fn()
 }));
 let root: string;
+
+it('records alias provenance and blocks deletion unless the alias is explicitly overridden', async () => {
+	const account = await createAccount({ name: 'Alias', source: 'csv' }, root);
+	const party = await createThirdParty({ name: 'Alias party', aliases: ['DUCLOS MARIE'] }, root);
+	const content = await readFile(new URL('./csv/testdata/ccp-sample.csv', import.meta.url), 'utf8');
+	await writeFile(path.join(root, 'accounts', account.id, 'statements/sample.csv'), content);
+	const transaction = parseCsvStatement(content, 'ccp').transactions[0];
+	expect(await getTransaction(account.id, transaction.id)).toMatchObject({
+		third_party_id: party.id,
+		sources: { third_party_id: { source: 'alias' } }
+	});
+	await expect(deleteThirdParty(party.id, root)).rejects.toThrow('config_in_use');
+	await upsertAnnotation(account.id, transaction.id, { third_party_id: null }, root);
+	vi.mocked(statusFingerprint).mockResolvedValue('explicit-no-alias');
+	expect(await getTransaction(account.id, transaction.id)).toMatchObject({
+		third_party_id: null,
+		sources: { third_party_id: { source: 'explicit' } }
+	});
+	await deleteThirdParty(party.id, root);
+});
+
+it('makes one commit for each rules CRUD or reorder mutation and preserves update order', async () => {
+	await readConfig(root);
+	vi.mocked(commitAll).mockClear();
+	const first = await saveImportRule(
+		{ name: 'First', conditions: { text: 'first' }, set: { excluded: true } },
+		root
+	);
+	expect(commitAll).toHaveBeenCalledTimes(1);
+	const second = await saveImportRule(
+		{ name: 'Second', conditions: { text: 'second' }, set: { excluded: false } },
+		root
+	);
+	expect(commitAll).toHaveBeenCalledTimes(2);
+	await saveImportRule({ ...first, name: 'Updated' }, root);
+	expect(commitAll).toHaveBeenCalledTimes(3);
+	expect((await readConfig(root)).rules.map((rule) => rule.id)).toEqual([first.id, second.id]);
+	await reorderImportRules([second.id, first.id], root);
+	expect(commitAll).toHaveBeenCalledTimes(4);
+	await deleteImportRule(first.id, root);
+	expect(commitAll).toHaveBeenCalledTimes(5);
+	await deleteImportRule(second.id, root);
+	expect(commitAll).toHaveBeenCalledTimes(6);
+	expect((await readConfig(root)).rules).toEqual([]);
+});
 
 it('persists ordered rules, resolves retroactively, resets keys, preserves automatic fields on unrelated edits, and blocks referenced entity deletion', async () => {
 	const account = await createAccount({ name: 'Rules', source: 'csv' }, root);
@@ -90,6 +137,18 @@ it('persists ordered rules, resolves retroactively, resets keys, preserves autom
 		[{ project_id: project.id, amount_cents: transaction.amount_cents }],
 		root
 	);
+	const otherAccount = await createAccount({ name: 'Other', source: 'manual' }, root);
+	const other = await createManualTransaction(
+		otherAccount.id,
+		{ date: transaction.date, label: 'Transfer', amount_cents: -transaction.amount_cents },
+		root
+	);
+	await linkTransfer(
+		{ account_id: account.id, transaction_id: transaction.id },
+		{ account_id: otherAccount.id, transaction_id: other.id },
+		root
+	);
+	await unlinkTransfer({ account_id: account.id, transaction_id: transaction.id }, root);
 	let annotation = JSON.parse(
 		await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8')
 	)[transaction.id];
@@ -121,6 +180,12 @@ it('persists ordered rules, resolves retroactively, resets keys, preserves autom
 	)[transaction.id];
 	expect(annotation.notes).toBe('Note');
 	expect(annotation.evidence).toHaveLength(1);
+	await upsertAnnotation(account.id, transaction.id, { notes: '' }, root);
+	expect(
+		JSON.parse(await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8'))[
+			transaction.id
+		]
+	).not.toHaveProperty('notes');
 	await expect(deleteProject(project.id, root)).rejects.toThrow('config_in_use');
 	await expect(deleteThirdParty(party.id, root)).rejects.toThrow('config_in_use');
 	await expect(mutateConfig('categories', { id: 'ventes', remove: true }, root)).rejects.toThrow(
@@ -140,7 +205,9 @@ it('persists ordered rules, resolves retroactively, resets keys, preserves autom
 		{ ...input, conditions: { pattern: '[' } },
 		{ ...input, conditions: { min_cents: -1 } },
 		{ ...input, set: { project_id: 'missing' } },
-		{ ...input, conditions: { account_id: 'missing' } }
+		{ ...input, conditions: { account_id: 'missing' } },
+		{ ...input, conditions: { direction: '' as 'in' } },
+		{ ...input, conditions: { format: '' as 'ccp' } }
 	])
 		await expect(saveImportRule(invalid, root)).rejects.toThrow('config_invalid');
 	await expect(reorderImportRules([second.id, second.id], root)).rejects.toThrow('config_invalid');
