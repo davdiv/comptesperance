@@ -335,7 +335,11 @@ export async function upsertAnnotation(
 			(await findCsvTransaction(file, transactionId)).amount_cents,
 			annotation.allocations
 		);
-	const cleaned = cleanAnnotation(annotation);
+	const cleaned = cleanAnnotation({
+		...annotation,
+		payment_mode_id:
+			annotation.payment_mode_id ?? file.annotations?.[transactionId]?.payment_mode_id
+	});
 	const annotations = { ...(file.annotations ?? {}) };
 	if (isEmptyAnnotation(cleaned)) delete annotations[transactionId];
 	else annotations[transactionId] = cleaned;

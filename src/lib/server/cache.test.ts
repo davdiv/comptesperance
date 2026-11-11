@@ -207,6 +207,15 @@ it('guesses active CSV payment modes, but annotations including explicit empty v
 	await upsertAnnotation(account.id, transaction.id, { payment_mode_id: '' }, root);
 	vi.mocked(statusFingerprint).mockResolvedValue('empty-override');
 	expect((await getTransaction(account.id, transaction.id))?.payment_mode_id).toBe('');
+	for (const annotation of [{ evidence: [] }, { notes: 'Updated', payment_mode_id: undefined }]) {
+		await upsertAnnotation(account.id, transaction.id, annotation, root);
+		vi.mocked(statusFingerprint).mockResolvedValue(JSON.stringify(annotation));
+		expect((await getTransaction(account.id, transaction.id))?.payment_mode_id).toBe('');
+		const stored = JSON.parse(
+			await readFile(path.join(root, 'accounts', account.id, 'annotations.json'), 'utf8')
+		);
+		expect(stored[transaction.id].payment_mode_id).toBe('');
+	}
 	await mutateConfig('paymentModes', { id: 'virement', name: 'Virement', archived: true }, root);
 	vi.mocked(statusFingerprint).mockResolvedValue('archived');
 	const unannotated = parseCsvStatement(content, 'ccp').transactions[1];

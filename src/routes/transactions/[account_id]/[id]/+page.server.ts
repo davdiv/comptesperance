@@ -36,7 +36,7 @@ function annotationFromTransaction(
 	return {
 		notes: transaction.notes || undefined,
 		category_id: transaction.category_id || undefined,
-		payment_mode_id: transaction.payment_mode_id || undefined,
+		payment_mode_id: transaction.payment_mode_id,
 		allocations: transaction.allocations,
 		third_party_id: transaction.third_party_id,
 		transfer_id: transaction.transfer_id,
@@ -150,7 +150,7 @@ export const actions: Actions = {
 					annotationFromTransaction(transaction, {
 						notes: String(form.get('notes') ?? '').trim() || undefined,
 						category_id: String(form.get('category_id') ?? '').trim() || undefined,
-						payment_mode_id: String(form.get('payment_mode_id') ?? '').trim() || undefined,
+						payment_mode_id: String(form.get('payment_mode_id') ?? '').trim(),
 						third_party_id: String(form.get('third_party_id') ?? '') || null,
 						excluded
 					})
