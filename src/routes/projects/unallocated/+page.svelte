@@ -5,10 +5,9 @@
 
 	import { m } from '#lib/paraglide/messages.js';
 	import PageHeader from '#lib/components/PageHeader.svelte';
-	import StatCard from '#lib/components/StatCard.svelte';
+	import FinancialSummary from '#lib/components/FinancialSummary.svelte';
 	import Amount from '#lib/components/Amount.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
-	import { formatMoney } from '#lib/format.ts';
 	import type { PageProps } from './$types';
 	const { data }: PageProps = $props();
 </script>
@@ -26,19 +25,14 @@
 		current={data.filterUrl}
 		fixed={data.fixedFilters}
 	/>
-	<div class="grid gap-4 sm:grid-cols-3">
-		<StatCard
-			label={m.account_incoming()}
-			value={formatMoney(data.incoming_cents)}
-			tone="positive"
-		/>
-		<StatCard label={m.account_outgoing()} value={formatMoney(data.outgoing_cents)} />
-		<StatCard
-			label={m.unallocated_net()}
-			value={formatMoney(data.total_cents)}
-			tone={data.total_cents < 0 ? 'negative' : 'brand'}
-		/>
-	</div>
+	<FinancialSummary
+		class="grid gap-4 sm:grid-cols-3"
+		total={data.total_cents}
+		incoming={data.incoming_cents}
+		outgoing={data.outgoing_cents}
+		totalLabel={m.unallocated_net()}
+		totalLast
+	/>
 	<section class="card p-5">
 		<h2 class="card-title">{m.project_by_account()}</h2>
 		<ul class="mt-3 divide-y divide-stone-100">

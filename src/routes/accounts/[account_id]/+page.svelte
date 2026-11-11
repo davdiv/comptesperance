@@ -10,7 +10,7 @@
 	import ReferenceFields from '#lib/components/ReferenceFields.svelte';
 	import FormPanel from '#lib/components/FormPanel.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
-	import StatCard from '#lib/components/StatCard.svelte';
+	import FinancialSummary from '#lib/components/FinancialSummary.svelte';
 	import TransactionTable from '#lib/components/TransactionTable.svelte';
 	import type { PageProps } from './$types';
 
@@ -35,24 +35,22 @@
 
 {#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 
-<section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-	<StatCard
-		label={m.account_current_balance()}
-		value={formatMoney(account.current_balance_cents)}
-		tone={account.current_balance_cents < 0 ? 'negative' : 'brand'}
-	>
-		{#snippet hint()}<span class="text-stone-500"
-				>{account.anchor
-					? m.checkpoint_as_of({
-							date: formatDate(account.anchor.date),
-							source: checkpointSourceLabel(account.anchor.source)
-						})
-					: m.checkpoint_zero_start()}</span
-			>{/snippet}
-	</StatCard>
-	<StatCard label={m.account_incoming()} value={formatMoney(data.incoming_cents)} tone="positive" />
-	<StatCard label={m.account_outgoing()} value={formatMoney(data.outgoing_cents)} />
-</section>
+<FinancialSummary
+	class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+	total={account.current_balance_cents}
+	incoming={data.incoming_cents}
+	outgoing={data.outgoing_cents}
+	totalLabel={m.account_current_balance()}
+>
+	{#snippet totalHint()}<span class="text-stone-500"
+			>{account.anchor
+				? m.checkpoint_as_of({
+						date: formatDate(account.anchor.date),
+						source: checkpointSourceLabel(account.anchor.source)
+					})
+				: m.checkpoint_zero_start()}</span
+		>{/snippet}
+</FinancialSummary>
 
 {#if data.issues.length || account.mismatch_count}
 	<Alert tone="warning">
