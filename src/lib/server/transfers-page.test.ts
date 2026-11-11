@@ -14,7 +14,7 @@ it('removes an existing member from the transfers page and rejects invalid membe
 		form.set('member', value);
 		const result = await actions.unlink_transfer!({
 			request: new Request('http://localhost/transfers', { method: 'POST', body: form }),
-			locals: { user: { canWrite: true } }
+			locals: { user: { canWrite: true, canEdit: true, editMode: true } }
 		} as never);
 		expect(result).toMatchObject(value === 'a:one' ? { ok: true } : { status: 400 });
 	}

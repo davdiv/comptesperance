@@ -17,7 +17,9 @@ describe('write authorization', () => {
 		expect.fail('Expected denial');
 	});
 	it('allows writers', () => {
-		expect(() => requireWrite({ name: 'writer', groups: [], canWrite: true })).not.toThrow();
+		expect(() =>
+			requireWrite({ name: 'writer', groups: [], canWrite: true, canEdit: true, editMode: true })
+		).not.toThrow();
 	});
 	for (const [path, route] of Object.entries(routes)) {
 		for (const [name, action] of Object.entries(route.actions ?? {})) {

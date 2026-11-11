@@ -205,5 +205,10 @@
 	"transfers_groups": "Transfer groups",
 	"transfers_create": "Create a transfer group",
 	"transfer_remove_member": "Remove member",
-	"transfer_group_title": "Transfer"
+	"transfer_group_title": "Transfer",
+	"auth_sign_out": "Sign out",
+	"auth_read_mode": "Return to read-only",
+	"auth_edit_mode_start": "Switch to edit mode",
+	"auth_edit_mode_active": "Edit mode",
+	"auth_enable_edit_mode": "Switch to edit mode before making changes."
 }

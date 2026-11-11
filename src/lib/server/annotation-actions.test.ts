@@ -32,7 +32,7 @@ async function submit(action: string, values: Record<string, string>) {
 			body: form
 		}),
 		params: { account_id: 'sumup', id: 'sale' },
-		locals: { user: { canWrite: true } }
+		locals: { user: { canWrite: true, canEdit: true, editMode: true } }
 	} as never);
 }
 it('does not persist guesses when editing only notes or unlinking evidence', async () => {

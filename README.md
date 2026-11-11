@@ -40,6 +40,19 @@ Ready-to-use local users:
 
 Compose mounts the data git repo at `/data` and the disposable SQLite cache at `/cache`.
 
+Authentication uses Authelia's trusted identity headers. Unauthenticated page
+requests redirect to `AUTH_LOGIN_URL` with the full requested URL in `rd`;
+unauthenticated actions return 401. The sidebar/mobile menu Sign out link uses
+`AUTH_LOGOUT_URL` with the app origin in `rd`. Defaults match the Compose URLs
+above. Deployments using other domains must also update Authelia's cookie domain,
+portal/default redirect URLs and access rules, and Traefik's host rules.
+
+Writers start in read-only display. Use **Switch to edit mode** to enable editing,
+and **Return to read-only** to disable it. The POST-only toggle stores an HttpOnly,
+SameSite=Strict session cookie; the server rejects writes unless both the write
+role and edit mode are present. Read-only users cannot enable edit mode.
+`AUTH_DISABLED=true` behaves as a writer but also starts read-only and hides Sign out.
+
 ## Data repository format
 
 The git data repository is the source of truth; SQLite is disposable and rebuilt

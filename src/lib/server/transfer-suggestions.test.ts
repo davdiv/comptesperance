@@ -20,7 +20,7 @@ async function submit(values: Record<string, string>) {
 	for (const [key, value] of Object.entries(values)) form.set(key, value);
 	return linkBalancedSuggestions({
 		request: new Request('http://localhost/transfers', { method: 'POST', body: form }),
-		locals: { user: { canWrite: true } }
+		locals: { user: { canWrite: true, canEdit: true, editMode: true } }
 	} as never);
 }
 it('bulk-links disjoint balanced suggestions in one repository call', async () => {
