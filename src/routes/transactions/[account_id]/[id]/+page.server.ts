@@ -17,7 +17,9 @@ import {
 	linkTransfer,
 	listProjects,
 	readProject,
-	saveDocument,
+	linkDocument,
+	listDocuments,
+	uploadEvidence,
 	unlinkTransfer,
 	updateManualTransaction,
 	updateProject,
@@ -95,6 +97,9 @@ export const load: PageServerLoad = async ({ params }) => {
 		accounts,
 		projects,
 		thirdParties,
+		documents: (await listDocuments()).filter(
+			(document) => !transaction.evidence.includes(document.path)
+		),
 		candidates: candidates
 			.filter((item) => item.account_id !== transaction.account_id || item.id !== transaction.id)
 			.map((item) => ({
@@ -190,20 +195,44 @@ export const actions: Actions = {
 		]);
 		if (!transaction || !account) error(404, 'Transaction not found');
 		const form = await request.formData();
-		const file = form.get('file');
-		if (!file || typeof file === 'string') return fail(400, { error: 'Select a file' });
+		const files = form.getAll('file');
+		if (!files.length || files.some((file) => typeof file === 'string' || !file.name)) {
+			return fail(400, { error: 'Select at least one file' });
+		}
+		const uploads = files as File[];
 		const env = getEnv();
-		if (file.size > env.maxEvidenceBytes) return fail(400, { error: 'File is too large' });
-		const allowed = /\.(pdf|png|jpe?g|webp)$/i.test(file.name);
-		if (!allowed) return fail(400, { error: 'Unsupported file type' });
+		for (const file of uploads) {
+			if (file.size > env.maxEvidenceBytes) return fail(400, { error: 'File is too large' });
+			if (!/\.(pdf|png|jpe?g|webp)$/i.test(file.name))
+				return fail(400, { error: 'Unsupported file type' });
+		}
 		try {
-			const documentPath = await saveDocument(file.name, new Uint8Array(await file.arrayBuffer()));
-			await setEvidence(account.source, account.account_id, transaction.id, [
-				...transaction.evidence,
-				documentPath
-			]);
+			await uploadEvidence(
+				{ account_id: transaction.account_id, transaction_id: transaction.id },
+				await Promise.all(
+					uploads.map(async (file) => ({
+						name: file.name,
+						data: new Uint8Array(await file.arrayBuffer())
+					}))
+				)
+			);
 		} catch (e) {
 			return fail(400, { error: e instanceof Error ? e.message : 'Upload failed' });
+		}
+		return { ok: true };
+	},
+	link_evidence: async ({ request, locals, params }) => {
+		requireWrite(locals.user);
+		const transaction = await getTransaction(params.account_id, params.id);
+		if (!transaction) error(404, 'Transaction not found');
+		const form = await request.formData();
+		try {
+			await linkDocument(
+				{ account_id: transaction.account_id, transaction_id: transaction.id },
+				String(form.get('path') ?? '')
+			);
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Link failed' });
 		}
 		return { ok: true };
 	},

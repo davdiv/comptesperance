@@ -232,7 +232,8 @@
 								{#if data.user.canWrite}<form method="POST" action="?/delete_evidence">
 										<input type="hidden" name="path" value={item} /><button
 											class="btn-icon text-red-700"
-											aria-label={m.common_delete()}><Icon name="trash" /></button
+											aria-label={m.evidence_unlink()}
+											title={m.evidence_unlink()}><Icon name="link" /></button
 										>
 									</form>{/if}
 							</li>
@@ -251,6 +252,7 @@
 						<input
 							type="file"
 							name="file"
+							multiple
 							required
 							accept=".pdf,.png,.jpg,.jpeg,.webp"
 							class="file-input"
@@ -258,6 +260,24 @@
 						/>
 						<button class="btn">{m.transaction_evidence_upload()}</button>
 					</form>
+					{#if data.documents.length}
+						<form
+							method="POST"
+							action="?/link_evidence"
+							class="mt-5 space-y-3 border-t border-stone-100 pt-4"
+						>
+							<label class="field"
+								><span class="field-label">{m.evidence_existing()}</span>
+								<select name="path" required class="control"
+									><option value="">—</option>
+									{#each data.documents as document (document.path)}<option value={document.path}
+											>{document.name}</option
+										>{/each}
+								</select></label
+							>
+							<button class="btn-secondary"><Icon name="link" />{m.evidence_link()}</button>
+						</form>
+					{:else}<p class="mt-4 text-xs text-stone-500">{m.evidence_no_available()}</p>{/if}
 				{/if}
 			</div>
 			<section class="card p-4">

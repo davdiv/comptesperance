@@ -2,10 +2,10 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
 import { getEnv } from '$lib/server/env';
-import { listDocuments } from '$lib/server/repository';
+import { listDocumentsWithLinks } from '$lib/server/queries';
 import { deleteDocument, saveDocument } from '$lib/server/repository';
 
-export const load: PageServerLoad = async () => ({ documents: await listDocuments() });
+export const load: PageServerLoad = async () => ({ documents: await listDocumentsWithLinks() });
 
 export const actions: Actions = {
 	upload: async ({ request, locals }) => {
@@ -20,7 +20,11 @@ export const actions: Actions = {
 	delete: async ({ request, locals }) => {
 		requireWrite(locals.user);
 		const form = await request.formData();
-		await deleteDocument(String(form.get('path') ?? ''));
+		try {
+			await deleteDocument(String(form.get('path') ?? ''));
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Delete failed' });
+		}
 		return { ok: true };
 	}
 };

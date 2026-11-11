@@ -6,6 +6,7 @@ import type {
 	Project
 } from '$lib/types';
 import { getDatabase } from './cache';
+import { listDocuments } from './repository';
 
 export interface AccountWithTotals extends AccountTotals {
 	name: string;
@@ -427,5 +428,28 @@ export async function listIssues(accountId?: string): Promise<IssueRow[]> {
 		account_id: stringOrNull(row.account_id),
 		source_file: stringOrNull(row.source_file),
 		message: String(row.message)
+	}));
+}
+export async function listDocumentsWithLinks() {
+	const [documents, db] = await Promise.all([listDocuments(), getDatabase()]);
+	const rows = db
+		.prepare(
+			`SELECT t.account_id, t.id, t.label, a.name AS account_name, e.value AS document_path
+ FROM transactions t
+ JOIN accounts a ON a.id = t.account_id
+ JOIN json_each(t.evidence_json) e
+ ORDER BY t.date DESC, t.account_id, t.id`
+		)
+		.all() as Record<string, unknown>[];
+	return documents.map((document) => ({
+		...document,
+		transactions: rows
+			.filter((row) => row.document_path === document.path)
+			.map((row) => ({
+				account_id: String(row.account_id),
+				id: String(row.id),
+				label: String(row.label || row.id),
+				account_name: String(row.account_name)
+			}))
 	}));
 }
