@@ -40,7 +40,7 @@
 	<section class="space-y-4">
 		<h2 class="text-lg font-semibold">{m.transfers_groups()}</h2>
 		{#each data.groups as group (group.id)}<div class="card p-5">
-				<TransferGroupCard {group} {accountNames} />
+				<TransferGroupCard {group} {accountNames} canWrite={data.user.canWrite} />
 			</div>{:else}<div class="card"><EmptyState message={m.empty_state()} /></div>{/each}
 	</section>
 	{#if data.user.canWrite}<details class="card p-5">
