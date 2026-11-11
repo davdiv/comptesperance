@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit/hooks';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { getTextDirection } from '#lib/paraglide/runtime.js';
 import { getSessionUser } from '#lib/server/auth.ts';
+import { withCommitAuthor } from '#lib/server/commit-author.ts';
 
 const PUBLIC_PATHS = new Set(['/healthz', '/robots.txt', '/favicon.svg']);
 
@@ -28,5 +29,5 @@ export const handle: Handle = ({ event, resolve }) => {
 		return new Response('Unauthorized', { status: 401 });
 	}
 	event.locals.user = user;
-	return paraglideHandle({ event, resolve });
+	return withCommitAuthor(user, () => paraglideHandle({ event, resolve }));
 };

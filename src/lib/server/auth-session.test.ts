@@ -3,6 +3,7 @@ import { isHttpError, isRedirect, type RequestEvent } from '@sveltejs/kit';
 import { getSessionUser, requireWrite, EDIT_MODE_COOKIE, authRedirectUrl } from './auth';
 import { handle } from '../../hooks.server';
 import { POST } from '../../routes/edit-mode/+server';
+import { getCommitAuthor } from './commit-author';
 
 vi.mock('#lib/paraglide/server.js', () => ({
 	paraglideMiddleware: (request: Request, next: (value: unknown) => unknown) =>
@@ -76,6 +77,36 @@ it('sets effective permissions on authenticated page requests', async () => {
 	const resolve = vi.fn(async () => new Response('Page'));
 	expect((await handle({ event: request, resolve } as never)).status).toBe(200);
 	expect(request.locals.user).toMatchObject({ canWrite: true, editMode: true });
+});
+
+it('scopes sanitized proxy identity to the whole request and fixes the development identity', async () => {
+	vi.stubEnv('AUTH_DISABLED', 'false');
+	const request = event(
+		{
+			'remote-user': 'alice',
+			'remote-groups': 'comptes-readwrite',
+			'remote-name': 'Alice <Read-write>',
+			'remote-email': 'alice@example.local'
+		},
+		'1'
+	);
+	const resolve = vi.fn(async () => {
+		expect(getCommitAuthor()).toEqual({ name: 'Alice Read-write', email: 'alice@example.local' });
+		await Promise.resolve();
+		expect(getCommitAuthor()?.email).toBe('alice@example.local');
+		return new Response('Page');
+	});
+	expect((await handle({ event: request, resolve } as never)).status).toBe(200);
+	expect(request.locals.user).toMatchObject({
+		displayName: 'Alice Read-write',
+		email: 'alice@example.local'
+	});
+	expect(getCommitAuthor()).toBeUndefined();
+	vi.stubEnv('AUTH_DISABLED', 'true');
+	expect(getSessionUser(event())).toMatchObject({
+		displayName: 'Development user',
+		email: 'dev@users.invalid'
+	});
 });
 it('requires edit mode even when a caller supplies canWrite=true', () => {
 	expect(() =>
