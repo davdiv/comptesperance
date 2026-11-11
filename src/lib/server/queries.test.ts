@@ -4,6 +4,7 @@ import { getDatabase } from './cache';
 import { listDocuments } from './repository';
 import {
 	getProjectDetails,
+	getTransaction,
 	listProjectsWithTotals,
 	listTransactions,
 	listDocumentsWithLinks
@@ -28,7 +29,8 @@ beforeEach(() => {
 			account_id TEXT, id TEXT, date TEXT, value_date TEXT, amount_cents INTEGER,
 			label TEXT, description TEXT, record_type TEXT, status TEXT, third_party_id TEXT, transfer_id TEXT,
 			notes TEXT, category_id TEXT, evidence_json TEXT, excluded INTEGER, payment_mode_id TEXT, allocations_json TEXT,
-			source TEXT, source_files_json TEXT, raw_json TEXT, attributes_json TEXT
+			source TEXT, source_files_json TEXT, raw_json TEXT, attributes_json TEXT,
+			category_is_guessed INTEGER NOT NULL DEFAULT 0, payment_mode_is_guessed INTEGER NOT NULL DEFAULT 0
 		);
 		INSERT INTO projects VALUES ('project', 'Project', NULL, '', '');
 		INSERT INTO accounts VALUES ('cash', 'Cash');
@@ -72,6 +74,36 @@ it('searches category and payment mode display names rather than opaque ids', as
 });
 
 describe('getProjectDetails', () => {
+	it.each([
+		[1, 1],
+		[1, 0],
+		[0, 1],
+		[0, 0]
+	])(
+		'preserves category/payment provenance (%i, %i) consistently with direct transaction queries',
+		async (categoryGuessed, modeGuessed) => {
+			addAllocation('sale');
+			db.prepare(
+				"UPDATE transactions SET source = 'csv', category_id = 'frais-bancaires', payment_mode_id = 'carte', category_is_guessed = ?, payment_mode_is_guessed = ?"
+			).run(categoryGuessed, modeGuessed);
+			const transaction = (await getProjectDetails('project'))!.allocations[0].transaction;
+			expect(transaction).toMatchObject({
+				category_id: 'frais-bancaires',
+				payment_mode_id: 'carte',
+				category_is_guessed: Boolean(categoryGuessed),
+				payment_mode_is_guessed: Boolean(modeGuessed)
+			});
+			const direct = await getTransaction('cash', 'sale');
+			for (const field of [
+				'category_id',
+				'payment_mode_id',
+				'category_is_guessed',
+				'payment_mode_is_guessed'
+			] as const) {
+				expect(transaction?.[field]).toEqual(direct?.[field]);
+			}
+		}
+	);
 	it('joins transactions and third parties without replacing the allocated amount', async () => {
 		addAllocation('sale');
 		const details = await getProjectDetails('project');

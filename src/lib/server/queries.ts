@@ -357,6 +357,7 @@ export async function getProjectDetails(
 				t.id, t.date, t.value_date, t.amount_cents AS transaction_amount_cents,
 				t.label, t.description, t.record_type, t.status, t.third_party_id,
  tp.name AS third_party_name, t.transfer_id, t.notes, t.category_id, t.payment_mode_id, t.allocations_json, t.evidence_json,
+				t.category_is_guessed, t.payment_mode_is_guessed,
 				t.excluded, t.source, t.source_files_json, t.raw_json, t.attributes_json
 			FROM project_allocations pa
 			LEFT JOIN accounts a ON a.id = pa.account_id
@@ -385,6 +386,8 @@ export async function getProjectDetails(
 					notes: row.notes,
 					category_id: row.category_id,
 					payment_mode_id: row.payment_mode_id,
+					category_is_guessed: row.category_is_guessed,
+					payment_mode_is_guessed: row.payment_mode_is_guessed,
 					allocations_json: row.allocations_json,
 					evidence_json: row.evidence_json,
 					excluded: row.excluded,
