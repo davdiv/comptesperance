@@ -187,5 +187,8 @@
 	"allocation_allocated": "Fully allocated",
 	"allocation_unallocated": "Not allocated",
 	"allocation_partial": "Partially allocated",
-	"allocation_remaining": "Unallocated: {amount}"
+	"allocation_remaining": "Unallocated: {amount}",
+	"sumup_gross": "Gross sale",
+	"sumup_fee": "SumUp fee",
+	"sumup_net": "Net payout"
 }

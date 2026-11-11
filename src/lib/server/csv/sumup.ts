@@ -33,7 +33,7 @@ type Field = keyof typeof HEADER_NAMES;
 const FIELDS = Object.keys(HEADER_NAMES) as Field[];
 const RAW_FIELDS: Field[] = FIELDS;
 
-/** Parses a SumUp POS report. Every data row is kept as a transaction. */
+/** Parses sales, their fees and settlements without changing raw fingerprints. */
 export function parseSumupReport(input: string): ParsedStatement {
 	const errors: string[] = [];
 	const raw = parse(input, {
@@ -67,33 +67,73 @@ export function parseSumupReport(input: string): ParsedStatement {
 		const rawFields = RAW_FIELDS.map((field) => cell(record, field));
 		const value = (field: Field): string => rawFields[RAW_FIELDS.indexOf(field)];
 		const line = offset + 2;
-		const date = parseIsoDate(value('date')) ?? parseIsoDate(value('payout_date'));
+		const recordType = normalizeRecordType(value('transaction_type'));
+		const date =
+			(recordType === 'virement' ? parseIsoDate(value('payout_date')) : null) ??
+			parseIsoDate(value('date'));
 		if (!date) {
 			errors.push(`Transaction (line ${line}): unparseable date.`);
 			continue;
 		}
 
-		const recordType = normalizeRecordType(value('transaction_type'));
 		const status = value('status') || undefined;
 		const amount = sumupAmountCents(value, recordType);
 		const attributes = buildAttributes(value);
+		const id = fingerprint(rawFields);
 
 		transactions.push({
-			id: fingerprint(rawFields),
+			id,
 			raw: rawFields,
 			date,
 			value_date: parseIsoDate(value('payout_date')) ?? undefined,
 			amount_cents: amount,
 			label: [value('transaction_type'), value('transaction_ref')].filter(Boolean).join(' · '),
-			description: value('description') || value('reference') || undefined,
+			description:
+				recordType === 'virement'
+					? value('payout_id') || value('reference') || undefined
+					: value('description') || value('reference') || undefined,
 			record_type: recordType,
 			status,
 			attributes,
 			excluded: status === 'Annulé'
 		});
+		const fee = parseAmountToCents(value('fee_cents'), '.') ?? 0;
+		if (recordType === 'vente' && status === 'Accepté' && fee > 0) {
+			transactions.push({
+				id: `${id}:fee`,
+				raw: rawFields,
+				date,
+				amount_cents: -fee,
+				label: `Frais SumUp · ${value('transaction_ref')}`,
+				record_type: 'fee',
+				attributes: { transaction_ref: value('transaction_ref'), parent_id: id },
+				excluded: false
+			});
+		}
 	}
 
+	enrichSumupSales(transactions);
 	return { transactions, errors };
+}
+
+export function enrichSumupSales(transactions: ParsedTransaction[]): void {
+	const payouts = new Map(
+		transactions
+			.filter((item) => item.record_type === 'virement' && item.attributes?.transaction_ref)
+			.map((item) => [item.attributes!.transaction_ref, item])
+	);
+	for (const sale of transactions.filter((item) => item.record_type === 'vente')) {
+		const payout = payouts.get(sale.attributes?.transaction_ref ?? '');
+		if (!payout) continue;
+		sale.attributes = {
+			...sale.attributes,
+			payout_id: payout.attributes?.payout_id ?? '',
+			payout_transaction_id: payout.id
+		};
+		sale.description =
+			[sale.attributes.item_description, sale.attributes.payout_id].filter(Boolean).join(' · ') ||
+			undefined;
+	}
 }
 
 /** Whether the contents look like a SumUp report. */
@@ -114,11 +154,8 @@ function normalizeRecordType(value: string): string {
 function sumupAmountCents(value: (field: Field) => string, recordType: string): number {
 	const payout = parseAmountToCents(value('payout_cents'), '.');
 	if (recordType === 'virement') return payout === null ? 0 : -payout;
-	if (payout !== null) return payout;
 	const total = parseAmountToCents(value('total_amount_cents'), '.');
-	const fee = parseAmountToCents(value('fee_cents'), '.') ?? 0;
-	if (total === null) return 0;
-	return total - fee;
+	return total ?? 0;
 }
 
 function buildAttributes(value: (field: Field) => string): Record<string, string> {
@@ -137,6 +174,10 @@ function buildAttributes(value: (field: Field) => string): Record<string, string
 		'reference'
 	];
 	const attributes: Record<string, string> = {};
+	for (const field of ['total_amount_cents', 'fee_cents', 'payout_cents'] as const) {
+		attributes[field] = String(parseAmountToCents(value(field), '.') ?? 0);
+	}
+	attributes.item_description = value('description');
 	for (const field of fields) {
 		const fieldValue = value(field);
 		if (fieldValue) attributes[field] = fieldValue;

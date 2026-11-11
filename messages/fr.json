@@ -187,5 +187,8 @@
 	"allocation_allocated": "Entièrement imputé",
 	"allocation_unallocated": "Non imputé",
 	"allocation_partial": "Partiellement imputé",
-	"allocation_remaining": "Reste à imputer : {amount}"
+	"allocation_remaining": "Reste à imputer : {amount}",
+	"sumup_gross": "Vente brute",
+	"sumup_fee": "Frais SumUp",
+	"sumup_net": "Versement net"
 }
