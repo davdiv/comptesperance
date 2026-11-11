@@ -12,6 +12,7 @@ export default defineConfig({
 	reporter: [['list'], ['html', { open: 'never' }]],
 	use: {
 		baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'https://comptes.localhost:8443',
+		channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
 		ignoreHTTPSErrors: true,
 		locale: 'en-GB',
 		viewport: { width: 1440, height: 1000 },
