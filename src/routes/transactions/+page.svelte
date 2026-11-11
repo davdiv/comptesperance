@@ -95,6 +95,24 @@
 			paymentModeId={data.filters.payment_mode_id}
 			filter
 		/>
+		<label class="field"
+			><span class="field-label">{m.allocation_status()}</span>
+			<select name="allocation_status" class="control" value={data.filters.allocation_status ?? ''}>
+				<option value="">{m.common_all()}</option>
+				<option value="allocated">{m.allocation_allocated()}</option>
+				<option value="unallocated">{m.allocation_unallocated()}</option>
+				<option value="partial">{m.allocation_partial()}</option>
+			</select>
+		</label>
+		<label class="field"
+			><span class="field-label">{m.nav_projects()}</span>
+			<select name="project_id" class="control" value={data.filters.project_id ?? ''}>
+				<option value="">{m.common_all()}</option>
+				{#each data.projects as project (project.id)}<option value={project.id}
+						>{project.name}</option
+					>{/each}
+			</select>
+		</label>
 		<label class="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-3">
 			<input
 				type="checkbox"

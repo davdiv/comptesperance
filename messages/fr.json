@@ -181,7 +181,11 @@
 	"account_issues": "Anomalies du compte",
 	"transfers_suggested": "Virements suggérés",
 	"transfer_reference": "Référence commune : {reference}",
-	"transfer_amount_difference": "Écart de montant : {amount}. Vérifiez les frais ou versements partiels avant de lier.",
 	"transfer_suggestion_invalid": "Cette suggestion n’est plus disponible. Actualisez la page.",
-	"allocation_add_unavailable": "Aucun montant restant ou projet disponible. Modifiez une imputation ou créez un autre projet."
+	"allocation_add_unavailable": "Aucun montant restant ou projet disponible. Modifiez une imputation ou créez un autre projet.",
+	"allocation_status": "État d’imputation",
+	"allocation_allocated": "Entièrement imputé",
+	"allocation_unallocated": "Non imputé",
+	"allocation_partial": "Partiellement imputé",
+	"allocation_remaining": "Reste à imputer : {amount}"
 }

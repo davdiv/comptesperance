@@ -12,7 +12,7 @@
 <section class="card mb-6">
 	<div class="card-header"><h2 class="card-title">{m.checkpoints_title()}</h2></div>
 	{#if checkpoints.length}
-		<div class="overflow-x-auto">
+		<div class="relative overflow-x-auto">
 			<table class="table">
 				<thead
 					><tr

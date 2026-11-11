@@ -21,7 +21,7 @@ const candidate = (patch: Partial<TransferTransaction> = {}): TransferTransactio
 	label: 'Incoming',
 	...patch
 });
-it('matches the real SumUp payout reference to CCP even when the amounts differ', () => {
+it('rejects the real unequal-amount SumUp and CCP pair despite their shared reference', () => {
 	const sample = (name: string) =>
 		readFileSync(new URL('./csv/testdata/' + name + '-sample.csv', import.meta.url), 'utf8');
 	const sumup = parseCsvStatement(sample('sumup'), 'sumup').transactions.find(
@@ -35,21 +35,24 @@ it('matches the real SumUp payout reference to CCP even when the amounts differ'
 	const a = { ...sumup, account_id: 'sumup' },
 		b = { ...ccp, account_id: 'ccp' };
 	const matches = rankTransferCandidates(a, [b]);
-	expect(matches[0]).toMatchObject({
+	expect(matches).toEqual([]);
+	expect(rankTransferCandidates(b, [a])).toEqual([]);
+	expect(suggestedTransferPairs([a, b])).toEqual([]);
+	const balanced = { ...b, amount_cents: -a.amount_cents };
+	expect(rankTransferCandidates(a, [balanced])[0]).toMatchObject({
 		strong: true,
-		reference: 'PID9000007',
-		difference_cents: 3534
+		reference: 'PID9000007'
 	});
-	expect(suggestedTransferPairs([a, b])).toHaveLength(1);
+	expect(suggestedTransferPairs([a, balanced])).toHaveLength(1);
 });
 it('ranks reference matches first, then calendar-day proximity', () => {
 	const matches = rankTransferCandidates(first, [
 		candidate({ id: 'far', date: '2026-10-09' }),
 		candidate({ id: 'near' }),
-		candidate({ id: 'reference', date: '2026-10-05', label: 'PID9000007', amount_cents: 1200 })
+		candidate({ id: 'reference', date: '2026-10-05', label: 'PID9000007', amount_cents: 1000 })
 	]);
 	expect(matches.map((m) => m.transaction.id)).toEqual(['reference', 'near', 'far']);
-	expect(matches[0].difference_cents).toBe(200);
+	expect(matches[0].reference).toBe('PID9000007');
 });
 it('filters ineligible candidates and accepts the seven-day boundary', () => {
 	const pool = [

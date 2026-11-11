@@ -14,7 +14,6 @@ export interface TransferMatch<T extends TransferTransaction = TransferTransacti
 	strong: boolean;
 	reference: string | null;
 	days: number;
-	difference_cents: number;
 }
 function tokens(transaction: TransferTransaction): Set<string> {
 	const text = [
@@ -40,8 +39,7 @@ export function rankTransferCandidates<T extends TransferTransaction>(
 				candidate.account_id === transaction.account_id ||
 				candidate.transfer_id ||
 				candidate.excluded ||
-				candidate.amount_cents === 0 ||
-				Math.sign(candidate.amount_cents) === Math.sign(transaction.amount_cents)
+				candidate.amount_cents !== -transaction.amount_cents
 			)
 				return [];
 			const days =
@@ -50,11 +48,7 @@ export function rankTransferCandidates<T extends TransferTransaction>(
 				) / 86400000;
 			if (!Number.isFinite(days) || days > 7) return [];
 			const reference = [...tokens(candidate)].find((token) => references.has(token)) ?? null;
-			const difference_cents = transaction.amount_cents + candidate.amount_cents;
-			if (!reference && difference_cents !== 0) return [];
-			return [
-				{ transaction: candidate, strong: reference !== null, reference, days, difference_cents }
-			];
+			return [{ transaction: candidate, strong: reference !== null, reference, days }];
 		})
 		.sort(
 			(a, b) =>
