@@ -113,6 +113,32 @@ it('rejects unknown ids, empty names and invalid kinds without writes', async ()
 });
 
 it.each([
+	['categories', 'category_id', 'dons'],
+	['paymentModes', 'payment_mode_id', 'carte']
+] as const)(
+	'blocks deletion from %s referenced only by a disabled rule',
+	async (collection, field, id) => {
+		await writeFile(
+			path.join(root, 'config/rules.json'),
+			JSON.stringify([
+				{
+					id: 'disabled',
+					name: 'Disabled rule',
+					enabled: false,
+					conditions: { text: 'receipt' },
+					set: { [field]: id }
+				}
+			])
+		);
+		await expect(mutateConfig(collection, { id, remove: true }, root)).rejects.toThrow(
+			'config_in_use'
+		);
+		expect((await readConfig(root))[collection].some((entry) => entry.id === id)).toBe(true);
+		expect(commitAll).not.toHaveBeenCalled();
+	}
+);
+
+it.each([
 	['ccp', 'virement', ''],
 	['ccp', 'virement', 'cheque'],
 	['sumup', 'carte', ''],
