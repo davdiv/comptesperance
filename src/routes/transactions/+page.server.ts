@@ -13,7 +13,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		search: url.searchParams.get('search') || undefined,
 		date_from: url.searchParams.get('date_from') || undefined,
 		date_to: url.searchParams.get('date_to') || undefined,
-		record_type: url.searchParams.get('record_type') || undefined,
+		category_id: url.searchParams.get('category_id') || undefined,
+		payment_mode_id: url.searchParams.get('payment_mode_id') || undefined,
 		include_transfers: includeTransfers,
 		limit: 500
 	};

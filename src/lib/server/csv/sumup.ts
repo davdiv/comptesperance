@@ -75,7 +75,7 @@ export function parseSumupReport(input: string): ParsedStatement {
 
 		const recordType = normalizeRecordType(value('transaction_type'));
 		const status = value('status') || undefined;
-		const amount = sumupAmountCents(value, recordType, status);
+		const amount = sumupAmountCents(value, recordType);
 		const attributes = buildAttributes(value);
 
 		transactions.push({
@@ -84,13 +84,12 @@ export function parseSumupReport(input: string): ParsedStatement {
 			date,
 			value_date: parseIsoDate(value('payout_date')) ?? undefined,
 			amount_cents: amount,
-			currency: 'EUR',
 			label: [value('transaction_type'), value('transaction_ref')].filter(Boolean).join(' · '),
 			description: value('description') || value('reference') || undefined,
 			record_type: recordType,
 			status,
 			attributes,
-			counts_in_total: status !== 'Annulé'
+			excluded: status === 'Annulé'
 		});
 	}
 
@@ -112,12 +111,7 @@ function normalizeRecordType(value: string): string {
 	return normalized || 'unknown';
 }
 
-function sumupAmountCents(
-	value: (field: Field) => string,
-	recordType: string,
-	status: string | undefined
-): number {
-	if (status === 'Annulé') return 0;
+function sumupAmountCents(value: (field: Field) => string, recordType: string): number {
 	const payout = parseAmountToCents(value('payout_cents'), '.');
 	if (recordType === 'virement') return payout === null ? 0 : -payout;
 	if (payout !== null) return payout;

@@ -21,7 +21,8 @@
 		],
 		[
 			{ href: '/documents', label: m.nav_documents, icon: 'documents' },
-			{ href: '/import', label: m.nav_import, icon: 'upload' }
+			{ href: '/import', label: m.nav_import, icon: 'upload' },
+			{ href: '/settings', label: m.nav_settings, icon: 'settings' }
 		]
 	];
 
@@ -38,7 +39,14 @@
 	});
 </script>
 
-<svelte:head><title>{m.app_title()}</title></svelte:head>
+<svelte:head
+	><title
+		>{sections
+			.flat()
+			.find((link) => isActive(link.href))
+			?.label() ?? ''} · {data.config.app.name}</title
+	></svelte:head
+>
 
 <div class="min-h-screen lg:grid lg:grid-cols-[15rem_1fr]">
 	<aside
@@ -49,9 +57,11 @@
 		<a href="/" class="flex h-16 items-center gap-2.5 px-5">
 			<span
 				class="grid size-8 place-items-center rounded-lg bg-brand-700 text-sm font-bold text-white"
-				>C</span
+				>{data.config.app.name.charAt(0).toUpperCase()}</span
 			>
-			<span class="text-[15px] leading-tight font-semibold text-stone-900">{m.app_title()}</span>
+			<span class="text-[15px] leading-tight font-semibold text-stone-900"
+				>{data.config.app.name}</span
+			>
 		</a>
 		<nav class="flex-1 space-y-5 overflow-y-auto px-3 py-2">
 			{#each sections as section, i (i)}
@@ -125,7 +135,7 @@
 				aria-label="Menu"
 				onclick={() => (menuOpen = true)}><Icon name="menu" class="size-5" /></button
 			>
-			<span class="font-semibold text-stone-900">{m.app_title()}</span>
+			<span class="font-semibold text-stone-900">{data.config.app.name}</span>
 		</div>
 		<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
 			{@render children()}

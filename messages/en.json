@@ -141,5 +141,22 @@
 	"auth_read_only_notice": "You have read-only access.",
 	"error_not_found": "Page not found.",
 	"error_generic": "Something went wrong.",
-	"dashboard_recent": "Recent transactions"
+	"dashboard_recent": "Recent transactions",
+	"nav_settings": "Settings",
+	"settings_subtitle": "Application name, categories and payment modes.",
+	"settings_app_name": "Application name",
+	"settings_name": "Name",
+	"settings_saved": "Settings saved.",
+	"category_income": "Income",
+	"category_expense": "Expense",
+	"category_kind": "Kind",
+	"payment_mode": "Payment mode",
+	"payment_modes": "Payment modes",
+	"config_archived": "Archived",
+	"config_unknown": "Unknown reference",
+	"config_invalid": "Enter a name and a valid kind.",
+	"config_in_use": "This entry is used by transactions. Archive it instead.",
+	"allocation_invalid": "Allocations must have the transaction sign and their combined absolute amounts must not exceed its amount.",
+	"project_delete_confirm": "Delete this project and remove its allocations from all transactions?",
+	"common_actions": "Actions"
 }

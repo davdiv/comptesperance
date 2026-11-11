@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatMoney } from '$lib/format';
-	import { accountSourceLabel, accountTypeLabel } from '$lib/labels';
+	import { accountSourceLabel } from '$lib/labels';
 	import Alert from '$lib/components/Alert.svelte';
+	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
 	import FormPanel from '$lib/components/FormPanel.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import StatCard from '$lib/components/StatCard.svelte';
@@ -15,11 +16,9 @@
 
 <PageHeader title={account.name} back={{ href: '/accounts', label: m.accounts_title() }}>
 	{#snippet meta()}
-		<span class="badge badge-neutral">{accountTypeLabel(account.type)}</span>
 		<span class="badge {account.source === 'csv' ? 'badge-blue' : 'badge-neutral'}"
 			>{accountSourceLabel(account.source)}</span
 		>
-		<span class="badge badge-neutral">{account.currency}</span>
 	{/snippet}
 	{#snippet actions()}
 		{#if data.user.canWrite && account.source === 'csv'}
@@ -28,27 +27,22 @@
 	{/snippet}
 </PageHeader>
 
+{#if account.notes}<p class="card mb-6 p-5 whitespace-pre-wrap">{account.notes}</p>{/if}
+
 {#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
 
 <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 	<StatCard
 		label={m.account_current_balance()}
-		value={formatMoney(account.current_balance_cents, account.currency)}
+		value={formatMoney(account.current_balance_cents)}
 		tone={account.current_balance_cents < 0 ? 'negative' : 'brand'}
 	/>
 	<StatCard
-		label={m.account_opening_balance()}
-		value={formatMoney(account.opening_balance_cents, account.currency)}
-	/>
-	<StatCard
 		label={m.account_incoming()}
-		value={formatMoney(account.incoming_cents, account.currency)}
+		value={formatMoney(account.incoming_cents)}
 		tone="positive"
 	/>
-	<StatCard
-		label={m.account_outgoing()}
-		value={formatMoney(account.outgoing_cents, account.currency)}
-	/>
+	<StatCard label={m.account_outgoing()} value={formatMoney(account.outgoing_cents)} />
 </section>
 
 {#if data.issues.length}
@@ -73,17 +67,13 @@
 					<input name="date" type="date" required class="control" />
 				</label>
 				<label class="field">
-					<span class="field-label">{m.transaction_value_date()}</span>
-					<input name="value_date" type="date" class="control" />
-				</label>
-				<label class="field">
 					<span class="field-label">{m.transaction_amount()}</span>
 					<input name="amount" required inputmode="decimal" placeholder="-12.50" class="control" />
 				</label>
-				<label class="field">
-					<span class="field-label">{m.common_category()}</span>
-					<input name="category" class="control" />
-				</label>
+				<ReferenceFields
+					categories={data.config.categories}
+					paymentModes={data.config.paymentModes}
+				/>
 				<label class="field sm:col-span-2">
 					<span class="field-label">{m.common_label()}</span>
 					<input name="label" class="control" />
@@ -99,8 +89,8 @@
 				<div class="flex flex-wrap items-center gap-4 sm:col-span-2 lg:col-span-4">
 					<button class="btn">{m.common_create()}</button>
 					<label class="flex items-center gap-2 text-sm text-stone-700">
-						<input name="counts_in_total" type="checkbox" checked class="checkbox" />
-						{m.transaction_counts_in_total()}
+						<input name="excluded" type="checkbox" class="checkbox" />
+						{m.transaction_excluded()}
 					</label>
 				</div>
 			</form>
@@ -132,28 +122,11 @@
 				<span class="field-label">{m.account_name()}</span>
 				<input name="name" value={account.name} class="control" />
 			</label>
-			<label class="field">
-				<span class="field-label">{m.account_type()}</span>
-				<select name="type" class="control">
-					{#each data.accountTypes as type (type)}<option
-							value={type}
-							selected={type === account.type}>{accountTypeLabel(type)}</option
-						>{/each}
-				</select>
-			</label>
-			<label class="field">
-				<span class="field-label">{m.account_currency()}</span>
-				<input name="currency" value={account.currency} class="control" />
-			</label>
-			<label class="field">
-				<span class="field-label">{m.account_opening_balance()}</span>
-				<input
-					name="opening_balance"
-					inputmode="decimal"
-					value={(account.opening_balance_cents / 100).toFixed(2)}
-					class="control"
-				/>
-			</label>
+			<label class="field sm:col-span-2"
+				><span class="field-label">{m.common_notes()}</span><textarea name="notes" class="control"
+					>{account.notes ?? ''}</textarea
+				></label
+			>
 			<div class="sm:col-span-2 lg:col-span-4"><button class="btn">{m.common_save()}</button></div>
 		</form>
 	</details>

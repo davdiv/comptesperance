@@ -8,22 +8,22 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Amount from '$lib/components/Amount.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
 	import type { PageProps } from './$types';
 
 	const { data, form }: PageProps = $props();
 	const transaction = $derived(data.transaction);
 	const account = $derived(data.account);
 	const isManual = $derived(account.source === 'manual');
+
 	const projectAllocations = $derived(
-		data.projects.flatMap((project) =>
-			project.allocations
-				.filter(
-					(allocation) =>
-						allocation.account_id === transaction.account_id &&
-						allocation.transaction_id === transaction.id
-				)
-				.map((allocation) => ({ project, allocation }))
-		)
+		transaction.allocations.map((allocation) => ({
+			allocation,
+			project: data.projects.find((project) => project.id === allocation.project_id) ?? {
+				id: allocation.project_id,
+				name: allocation.project_id
+			}
+		}))
 	);
 </script>
 
@@ -35,11 +35,9 @@
 	>
 		{#snippet actions()}<Amount
 				cents={transaction.amount_cents}
-				currency={transaction.currency}
 				class="text-3xl font-semibold"
 			/>{/snippet}
-		{#snippet meta()}<span class="badge badge-neutral">{transaction.record_type}</span><span
-				class="badge badge-blue">{accountSourceLabel(account.source)}</span
+		{#snippet meta()}<span class="badge badge-blue">{accountSourceLabel(account.source)}</span
 			>{#if transaction.transfer_id}<span class="badge badge-violet">{m.common_transfers()}</span
 				>{/if}{#if transaction.excluded}<span class="badge badge-amber"
 					>{m.transaction_excluded()}</span
@@ -56,18 +54,14 @@
 						<dt class="text-stone-500">{m.transaction_date()}</dt>
 						<dd>{formatDate(transaction.date)}</dd>
 					</div>
-					<div>
-						<dt class="text-stone-500">{m.transaction_value_date()}</dt>
-						<dd>{formatDate(transaction.value_date)}</dd>
-					</div>
-					<div>
-						<dt class="text-stone-500">{m.transaction_record_type()}</dt>
-						<dd>{transaction.record_type}</dd>
-					</div>
-					<div>
-						<dt class="text-stone-500">{m.transaction_status()}</dt>
-						<dd>{transaction.status ?? '—'}</dd>
-					</div>
+					{#if !isManual}<div>
+							<dt class="text-stone-500">{m.transaction_value_date()}</dt>
+							<dd>{formatDate(transaction.value_date)}</dd>
+						</div>
+						<div>
+							<dt class="text-stone-500">{m.transaction_status()}</dt>
+							<dd>{transaction.status ?? '—'}</dd>
+						</div>{/if}
 					<div>
 						<dt class="text-stone-500">{m.transaction_source()}</dt>
 						<dd>{accountSourceLabel(transaction.source)}</dd>
@@ -75,6 +69,34 @@
 					<div>
 						<dt class="text-stone-500">{m.transaction_transfer_id()}</dt>
 						<dd>{transaction.transfer_id ?? '—'}</dd>
+					</div>
+
+					<div>
+						<dt>{m.common_category()}</dt>
+						<dd
+							class={transaction.category_id &&
+							!data.config.categories.some((c) => c.id === transaction.category_id)
+								? 'text-amber-700'
+								: ''}
+						>
+							{data.config.categories.find((c) => c.id === transaction.category_id)?.name ??
+								(transaction.category_id
+									? m.config_unknown() + ' (' + transaction.category_id + ')'
+									: '—')}
+						</dd>
+					</div>
+					<div>
+						<dt>{m.payment_mode()}</dt>
+						<dd>
+							{data.config.paymentModes.find((p) => p.id === transaction.payment_mode_id)?.name ??
+								(transaction.payment_mode_id
+									? m.config_unknown() + ' (' + transaction.payment_mode_id + ')'
+									: '—')}
+						</dd>
+					</div>
+					<div>
+						<dt>{m.common_notes()}</dt>
+						<dd class="whitespace-pre-wrap">{transaction.notes || '—'}</dd>
 					</div>
 				</dl>
 				{#if transaction.description}<p class="mt-3 text-sm text-stone-600">
@@ -93,14 +115,6 @@
 									type="date"
 									value={transaction.date}
 									required
-									class="control"
-								/></label
-							>
-							<label class="field"
-								><span class="field-label">{m.transaction_value_date()}</span><input
-									name="value_date"
-									type="date"
-									value={transaction.value_date ?? ''}
 									class="control"
 								/></label
 							>
@@ -129,13 +143,12 @@
 						>
 					{/if}
 					<div class="grid gap-3 sm:grid-cols-2">
-						<label class="field"
-							><span class="field-label">{m.common_category()}</span><input
-								name="category"
-								value={transaction.category}
-								class="control"
-							/></label
-						>
+						<ReferenceFields
+							categories={data.config.categories}
+							paymentModes={data.config.paymentModes}
+							categoryId={transaction.category_id}
+							paymentModeId={transaction.payment_mode_id}
+						/>
 						<label class="field"
 							><span class="field-label">{m.common_third_party()}</span><select
 								name="third_party_id"
@@ -159,18 +172,19 @@
 					>
 					<label class="flex items-center gap-2 text-sm"
 						><input
-							name="counts_in_total"
+							name="excluded"
 							type="checkbox"
 							class="checkbox"
-							checked={!transaction.excluded && transaction.counts_in_total}
+							checked={transaction.excluded}
 						/>
-						{m.transaction_counts_in_total()}</label
+						{m.transaction_excluded()}</label
 					>
 					<button class="btn">{m.common_save()}</button>
 				</form>
-
-				<section class="card p-4">
-					<h2 class="card-title">{m.project_add_allocation()}</h2>
+			{/if}
+			<section class="card p-4">
+				<h2 class="card-title">{m.project_add_allocation()}</h2>
+				{#if data.user.canWrite}
 					<form
 						method="POST"
 						action="?/add_project_allocation"
@@ -204,18 +218,18 @@
 						>
 						<button class="btn sm:col-span-2 sm:w-fit">{m.project_add_allocation()}</button>
 					</form>
-					{#if projectAllocations.length}
-						<ul class="mt-4 space-y-2 text-sm">
-							{#each projectAllocations as item (item.project.id)}
-								<li class="flex justify-between rounded bg-stone-50 px-3 py-2">
-									<a class="link" href="/projects/{item.project.id}">{item.project.name}</a>
-									<span>{formatMoney(item.allocation.amount_cents, transaction.currency)}</span>
-								</li>
-							{/each}
-						</ul>
-					{:else}<EmptyState message={m.project_no_allocations()} icon="projects" />{/if}
-				</section>
-			{/if}
+				{/if}
+				{#if projectAllocations.length}
+					<ul class="mt-4 space-y-2 text-sm">
+						{#each projectAllocations as item (item.project.id)}
+							<li class="flex justify-between rounded bg-stone-50 px-3 py-2">
+								<a class="link" href="/projects/{item.project.id}">{item.project.name}</a>
+								<span>{formatMoney(item.allocation.amount_cents)}</span>
+							</li>
+						{/each}
+					</ul>
+				{:else}<EmptyState message={m.project_no_allocations()} icon="projects" />{/if}
+			</section>
 		</section>
 
 		<section class="space-y-6">
@@ -290,7 +304,7 @@
 							class="link"
 							href="/transactions/{transaction.counterpart_account_id}/{transaction.counterpart_transaction_id}"
 							>{#if data.counterpart}{formatDate(data.counterpart.date)} · {data.counterpart.label} ·
-								{formatMoney(data.counterpart.amount_cents, data.counterpart.currency)} · {data.counterpartAccountName}{:else}{m.empty_state()}{/if}</a
+								{formatMoney(data.counterpart.amount_cents)} · {data.counterpartAccountName}{:else}{m.empty_state()}{/if}</a
 						>
 					</p>
 					{#if data.user.canWrite}<form method="POST" action="?/unlink_transfer" class="mt-4">

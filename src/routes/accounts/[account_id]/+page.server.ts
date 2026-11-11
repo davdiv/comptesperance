@@ -4,9 +4,6 @@ import { requireWrite } from '$lib/server/auth';
 import { parseDecimalToCents } from '$lib/server/money';
 import { getAccountWithTotals, listIssues, listTransactions } from '$lib/server/queries';
 import { createManualTransaction, updateAccount } from '$lib/server/repository';
-import type { AccountType } from '$lib/types';
-
-const ACCOUNT_TYPES: AccountType[] = ['bank', 'sumup', 'stripe', 'cash', 'other'];
 
 export const load: PageServerLoad = async ({ params }) => {
 	const account = await getAccountWithTotals(params.account_id);
@@ -15,7 +12,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		listTransactions({ account_id: account.account_id, include_transfers: true, limit: 500 }),
 		listIssues(account.account_id)
 	]);
-	return { account, transactions: transactions.transactions, issues, accountTypes: ACCOUNT_TYPES };
+	return { account, transactions: transactions.transactions, issues };
 };
 
 export const actions: Actions = {
@@ -23,17 +20,10 @@ export const actions: Actions = {
 		requireWrite(locals.user);
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
-		const currency = String(form.get('currency') ?? '')
-			.trim()
-			.toUpperCase();
-		const opening = parseDecimalToCents(String(form.get('opening_balance') ?? ''));
-		const type = String(form.get('type') ?? '') as AccountType;
 		try {
 			await updateAccount(params.account_id, {
 				name: name || undefined,
-				currency: currency || undefined,
-				opening_balance_cents: opening ?? undefined,
-				type: ACCOUNT_TYPES.includes(type) ? type : undefined
+				notes: String(form.get('notes') ?? '').trim() || undefined
 			});
 		} catch (e) {
 			return fail(400, { error: e instanceof Error ? e.message : 'Update failed' });
@@ -52,15 +42,13 @@ export const actions: Actions = {
 		try {
 			await createManualTransaction(account.account_id, {
 				date,
-				value_date: String(form.get('value_date') ?? '').trim() || undefined,
 				amount_cents: amount,
-				currency: account.currency,
 				label: String(form.get('label') ?? '').trim() || 'Manual transaction',
 				description: String(form.get('description') ?? '').trim() || undefined,
-				category: String(form.get('category') ?? '').trim() || undefined,
+				category_id: String(form.get('category_id') ?? '').trim() || undefined,
+				payment_mode_id: String(form.get('payment_mode_id') ?? '').trim() || undefined,
 				notes: String(form.get('notes') ?? '').trim() || undefined,
-				counts_in_total: form.get('counts_in_total') === 'on',
-				excluded: form.get('counts_in_total') !== 'on'
+				excluded: form.get('excluded') === 'on'
 			});
 		} catch (e) {
 			return fail(400, { error: e instanceof Error ? e.message : 'Create failed' });

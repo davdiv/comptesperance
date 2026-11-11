@@ -141,5 +141,22 @@
 	"auth_read_only_notice": "Vous avez un accès en lecture seule.",
 	"error_not_found": "Page introuvable.",
 	"error_generic": "Une erreur est survenue.",
-	"dashboard_recent": "Transactions récentes"
+	"dashboard_recent": "Transactions récentes",
+	"nav_settings": "Paramètres",
+	"settings_subtitle": "Nom de l’application, catégories et modes de paiement.",
+	"settings_app_name": "Nom de l’application",
+	"settings_name": "Nom",
+	"settings_saved": "Paramètres enregistrés.",
+	"category_income": "Recettes",
+	"category_expense": "Dépenses",
+	"category_kind": "Nature",
+	"payment_mode": "Mode de paiement",
+	"payment_modes": "Modes de paiement",
+	"config_archived": "Archivé",
+	"config_unknown": "Référence inconnue",
+	"config_invalid": "Saisissez un nom et une nature valide.",
+	"config_in_use": "Cette entrée est utilisée par des opérations. Archivez-la plutôt.",
+	"allocation_invalid": "Les affectations doivent avoir le signe de l’opération et leur somme en valeur absolue ne doit pas dépasser son montant.",
+	"project_delete_confirm": "Supprimer ce projet et retirer ses affectations de toutes les opérations ?",
+	"common_actions": "Actions"
 }

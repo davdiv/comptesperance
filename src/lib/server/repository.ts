@@ -5,13 +5,14 @@ import type {
 	Account,
 	AccountFile,
 	AccountSource,
-	AccountType,
 	ManualTransaction,
 	Project,
 	ProjectAllocation,
 	ThirdParty,
 	TransactionAnnotation
 } from '$lib/types';
+import { ensureConfig } from './config';
+import { detectCsvFormat, parseCsvStatement } from './csv';
 import { getEnv } from './env';
 import { commitAll, ensureGitRepo } from './git';
 import {
@@ -20,6 +21,7 @@ import {
 	pathExists,
 	readBinaryFile,
 	readJsonFile,
+	readTextFile,
 	removeFile,
 	safeJoin,
 	writeBinaryFile,
@@ -42,7 +44,6 @@ export interface TransactionRef {
 	transaction_id: string;
 }
 
-const ACCOUNT_TYPES: AccountType[] = ['bank', 'sumup', 'stripe', 'cash', 'other'];
 const ACCOUNT_SOURCES: AccountSource[] = ['csv', 'manual'];
 
 function now(): string {
@@ -62,10 +63,11 @@ export async function ensureDataRepo(root?: string): Promise<string> {
 	await mkdir(target, { recursive: true });
 	await ensureGitRepo(target);
 	await Promise.all(
-		['accounts', 'projects', 'third-parties', 'documents'].map((dir) =>
+		['accounts', 'projects', 'third-parties', 'documents', 'config'].map((dir) =>
 			mkdir(path.join(target, dir), { recursive: true })
 		)
 	);
+	await ensureConfig(target);
 	return target;
 }
 
@@ -148,24 +150,19 @@ async function uniqueAccountId(root: string, name: string): Promise<string> {
 export async function createAccount(
 	input: {
 		name: string;
-		type: AccountType;
 		source: AccountSource;
-		currency?: string;
-		opening_balance_cents?: number;
+		notes?: string;
 	},
 	root?: string
 ): Promise<Account> {
 	const repo = await repoRoot(root);
-	if (!ACCOUNT_TYPES.includes(input.type)) throw new Error('Invalid account type');
 	if (!ACCOUNT_SOURCES.includes(input.source)) throw new Error('Invalid account source');
 	const id = await uniqueAccountId(repo, input.name);
 	const timestamp = now();
 	const account: Account = {
 		id,
 		name: input.name.trim(),
-		type: input.type,
-		currency: (input.currency ?? 'EUR').toUpperCase(),
-		opening_balance_cents: Math.round(input.opening_balance_cents ?? 0),
+		notes: input.notes?.trim() || undefined,
 		source: input.source,
 		created_at: timestamp,
 		updated_at: timestamp
@@ -181,21 +178,15 @@ export async function createAccount(
 
 export async function updateAccount(
 	id: string,
-	patch: Partial<Pick<Account, 'name' | 'type' | 'currency' | 'opening_balance_cents'>>,
+	patch: Partial<Pick<Account, 'name' | 'notes'>>,
 	root?: string
 ): Promise<Account> {
 	const repo = await repoRoot(root);
 	const file = await readStoredAccount(repo, id);
 	if (!file) throw new Error('Account not found');
-	if (patch.type && !ACCOUNT_TYPES.includes(patch.type)) throw new Error('Invalid account type');
 	file.account = {
 		...file.account,
 		...patch,
-		currency: patch.currency ? patch.currency.toUpperCase() : file.account.currency,
-		opening_balance_cents:
-			patch.opening_balance_cents === undefined
-				? file.account.opening_balance_cents
-				: Math.round(patch.opening_balance_cents),
 		updated_at: now()
 	};
 	await writeStoredAccount(repo, file);
@@ -203,16 +194,12 @@ export async function updateAccount(
 	return file.account;
 }
 
-function cleanManualTransaction(
-	transaction: ManualTransaction,
-	account: Account
-): ManualTransaction {
+function cleanManualTransaction(transaction: ManualTransaction): ManualTransaction {
+	validateAllocations(transaction.amount_cents, transaction.allocations ?? []);
 	return {
 		...transaction,
 		amount_cents: Math.round(transaction.amount_cents),
-		currency: transaction.currency || account.currency,
 		record_type: transaction.record_type || 'manual',
-		counts_in_total: transaction.counts_in_total ?? !transaction.excluded,
 		evidence: transaction.evidence?.filter(Boolean) ?? []
 	};
 }
@@ -227,10 +214,12 @@ export async function createManualTransaction(
 	if (!file) throw new Error('Account not found');
 	if (file.account.source !== 'manual') throw new Error('Account is not manual');
 	const timestamp = now();
-	const transaction: ManualTransaction = cleanManualTransaction(
-		{ ...input, id: randomUUID(), created_at: timestamp, updated_at: timestamp },
-		file.account
-	);
+	const transaction: ManualTransaction = cleanManualTransaction({
+		...input,
+		id: randomUUID(),
+		created_at: timestamp,
+		updated_at: timestamp
+	});
 	file.transactions = [...(file.transactions ?? []), transaction];
 	await writeStoredAccount(repo, file);
 	await commitData(repo, `data: add transaction to ${accountId}`);
@@ -251,10 +240,13 @@ export async function updateManualTransaction(
 	const index = transactions.findIndex((transaction) => transaction.id === transactionId);
 	if (index === -1) throw new Error('Transaction not found');
 	const current = transactions[index];
-	const next = cleanManualTransaction(
-		{ ...current, ...patch, id: current.id, created_at: current.created_at, updated_at: now() },
-		file.account
-	);
+	const next = cleanManualTransaction({
+		...current,
+		...patch,
+		id: current.id,
+		created_at: current.created_at,
+		updated_at: now()
+	});
 	transactions[index] = next;
 	file.transactions = transactions;
 	await writeStoredAccount(repo, file);
@@ -280,20 +272,6 @@ export async function deleteManualTransaction(
 	if (counterpart) {
 		await applyTransferFields(repo, counterpart, EMPTY_TRANSFER, { ignoreMissing: true });
 	}
-	const projects = await listProjects(repo);
-	for (const project of projects) {
-		const allocations = project.allocations.filter(
-			(allocation) =>
-				allocation.account_id !== accountId || allocation.transaction_id !== transactionId
-		);
-		if (allocations.length !== project.allocations.length) {
-			await writeJsonFile(path.join(repo, 'projects', `${project.id}.json`), {
-				...project,
-				allocations,
-				updated_at: now()
-			});
-		}
-	}
 	const currentFile = await readStoredAccount(repo, accountId);
 	if (!currentFile) throw new Error('Account not found');
 	file.transactions = currentFile.transactions;
@@ -307,7 +285,10 @@ export async function deleteManualTransaction(
 function cleanAnnotation(annotation: TransactionAnnotation): TransactionAnnotation {
 	const cleaned: TransactionAnnotation = {};
 	if (annotation.notes?.trim()) cleaned.notes = annotation.notes.trim();
-	if (annotation.category?.trim()) cleaned.category = annotation.category.trim();
+	if (annotation.category_id?.trim()) cleaned.category_id = annotation.category_id.trim();
+	if (annotation.payment_mode_id?.trim())
+		cleaned.payment_mode_id = annotation.payment_mode_id.trim();
+	if (annotation.allocations) cleaned.allocations = annotation.allocations;
 	if (annotation.third_party_id) cleaned.third_party_id = annotation.third_party_id;
 	if (annotation.transfer_id) cleaned.transfer_id = annotation.transfer_id;
 	if (annotation.counterpart_account_id) {
@@ -338,6 +319,11 @@ export async function upsertAnnotation(
 	const file = await readStoredAccount(repo, accountId);
 	if (!file) throw new Error('Account not found');
 	if (file.account.source !== 'csv') throw new Error('Account does not use CSV annotations');
+	if (annotation.allocations)
+		validateAllocations(
+			(await findCsvTransaction(file, transactionId)).amount_cents,
+			annotation.allocations
+		);
 	const cleaned = cleanAnnotation(annotation);
 	const annotations = { ...(file.annotations ?? {}) };
 	if (isEmptyAnnotation(cleaned)) delete annotations[transactionId];
@@ -494,22 +480,8 @@ async function uniqueProjectId(root: string, name: string): Promise<string> {
 	return candidate;
 }
 
-function cleanAllocations(allocations: ProjectAllocation[]): ProjectAllocation[] {
-	return allocations
-		.map((allocation) => ({
-			account_id: allocation.account_id,
-			transaction_id: allocation.transaction_id,
-			amount_cents: Math.round(allocation.amount_cents),
-			note: allocation.note?.trim() || undefined
-		}))
-		.filter(
-			(allocation) =>
-				allocation.account_id && allocation.transaction_id && allocation.amount_cents !== 0
-		);
-}
-
 export async function createProject(
-	input: { name: string; description?: string; allocations?: ProjectAllocation[] },
+	input: { name: string; description?: string },
 	root?: string
 ): Promise<Project> {
 	const repo = await repoRoot(root);
@@ -519,7 +491,6 @@ export async function createProject(
 		id,
 		name: input.name.trim(),
 		description: input.description?.trim() || undefined,
-		allocations: cleanAllocations(input.allocations ?? []),
 		created_at: timestamp,
 		updated_at: timestamp
 	};
@@ -530,7 +501,7 @@ export async function createProject(
 
 export async function updateProject(
 	id: string,
-	patch: Partial<Pick<Project, 'name' | 'description' | 'allocations'>>,
+	patch: Partial<Pick<Project, 'name' | 'description'>>,
 	root?: string
 ): Promise<Project> {
 	const repo = await repoRoot(root);
@@ -541,8 +512,6 @@ export async function updateProject(
 		name: patch.name?.trim() || project.name,
 		description:
 			patch.description === undefined ? project.description : patch.description.trim() || undefined,
-		allocations:
-			patch.allocations === undefined ? project.allocations : cleanAllocations(patch.allocations),
 		updated_at: now()
 	};
 	await writeJsonFile(path.join(repo, 'projects', `${id}.json`), next);
@@ -553,6 +522,19 @@ export async function updateProject(
 export async function deleteProject(id: string, root?: string): Promise<void> {
 	const repo = await repoRoot(root);
 	if (!(await readProjectFile(repo, id))) throw new Error('Project not found');
+	for (const file of await listStoredAccounts(repo)) {
+		let changed = false;
+		for (const item of file.account.source === 'manual'
+			? (file.transactions ?? [])
+			: Object.values(file.annotations ?? {})) {
+			const next = (item.allocations ?? []).filter((allocation) => allocation.project_id !== id);
+			if (next.length !== (item.allocations ?? []).length) {
+				item.allocations = next;
+				changed = true;
+			}
+		}
+		if (changed) await writeStoredAccount(repo, file);
+	}
 	await removeFile(path.join(repo, 'projects', `${id}.json`));
 	await commitData(repo, `data: delete project ${id}`);
 }
@@ -826,4 +808,62 @@ export async function writeAccountJsonOnly(
 	if (!file) throw new Error('Account not found');
 	file.account = account;
 	await writeStoredAccount(repo, file);
+}
+
+export function validateAllocations(amount: number, allocations: ProjectAllocation[]): void {
+	if (!Number.isSafeInteger(amount)) throw new Error('allocation_invalid');
+	const ids = new Set<string>();
+	let allocated = 0;
+	for (const allocation of allocations) {
+		if (
+			!allocation.project_id ||
+			ids.has(allocation.project_id) ||
+			!Number.isSafeInteger(allocation.amount_cents) ||
+			allocation.amount_cents === 0 ||
+			Math.sign(allocation.amount_cents) !== Math.sign(amount)
+		)
+			throw new Error('allocation_invalid');
+		ids.add(allocation.project_id);
+		allocated += Math.abs(allocation.amount_cents);
+	}
+	if (allocated > Math.abs(amount)) throw new Error('allocation_exceeded');
+}
+
+async function findCsvTransaction(file: StoredAccountFile, id: string) {
+	for (const relative of await listFilesRecursive(path.join(file.dir, 'statements'), (name) =>
+		name.toLowerCase().endsWith('.csv')
+	)) {
+		const content = await readTextFile(safeJoin(file.dir, 'statements', relative));
+		const format = detectCsvFormat(content);
+		if (!format) continue;
+		const transaction = parseCsvStatement(content, format).transactions.find(
+			(item) => item.id === id
+		);
+		if (transaction) return transaction;
+	}
+	throw new Error('Transaction not found');
+}
+
+export async function setTransactionAllocations(
+	ref: TransactionRef,
+	allocations: ProjectAllocation[],
+	root?: string
+): Promise<void> {
+	const repo = await repoRoot(root);
+	for (const allocation of allocations) {
+		if (!(await readProjectFile(repo, allocation.project_id))) throw new Error('Project not found');
+	}
+	const file = await readStoredAccount(repo, ref.account_id);
+	if (!file) throw new Error('Account not found');
+	if (file.account.source === 'manual') {
+		await updateManualTransaction(ref.account_id, ref.transaction_id, { allocations }, repo);
+	} else {
+		const annotation = file.annotations?.[ref.transaction_id] ?? {};
+		await upsertAnnotation(
+			ref.account_id,
+			ref.transaction_id,
+			{ ...annotation, allocations },
+			repo
+		);
+	}
 }

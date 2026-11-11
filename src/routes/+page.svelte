@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatMoney } from '$lib/format';
-	import { accountTypeLabel } from '$lib/labels';
 	import Amount from '$lib/components/Amount.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -55,12 +54,12 @@
 							<span
 								class="grid size-9 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-500"
 							>
-								<Icon name={account.type === 'cash' ? 'wallet' : 'accounts'} class="size-[18px]" />
+								<Icon name="accounts" class="size-[18px]" />
 							</span>
 							<div class="min-w-0 flex-1">
 								<div class="truncate text-sm font-medium text-stone-900">{account.name}</div>
 								<div class="text-xs text-stone-500">
-									{accountTypeLabel(account.type)} · {account.transaction_count}
+									{account.transaction_count}
 									{m.stat_transactions().toLowerCase()}
 								</div>
 								<div class="mt-2 h-1 overflow-hidden rounded-full bg-stone-100">
@@ -78,7 +77,7 @@
 									? 'text-red-700'
 									: 'text-stone-900'}"
 							>
-								{formatMoney(account.current_balance_cents, account.currency)}
+								{formatMoney(account.current_balance_cents)}
 							</div>
 						</a>
 					</li>

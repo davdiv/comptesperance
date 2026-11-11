@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatMoney } from '$lib/format';
-	import { accountSourceLabel, accountTypeLabel } from '$lib/labels';
+	import { accountSourceLabel } from '$lib/labels';
 	import Alert from '$lib/components/Alert.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import FormPanel from '$lib/components/FormPanel.svelte';
@@ -25,14 +25,6 @@
 				<input name="name" required class="control" />
 			</label>
 			<label class="field">
-				<span class="field-label">{m.account_type()}</span>
-				<select name="type" class="control">
-					{#each data.accountTypes as type (type)}<option value={type}
-							>{accountTypeLabel(type)}</option
-						>{/each}
-				</select>
-			</label>
-			<label class="field">
 				<span class="field-label">{m.account_source()}</span>
 				<select name="source" class="control">
 					{#each data.sources as source (source)}<option value={source}
@@ -40,14 +32,10 @@
 						>{/each}
 				</select>
 			</label>
-			<label class="field">
-				<span class="field-label">{m.account_currency()}</span>
-				<input name="currency" value="EUR" class="control" />
-			</label>
-			<label class="field">
-				<span class="field-label">{m.account_opening_balance()}</span>
-				<input name="opening_balance" inputmode="decimal" placeholder="0.00" class="control" />
-			</label>
+			<label class="field lg:col-span-3"
+				><span class="field-label">{m.common_notes()}</span><textarea name="notes" class="control"
+				></textarea></label
+			>
 			<div class="lg:col-span-6"><button class="btn">{m.common_create()}</button></div>
 		</form>
 	</FormPanel>
@@ -60,7 +48,6 @@
 				<tr>
 					<th>{m.account_name()}</th>
 					<th>{m.account_source()}</th>
-					<th class="num">{m.account_opening_balance()}</th>
 					<th class="num">{m.account_incoming()}</th>
 					<th class="num">{m.account_outgoing()}</th>
 					<th class="num">{m.account_current_balance()}</th>
@@ -74,12 +61,12 @@
 								<span
 									class="grid size-8 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-500"
 								>
-									<Icon name={account.type === 'cash' ? 'wallet' : 'accounts'} />
+									<Icon name="accounts" />
 								</span>
 								<span>
 									<span class="row-link block">{account.name}</span>
 									<span class="text-xs text-stone-500"
-										>{accountTypeLabel(account.type)} · {account.transaction_count}
+										>{account.transaction_count}
 										{m.account_transaction_count().toLowerCase()}</span
 									>
 								</span>
@@ -90,27 +77,19 @@
 								>{accountSourceLabel(account.source)}</span
 							>
 						</td>
-						<td class="num text-stone-500"
-							>{formatMoney(account.opening_balance_cents, account.currency)}</td
-						>
-						<td class="num text-emerald-700"
-							>{formatMoney(account.incoming_cents, account.currency)}</td
-						>
-						<td class="num text-stone-600"
-							>{formatMoney(account.outgoing_cents, account.currency)}</td
-						>
+						<td class="num text-emerald-700">{formatMoney(account.incoming_cents)}</td>
+						<td class="num text-stone-600">{formatMoney(account.outgoing_cents)}</td>
 						<td
 							class="num font-semibold {account.current_balance_cents < 0
 								? 'text-red-700'
-								: 'text-stone-900'}"
-							>{formatMoney(account.current_balance_cents, account.currency)}</td
+								: 'text-stone-900'}">{formatMoney(account.current_balance_cents)}</td
 						>
 					</tr>
 				{/each}
 			</tbody>
 			<tfoot>
 				<tr>
-					<td colspan="5" class="text-stone-500">{m.stat_balance()}</td>
+					<td colspan="4" class="text-stone-500">{m.stat_balance()}</td>
 					<td class="num {total < 0 ? 'text-red-700' : 'text-stone-900'}">{formatMoney(total)}</td>
 				</tr>
 			</tfoot>

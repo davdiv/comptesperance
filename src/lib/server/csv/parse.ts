@@ -1,4 +1,4 @@
-import type { AccountType, ParsedTransaction } from '$lib/types';
+import type { ParsedTransaction } from '$lib/types';
 import { detectCcp, parseCcpReport, type CcpAccountMeta } from './ccp';
 import { detectSumup, parseSumupReport } from './sumup';
 
@@ -11,11 +11,9 @@ export interface ParsedCsvStatement {
 	account?: CcpAccountMeta | null;
 }
 
-export function detectCsvFormat(input: string, accountType?: AccountType): CsvFormat | null {
+export function detectCsvFormat(input: string): CsvFormat | null {
 	if (detectSumup(input)) return 'sumup';
 	if (detectCcp(input)) return 'ccp';
-	if (accountType === 'sumup') return 'sumup';
-	if (accountType === 'bank' || accountType === 'stripe' || accountType === 'cash') return 'ccp';
 	return null;
 }
 

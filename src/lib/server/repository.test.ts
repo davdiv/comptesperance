@@ -5,6 +5,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { commitAll } from './git';
 import {
 	deleteManualTransaction,
+	deleteProject,
+	setTransactionAllocations,
+	updateManualTransaction,
+	validateAllocations,
 	linkTransfer,
 	uploadEvidence,
 	linkDocument,
@@ -28,11 +32,14 @@ beforeEach(async () => {
 				transactions: [
 					{
 						id: 'sale',
+						date: '2026-10-03',
+						amount_cents: 1000,
+						allocations: [{ project_id: 'project', amount_cents: 100 }],
 						counterpart_account_id: 'bank',
 						counterpart_transaction_id: 'other',
 						transfer_id: 'transfer'
 					},
-					{ id: 'keep' }
+					{ id: 'keep', amount_cents: 500, allocations: [] }
 				]
 			})
 		);
@@ -52,10 +59,9 @@ beforeEach(async () => {
 		path.join(root, 'projects', 'project.json'),
 		JSON.stringify({
 			id: 'project',
-			allocations: [
-				{ account_id: 'cash', transaction_id: 'sale', amount_cents: 100 },
-				{ account_id: 'cash', transaction_id: 'keep', amount_cents: 200 }
-			]
+			name: 'Project',
+			created_at: '',
+			updated_at: ''
 		})
 	);
 });
@@ -72,10 +78,8 @@ it('deletes the transaction, its allocations and counterpart link in one commit'
 	const annotations = JSON.parse(
 		await readFile(path.join(root, 'accounts', 'bank', 'annotations.json'), 'utf8')
 	);
-	expect(account.transactions).toEqual([{ id: 'keep' }]);
-	expect(project.allocations).toEqual([
-		{ account_id: 'cash', transaction_id: 'keep', amount_cents: 200 }
-	]);
+	expect(account.transactions).toEqual([{ id: 'keep', amount_cents: 500, allocations: [] }]);
+	expect(project).not.toHaveProperty('allocations');
 	expect(annotations.other).toMatchObject({
 		transfer_id: null,
 		counterpart_account_id: null,
@@ -224,4 +228,70 @@ it('relinks a transfer whose old manual counterpart was deleted', async () => {
 		notes: 'Keep notes'
 	});
 	expect(commitAll).toHaveBeenCalledTimes(1);
+});
+
+it('stores allocations on a manual transaction and leaves project metadata alone', async () => {
+	await setTransactionAllocations(
+		{ account_id: 'cash', transaction_id: 'sale' },
+		[{ project_id: 'project', amount_cents: 400, note: 'Part' }],
+		root
+	);
+	const file = JSON.parse(await readFile(path.join(root, 'accounts/cash/account.json'), 'utf8'));
+	expect(file.transactions[0].allocations).toEqual([
+		{ project_id: 'project', amount_cents: 400, note: 'Part' }
+	]);
+	const project = JSON.parse(await readFile(path.join(root, 'projects/project.json'), 'utf8'));
+	expect(project).not.toHaveProperty('allocations');
+	expect(commitAll).toHaveBeenCalledTimes(1);
+});
+it('rejects oversubscribed, opposite-sign, duplicate and fractional allocations without committing', async () => {
+	for (const allocations of [
+		[{ project_id: 'project', amount_cents: 1001 }],
+		[{ project_id: 'project', amount_cents: -1 }],
+		[{ project_id: 'project', amount_cents: 1.5 }],
+		[
+			{ project_id: 'project', amount_cents: 500 },
+			{ project_id: 'project', amount_cents: 1 }
+		]
+	])
+		await expect(
+			setTransactionAllocations({ account_id: 'cash', transaction_id: 'sale' }, allocations, root)
+		).rejects.toThrow();
+	await expect(updateManualTransaction('cash', 'sale', { amount_cents: 50 }, root)).rejects.toThrow(
+		'allocation_exceeded'
+	);
+	expect(commitAll).not.toHaveBeenCalled();
+});
+it('deletes a project and removes manual and CSV allocations in one commit while keeping other fields', async () => {
+	const annotationsPath = path.join(root, 'accounts/bank/annotations.json');
+	const annotations = JSON.parse(await readFile(annotationsPath, 'utf8'));
+	annotations.other.allocations = [
+		{ project_id: 'project', amount_cents: 100 },
+		{ project_id: 'another', amount_cents: 200 }
+	];
+	await writeFile(annotationsPath, JSON.stringify(annotations));
+	await deleteProject('project', root);
+	const account = JSON.parse(await readFile(path.join(root, 'accounts/cash/account.json'), 'utf8'));
+	expect(account.transactions[0].allocations).toEqual([]);
+	const updated = JSON.parse(await readFile(annotationsPath, 'utf8'));
+	expect(updated.other.allocations).toEqual([{ project_id: 'another', amount_cents: 200 }]);
+	expect(updated.other.notes).toBe('Keep notes');
+	await expect(readFile(path.join(root, 'projects/project.json'))).rejects.toThrow();
+	expect(commitAll).toHaveBeenCalledTimes(1);
+});
+
+it('validates the absolute total across projects, negative amounts and empty allocations', () => {
+	expect(() =>
+		validateAllocations(-1000, [
+			{ project_id: 'first', amount_cents: -400 },
+			{ project_id: 'second', amount_cents: -600 }
+		])
+	).not.toThrow();
+	expect(() => validateAllocations(0, [])).not.toThrow();
+	expect(() =>
+		validateAllocations(1000, [
+			{ project_id: 'first', amount_cents: 600 },
+			{ project_id: 'second', amount_cents: 500 }
+		])
+	).toThrow('allocation_exceeded');
 });

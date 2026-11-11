@@ -18,18 +18,20 @@ beforeEach(() => {
 	db = new DatabaseSync(':memory:');
 	vi.mocked(getDatabase).mockResolvedValue(db);
 	db.exec(`
-		CREATE TABLE projects (id TEXT, name TEXT, description TEXT, allocations_json TEXT, created_at TEXT, updated_at TEXT);
+		CREATE TABLE projects (id TEXT, name TEXT, description TEXT, created_at TEXT, updated_at TEXT);
+ CREATE TABLE categories (id TEXT, name TEXT);
+ CREATE TABLE payment_modes (id TEXT, name TEXT);
 		CREATE TABLE accounts (id TEXT, name TEXT);
 		CREATE TABLE third_parties (id TEXT, name TEXT);
 		CREATE TABLE project_allocations (project_id TEXT, account_id TEXT, transaction_id TEXT, amount_cents INTEGER, note TEXT);
 		CREATE TABLE transactions (
-			account_id TEXT, id TEXT, date TEXT, value_date TEXT, amount_cents INTEGER, currency TEXT,
+			account_id TEXT, id TEXT, date TEXT, value_date TEXT, amount_cents INTEGER,
 			label TEXT, description TEXT, record_type TEXT, status TEXT, third_party_id TEXT,
 			transfer_id TEXT, counterpart_account_id TEXT, counterpart_transaction_id TEXT,
-			notes TEXT, category TEXT, evidence_json TEXT, excluded INTEGER, counts_in_total INTEGER,
+			notes TEXT, category_id TEXT, evidence_json TEXT, excluded INTEGER, payment_mode_id TEXT, allocations_json TEXT,
 			source TEXT, source_files_json TEXT, raw_json TEXT, attributes_json TEXT
 		);
-		INSERT INTO projects VALUES ('project', 'Project', NULL, '[]', '', '');
+		INSERT INTO projects VALUES ('project', 'Project', NULL, '', '');
 		INSERT INTO accounts VALUES ('cash', 'Cash');
 		INSERT INTO third_parties VALUES ('party', 'Party');
 	`);
@@ -45,8 +47,8 @@ function addAllocation(id: string, transferId: string | null = null) {
 		1250
 	);
 	db.prepare(
-		`INSERT INTO transactions (account_id, id, date, amount_cents, currency, label, third_party_id, transfer_id)
-		VALUES ('cash', ?, '2026-10-03', 2500, 'EUR', 'Vente gâteaux', 'party', ?)`
+		`INSERT INTO transactions (account_id, id, date, amount_cents, label, third_party_id, transfer_id)
+		VALUES ('cash', ?, '2026-10-03', 2500, 'Vente gâteaux', 'party', ?)`
 	).run(id, transferId);
 }
 

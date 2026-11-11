@@ -80,9 +80,7 @@
 								>{:else}{allocation.transaction_id}{/if}</td
 						>
 						<td>{allocation.transaction?.third_party_name ?? '—'}</td>
-						<td class="num"
-							>{formatMoney(allocation.amount_cents, allocation.transaction?.currency)}</td
-						>
+						<td class="num">{formatMoney(allocation.amount_cents)}</td>
 						<td class="num"
 							>{#if data.user.canWrite}<form method="POST" action="?/remove_allocation">
 									<input type="hidden" name="account_id" value={allocation.account_id} /><input
@@ -126,7 +124,7 @@
 				method="POST"
 				action="?/delete"
 				onsubmit={(event) => {
-					if (!confirm(m.common_confirm_delete())) event.preventDefault();
+					if (!confirm(m.project_delete_confirm())) event.preventDefault();
 				}}
 			>
 				<button class="btn-danger">{m.common_delete()}</button>

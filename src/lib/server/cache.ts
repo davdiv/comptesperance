@@ -3,6 +3,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { ManualTransaction, ParsedTransaction, TransactionAnnotation } from '$lib/types';
 import { detectCsvFormat, parseCsvStatement } from './csv';
+import { readConfig } from './config';
 import { getEnv } from './env';
 import { statusFingerprint } from './git';
 import {
@@ -58,17 +59,18 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 	await rm(`${dbPath}-wal`, { force: true });
 	await rm(`${dbPath}-shm`, { force: true });
 
+	const config = await readConfig(root);
 	const db = new DatabaseSync(dbPath);
 	db.exec(`
 		PRAGMA foreign_keys = OFF;
 		PRAGMA busy_timeout = 5000;
 		CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		CREATE TABLE categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, archived INTEGER NOT NULL);
+		CREATE TABLE payment_modes (id TEXT PRIMARY KEY, name TEXT NOT NULL, archived INTEGER NOT NULL);
 		CREATE TABLE accounts (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
-			type TEXT NOT NULL,
-			currency TEXT NOT NULL,
-			opening_balance_cents INTEGER NOT NULL,
+			notes TEXT,
 			source TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
@@ -79,7 +81,6 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			date TEXT NOT NULL,
 			value_date TEXT,
 			amount_cents INTEGER NOT NULL,
-			currency TEXT NOT NULL,
 			label TEXT NOT NULL,
 			description TEXT,
 			record_type TEXT NOT NULL,
@@ -88,10 +89,11 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			attributes_json TEXT NOT NULL,
 			source TEXT NOT NULL,
 			source_files_json TEXT NOT NULL,
-			counts_in_total INTEGER NOT NULL,
 			third_party_id TEXT,
 			notes TEXT NOT NULL,
-			category TEXT NOT NULL,
+			category_id TEXT NOT NULL,
+			payment_mode_id TEXT NOT NULL,
+			allocations_json TEXT NOT NULL,
 			transfer_id TEXT,
 			counterpart_account_id TEXT,
 			counterpart_transaction_id TEXT,
@@ -106,7 +108,6 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
 			description TEXT,
-			allocations_json TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		);
@@ -139,19 +140,32 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 		);
 	`);
 
+	for (const category of config.categories)
+		db.prepare('INSERT INTO categories VALUES (?, ?, ?, ?)').run(
+			category.id,
+			category.name,
+			category.kind,
+			category.archived ? 1 : 0
+		);
+	for (const mode of config.paymentModes)
+		db.prepare('INSERT INTO payment_modes VALUES (?, ?, ?)').run(
+			mode.id,
+			mode.name,
+			mode.archived ? 1 : 0
+		);
 	const insertMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
 	insertMeta.run('fingerprint', fingerprint);
 	insertMeta.run('built_at', new Date().toISOString());
 
 	const insertAccount = db.prepare(`
-		INSERT INTO accounts (id, name, type, currency, opening_balance_cents, source, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO accounts (id, name, notes, source, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`);
 	const insertTransaction = db.prepare(`
 		INSERT INTO transactions (
-			account_id, id, date, value_date, amount_cents, currency, label, description,
+			account_id, id, date, value_date, amount_cents, label, description,
 			record_type, status, raw_json, attributes_json, source, source_files_json,
-			counts_in_total, third_party_id, notes, category, transfer_id,
+			third_party_id, notes, category_id, payment_mode_id, allocations_json, transfer_id,
 			counterpart_account_id, counterpart_transaction_id, evidence_json, excluded
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
@@ -165,9 +179,7 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 		insertAccount.run(
 			account.id,
 			account.name,
-			account.type,
-			account.currency,
-			account.opening_balance_cents,
+			account.notes ?? null,
 			account.source,
 			account.created_at,
 			account.updated_at
@@ -186,7 +198,7 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			const fullPath = safeJoin(accountFile.dir, 'statements', relativeFile);
 			try {
 				const content = await readTextFile(fullPath);
-				const format = detectCsvFormat(content, account.type);
+				const format = detectCsvFormat(content);
 				if (!format) {
 					insertIssue.run(account.id, relativeFile, 'Unsupported CSV format.');
 					continue;
@@ -222,8 +234,8 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 	}
 
 	const insertProject = db.prepare(`
-		INSERT INTO projects (id, name, description, allocations_json, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO projects (id, name, description, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?)
 	`);
 	const insertAllocation = db.prepare(`
 		INSERT INTO project_allocations (project_id, account_id, transaction_id, amount_cents, note)
@@ -234,21 +246,23 @@ async function rebuildDatabase(root: string, dbPath: string, fingerprint: string
 			project.id,
 			project.name,
 			project.description ?? null,
-			JSON.stringify(project.allocations),
 			project.created_at,
 			project.updated_at
 		);
-		for (const allocation of project.allocations) {
+	}
+
+	for (const row of db.prepare('SELECT account_id, id, allocations_json FROM transactions').all()) {
+		for (const allocation of JSON.parse(String(row.allocations_json))) {
 			insertAllocation.run(
-				project.id,
-				allocation.account_id,
-				allocation.transaction_id,
+				allocation.project_id,
+				row.account_id,
+				row.id,
 				allocation.amount_cents,
 				allocation.note ?? null
 			);
 		}
 	}
-
+	insertMeta.run('config', JSON.stringify(config));
 	const insertThirdParty = db.prepare(
 		'INSERT INTO third_parties (id, name, aliases_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
 	);
@@ -286,14 +300,13 @@ function csvTransactionValues(
 	sourceFiles: string[]
 ): (string | number | null)[] {
 	const annotation: TransactionAnnotation | undefined = accountFile.annotations?.[transaction.id];
-	const excluded = annotation?.excluded ?? false;
+	const excluded = annotation?.excluded ?? transaction.excluded;
 	return [
 		accountFile.account.id,
 		transaction.id,
 		transaction.date,
 		transaction.value_date ?? null,
 		transaction.amount_cents,
-		transaction.currency,
 		transaction.label,
 		transaction.description ?? null,
 		transaction.record_type,
@@ -302,10 +315,11 @@ function csvTransactionValues(
 		JSON.stringify(transaction.attributes ?? {}),
 		'csv',
 		JSON.stringify(sourceFiles),
-		transaction.counts_in_total && !excluded ? 1 : 0,
 		annotation?.third_party_id ?? null,
 		annotation?.notes ?? '',
-		annotation?.category ?? '',
+		annotation?.category_id ?? '',
+		annotation?.payment_mode_id ?? '',
+		JSON.stringify(annotation?.allocations ?? []),
 		annotation?.transfer_id ?? null,
 		annotation?.counterpart_account_id ?? null,
 		annotation?.counterpart_transaction_id ?? null,
@@ -319,14 +333,12 @@ function manualTransactionValues(
 	transaction: ManualTransaction
 ): (string | number | null)[] {
 	const excluded = transaction.excluded ?? false;
-	const counts = (transaction.counts_in_total ?? !excluded) && !excluded;
 	return [
 		accountFile.account.id,
 		transaction.id,
 		transaction.date,
 		transaction.value_date ?? null,
 		Math.round(transaction.amount_cents),
-		transaction.currency || accountFile.account.currency,
 		transaction.label,
 		transaction.description ?? null,
 		transaction.record_type ?? 'manual',
@@ -335,10 +347,11 @@ function manualTransactionValues(
 		'{}',
 		'manual',
 		'[]',
-		counts ? 1 : 0,
 		transaction.third_party_id ?? null,
 		transaction.notes ?? '',
-		transaction.category ?? '',
+		transaction.category_id ?? '',
+		transaction.payment_mode_id ?? '',
+		JSON.stringify(transaction.allocations ?? []),
 		transaction.transfer_id ?? null,
 		transaction.counterpart_account_id ?? null,
 		transaction.counterpart_transaction_id ?? null,

@@ -24,7 +24,7 @@ export async function importCsvFile(
 	if (!accountFile) throw new Error('Account not found');
 	if (accountFile.account.source !== 'csv') throw new Error('Account does not accept CSV imports');
 
-	const format = formatOverride ?? detectCsvFormat(content, accountFile.account.type);
+	const format = formatOverride ?? detectCsvFormat(content);
 	if (!format) throw new Error('Unsupported CSV format');
 	const parsed = parseCsvStatement(content, format);
 	if (parsed.transactions.length === 0 && parsed.errors.length > 0) {

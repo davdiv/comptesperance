@@ -32,3 +32,12 @@ describe('csv parsing', () => {
 		}
 	});
 });
+
+it('defaults cancelled SumUp transactions to excluded without discarding their amount', () => {
+	const transactions = parseCsvStatement(sumupSample, 'sumup').transactions;
+	const cancelled = transactions.find((t) => t.status === 'Annulé');
+	expect(cancelled).toMatchObject({ excluded: true, amount_cents: 1200 });
+	expect(transactions.find((t) => t.status === 'Accepté')?.excluded).toBe(false);
+	expect(cancelled).not.toHaveProperty('counts_in_total');
+	expect(cancelled).not.toHaveProperty('currency');
+});

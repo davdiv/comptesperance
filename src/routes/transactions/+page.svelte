@@ -4,6 +4,7 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TransactionTable from '$lib/components/TransactionTable.svelte';
+	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
 	import type { PageProps } from './$types';
 
 	const { data }: PageProps = $props();
@@ -64,6 +65,13 @@
 				class="control"
 			/></label
 		>
+		<ReferenceFields
+			categories={data.config.categories}
+			paymentModes={data.config.paymentModes}
+			categoryId={data.filters.category_id}
+			paymentModeId={data.filters.payment_mode_id}
+			filter
+		/>
 		<label class="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-3">
 			<input
 				type="checkbox"

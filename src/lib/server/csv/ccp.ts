@@ -100,12 +100,11 @@ export function parseCcpReport(input: string): CcpParseResult {
 			date,
 			value_date: value ?? undefined,
 			amount_cents: amountCents,
-			currency: 'EUR',
 			label: operationLabel,
 			description,
 			record_type: 'bank',
 			attributes: parseSlashAttributes(description),
-			counts_in_total: true
+			excluded: false
 		});
 	});
 

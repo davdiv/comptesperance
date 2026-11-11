@@ -1,9 +1,8 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireWrite } from '$lib/server/auth';
-import { getProjectDetails } from '$lib/server/queries';
-import { deleteProject, readProject, updateProject } from '$lib/server/repository';
-import type { ProjectAllocation } from '$lib/types';
+import { getProjectDetails, getTransaction } from '$lib/server/queries';
+import { deleteProject, updateProject, setTransactionAllocations } from '$lib/server/repository';
 
 export const load: PageServerLoad = async ({ params, url }) => {
 	const includeTransfers = url.searchParams.get('include_transfers') === '1';
@@ -33,16 +32,17 @@ export const actions: Actions = {
 	},
 	remove_allocation: async ({ request, locals, params }) => {
 		requireWrite(locals.user);
-		const project = await readProject(params.id);
-		if (!project) error(404, 'Project not found');
 		const form = await request.formData();
 		const accountId = String(form.get('account_id') ?? '');
 		const transactionId = String(form.get('transaction_id') ?? '');
-		const allocations: ProjectAllocation[] = project.allocations.filter(
-			(allocation) =>
-				!(allocation.account_id === accountId && allocation.transaction_id === transactionId)
+
+		const transaction = await getTransaction(accountId, transactionId);
+		if (!transaction) error(404, 'Transaction not found');
+		await setTransactionAllocations(
+			{ account_id: accountId, transaction_id: transactionId },
+			transaction.allocations.filter((allocation) => allocation.project_id !== params.id)
 		);
-		await updateProject(params.id, { allocations });
+
 		return { ok: true };
 	}
 };
