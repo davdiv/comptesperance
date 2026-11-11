@@ -73,6 +73,7 @@
 	"danger_zone": "Danger zone",
 	"import_format": "Format",
 	"import_auto_detect": "Auto-detect",
+	"transactions_hidden_transfers": "{count} internal transfers hidden",
 	"transactions_total": "Total amount",
 	"transactions_title": "Transactions",
 	"transaction_new": "New transaction",

@@ -9,7 +9,7 @@
 	import ReferenceFields from '$lib/components/ReferenceFields.svelte';
 	import type { PageProps } from './$types';
 	import StatCard from '$lib/components/StatCard.svelte';
-	import { formatMoney } from '$lib/format';
+	import Amount from '$lib/components/Amount.svelte';
 
 	const { data, form }: PageProps = $props();
 	const accountNames = $derived(
@@ -132,8 +132,17 @@
 		</div>
 	</form>
 	<div class="grid gap-4 sm:grid-cols-2" data-testid="transaction-summary">
-		<StatCard label={m.stat_transactions()} value={data.total} />
-		<StatCard label={m.transactions_total()} value={formatMoney(data.total_cents)} tone="brand" />
+		<StatCard label={m.stat_transactions()} value={data.total}>
+			{#snippet hint()}{#if data.hidden_transfer_count > 0}{m.transactions_hidden_transfers({
+						count: data.hidden_transfer_count
+					})}{/if}{/snippet}
+		</StatCard>
+		<div class="card px-5 py-4">
+			<div class="text-xs font-medium text-stone-500">{m.transactions_total()}</div>
+			<div class="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
+				<Amount cents={data.total_cents} />
+			</div>
+		</div>
 	</div>
 	<div class="table-wrap">
 		<TransactionTable transactions={data.transactions} {accountNames} />

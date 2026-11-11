@@ -203,9 +203,12 @@ export async function getAccountWithTotals(accountId: string): Promise<AccountWi
 	return accounts.find((account) => account.account_id === accountId) ?? null;
 }
 
-export async function listTransactions(
-	filters: TransactionFilters = {}
-): Promise<{ transactions: TransactionView[]; total: number; total_cents: number }> {
+export async function listTransactions(filters: TransactionFilters = {}): Promise<{
+	transactions: TransactionView[];
+	total: number;
+	total_cents: number;
+	hidden_transfer_count: number;
+}> {
 	const db = await getDatabase();
 	const where: string[] = [];
 	const params: (string | number)[] = [];
@@ -267,12 +270,14 @@ export async function listTransactions(
 	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 	const summary = db
 		.prepare(
-			`SELECT COUNT(*) AS count, COALESCE(SUM(CASE WHEN t.excluded = 0 THEN t.amount_cents ELSE 0 END), 0) AS total_cents FROM transactions t
+			`SELECT COUNT(*) AS count,
+			 COALESCE(SUM(CASE WHEN t.transfer_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS transfer_count,
+			 COALESCE(SUM(CASE WHEN t.excluded = 0 THEN t.amount_cents ELSE 0 END), 0) AS total_cents FROM transactions t
 					 LEFT JOIN third_parties tp ON tp.id = t.third_party_id
 					 LEFT JOIN categories c ON c.id = t.category_id
 					 LEFT JOIN payment_modes pm ON pm.id = t.payment_mode_id ${whereSql}`
 		)
-		.get(...params) as { count: number; total_cents: number };
+		.get(...params) as { count: number; total_cents: number; transfer_count: number };
 	const rowWhere = filters.include_transfers ? where : [...where, NON_TRANSFER_CONDITION];
 	const rowWhereSql = rowWhere.length ? `WHERE ${rowWhere.join(' AND ')}` : '';
 	const limit = Math.min(Math.max(filters.limit ?? 200, 1), 1000);
@@ -285,7 +290,8 @@ export async function listTransactions(
 	return {
 		transactions: rows.map(transactionFromRow),
 		total: Number(summary.count),
-		total_cents: Number(summary.total_cents)
+		total_cents: Number(summary.total_cents),
+		hidden_transfer_count: filters.include_transfers ? 0 : Number(summary.transfer_count)
 	};
 }
 
