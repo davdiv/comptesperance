@@ -474,6 +474,61 @@ export async function listThirdPartiesWithCounts(): Promise<ThirdPartyWithCounts
 	}));
 }
 
+export async function getUnallocatedDetails(includeTransfers = false) {
+	const db = await getDatabase();
+	const remainder = `t.amount_cents - COALESCE((SELECT SUM(pa.amount_cents)
+		FROM project_allocations pa WHERE pa.account_id = t.account_id AND pa.transaction_id = t.id), 0)`;
+	const rows = db
+		.prepare(
+			TRANSACTION_SELECT +
+				` WHERE t.excluded = 0 AND (${remainder}) != 0 ORDER BY t.date DESC, t.account_id, t.id`
+		)
+		.all() as Record<string, unknown>[];
+	const names = new Map(
+		(db.prepare('SELECT id, name FROM accounts').all() as { id: string; name: string }[]).map(
+			(account) => [account.id, account.name]
+		)
+	);
+	const transactions = rows.map(transactionFromRow).map((transaction) => ({
+		...transaction,
+		account_name: names.get(transaction.account_id) ?? transaction.account_id,
+		unallocated_cents:
+			transaction.amount_cents -
+			transaction.allocation_details.reduce((sum, item) => sum + item.amount_cents, 0)
+	}));
+	const byAccount = new Map<
+		string,
+		{ account_id: string; account_name: string; amount_cents: number; count: number }
+	>();
+	for (const transaction of transactions) {
+		const account = byAccount.get(transaction.account_id) ?? {
+			account_id: transaction.account_id,
+			account_name: names.get(transaction.account_id) ?? transaction.account_id,
+			amount_cents: 0,
+			count: 0
+		};
+		account.amount_cents += transaction.unallocated_cents;
+		account.count++;
+		byAccount.set(account.account_id, account);
+	}
+	return {
+		incoming_cents: transactions.reduce(
+			(sum, item) => sum + Math.max(0, item.unallocated_cents),
+			0
+		),
+		outgoing_cents: transactions.reduce(
+			(sum, item) => sum + Math.min(0, item.unallocated_cents),
+			0
+		),
+		total_cents: transactions.reduce((sum, item) => sum + item.unallocated_cents, 0),
+		transaction_count: transactions.length,
+		by_account: [...byAccount.values()]
+			.filter((account) => account.amount_cents !== 0)
+			.sort((a, b) => a.account_name.localeCompare(b.account_name)),
+		transactions: includeTransfers ? transactions : transactions.filter((item) => !item.transfer_id)
+	};
+}
+
 export async function listThirdPartyTransactions(
 	thirdPartyId: string,
 	includeTransfers = false

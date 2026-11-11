@@ -195,7 +195,7 @@
 					<button class="btn">{m.common_save()}</button>
 				</form>
 			{/if}
-			<section class="card p-4">
+			<section class="card p-4" id="allocations">
 				<h2 class="card-title">{m.project_allocations()}</h2>
 				{#if data.user.canWrite && availableProjects.length && remaining !== 0}
 					<form

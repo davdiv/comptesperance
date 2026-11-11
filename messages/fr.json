@@ -210,5 +210,10 @@
 	"auth_read_mode": "Revenir en lecture seule",
 	"auth_edit_mode_start": "Passer en mode édition",
 	"auth_edit_mode_active": "Mode édition",
-	"auth_enable_edit_mode": "Passez en mode édition avant de modifier les données."
+	"auth_enable_edit_mode": "Passez en mode édition avant de modifier les données.",
+	"unallocated_title": "Non imputé",
+	"unallocated_description": "Transactions dont une partie reste à imputer aux projets.",
+	"unallocated_net": "Solde non imputé",
+	"unallocated_remainder": "Reste à imputer",
+	"unallocated_allocate": "Imputer"
 }
