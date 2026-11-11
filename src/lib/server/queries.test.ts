@@ -71,7 +71,8 @@ it('searches category and payment mode display names rather than opaque ids', as
 		expect(await listTransactions({ search })).toEqual({
 			transactions: [],
 			total: 0,
-			total_cents: 0
+			total_cents: 0,
+			hidden_transfer_count: 0
 		});
 	}
 	db.exec('DELETE FROM categories; DELETE FROM payment_modes;');
@@ -202,15 +203,25 @@ it('keeps transaction counts and amounts independent of transfer visibility and 
 			project_id: 'project',
 			include_transfers
 		});
-		expect(result).toMatchObject({ total: 3, total_cents: 1250 });
+		expect(result).toMatchObject({
+			total: 3,
+			total_cents: 1250,
+			hidden_transfer_count: include_transfers ? 0 : 2
+		});
 		expect(result.transactions).toHaveLength(include_transfers ? 3 : 1);
 		expect(
 			await listTransactions({ account_id: 'cash', include_transfers, limit: 1, offset: 3 })
-		).toEqual({ transactions: [], total: 3, total_cents: 1250 });
+		).toEqual({
+			transactions: [],
+			total: 3,
+			total_cents: 1250,
+			hidden_transfer_count: include_transfers ? 0 : 2
+		});
 		expect(await listTransactions({ account_id: 'missing', include_transfers })).toEqual({
 			transactions: [],
 			total: 0,
-			total_cents: 0
+			total_cents: 0,
+			hidden_transfer_count: 0
 		});
 	}
 });
@@ -395,7 +406,8 @@ describe('transaction allocation names and filters', () => {
 		expect(await listTransactions({ project_id: 'removed', account_id: 'missing' })).toEqual({
 			transactions: [],
 			total: 0,
-			total_cents: 0
+			total_cents: 0,
+			hidden_transfer_count: 0
 		});
 	});
 });

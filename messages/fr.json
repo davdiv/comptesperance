@@ -73,6 +73,7 @@
 	"danger_zone": "Zone de danger",
 	"import_format": "Format",
 	"import_auto_detect": "Détection automatique",
+	"transactions_hidden_transfers": "dont {count} virements internes masqués",
 	"transactions_total": "Montant total",
 	"transactions_title": "Transactions",
 	"transaction_new": "Nouvelle transaction",
