@@ -84,6 +84,29 @@ it('searches category and payment mode display names rather than opaque ids', as
 });
 
 describe('getProjectDetails', () => {
+	it('separates transfer-only account nets and reconciles totals regardless of row visibility', async () => {
+		addAllocation('transfer-only', 'group');
+		db.exec("UPDATE transactions SET excluded = 0 WHERE id = 'transfer-only'");
+		for (const include_transfers of [false, true]) {
+			for (const result of [
+				await getProjectDetails('project', { include_transfers }),
+				await getUnallocatedDetails({ include_transfers })
+			]) {
+				expect(result).toMatchObject({
+					incoming_cents: 0,
+					outgoing_cents: 0,
+					transfer_cents: 1250,
+					total_cents: 1250,
+					by_account: [
+						{ incoming_cents: 0, outgoing_cents: 0, transfer_cents: 1250, amount_cents: 1250 }
+					]
+				});
+				expect(result!.incoming_cents + result!.outgoing_cents + result!.transfer_cents).toBe(
+					result!.total_cents
+				);
+			}
+		}
+	});
 	it('sums signed allocated income and expenses before transfer hiding and pagination', async () => {
 		for (const id of ['income', 'expense', 'transfer', 'other', 'zero'])
 			addAllocation(id, id === 'transfer' ? 'group' : null);
@@ -104,7 +127,7 @@ describe('getProjectDetails', () => {
 			expect(details).toMatchObject({
 				total_cents: 650,
 				incoming_cents: 1450,
-				outgoing_cents: -800,
+				outgoing_cents: -500,
 				transaction_count: 5
 			});
 			expect(details?.allocations).toHaveLength(1);
@@ -115,6 +138,7 @@ describe('getProjectDetails', () => {
 					amount_cents: 200,
 					incoming_cents: 200,
 					outgoing_cents: 0,
+					transfer_cents: 0,
 					count: 1
 				},
 				{
@@ -122,14 +146,15 @@ describe('getProjectDetails', () => {
 					account_name: 'Cash',
 					amount_cents: 450,
 					incoming_cents: 1250,
-					outgoing_cents: -800,
+					outgoing_cents: -500,
+					transfer_cents: -300,
 					count: 4
 				}
 			]);
 		}
 		expect(
 			await getProjectDetails('project', { account_id: 'cash', search: 'Vente' })
-		).toMatchObject({ total_cents: 450, incoming_cents: 1250, outgoing_cents: -800 });
+		).toMatchObject({ total_cents: 450, incoming_cents: 1250, outgoing_cents: -500 });
 		expect(await getProjectDetails('project', { date_from: '2026-10-04' })).toMatchObject({
 			total_cents: 0,
 			incoming_cents: 0,
@@ -138,8 +163,8 @@ describe('getProjectDetails', () => {
 		});
 	});
 	it('retains net-zero accounts with income and expenses even when transfers are hidden', async () => {
-		addAllocation('in', 'group');
-		addAllocation('out', 'group');
+		addAllocation('in');
+		addAllocation('out');
 		db.exec("UPDATE project_allocations SET amount_cents = -1250 WHERE transaction_id = 'out'");
 		for (const includeTransfers of [false, true]) {
 			const details = await getProjectDetails('project', includeTransfers);
@@ -153,10 +178,11 @@ describe('getProjectDetails', () => {
 					amount_cents: 0,
 					incoming_cents: 1250,
 					outgoing_cents: -1250,
+					transfer_cents: 0,
 					count: 2
 				}
 			]);
-			expect(details?.allocations).toHaveLength(includeTransfers ? 2 : 0);
+			expect(details?.allocations).toHaveLength(2);
 		}
 		expect((await listProjectsWithTotals())[0]).toMatchObject({
 			total_cents: 0,
@@ -313,10 +339,13 @@ describe('unallocated pseudo-project', () => {
 			const unallocated = await getUnallocatedDetails(filters);
 			expect(unallocated).toMatchObject({
 				total_cents: 400,
-				incoming_cents: 700,
+				incoming_cents: 0,
+				transfer_cents: 700,
 				outgoing_cents: -300,
 				transaction_count: 2,
-				by_account: [{ amount_cents: 400, incoming_cents: 700, outgoing_cents: -300 }]
+				by_account: [
+					{ amount_cents: 400, incoming_cents: 0, outgoing_cents: -300, transfer_cents: 700 }
+				]
 			});
 			expect(unallocated.transactions).toHaveLength(1);
 			const list = await listTransactions(filters);
@@ -366,7 +395,7 @@ describe('unallocated pseudo-project', () => {
 		for (const included of [false, true]) {
 			const result = await getUnallocatedDetails(included);
 			expect(result).toMatchObject({
-				incoming_cents: 9500,
+				incoming_cents: 2500,
 				outgoing_cents: -3000,
 				total_cents: 6500,
 				transaction_count: 3,
@@ -413,25 +442,18 @@ describe('unallocated pseudo-project', () => {
 		for (const included of [false, true]) {
 			const result = await getUnallocatedDetails(included);
 			expect(result).toMatchObject({
-				incoming_cents: 16000,
-				outgoing_cents: -12000,
+				incoming_cents: 7000,
+				outgoing_cents: -3000,
 				total_cents: 4000,
 				transaction_count: 4,
 				by_account: [
-					{
-						account_id: 'bank',
-						account_name: 'Bank',
-						amount_cents: 0,
-						incoming_cents: 9000,
-						outgoing_cents: -9000,
-						count: 2
-					},
 					{
 						account_id: 'cash',
 						account_name: 'Cash',
 						amount_cents: 4000,
 						incoming_cents: 7000,
 						outgoing_cents: -3000,
+						transfer_cents: 0,
 						count: 2
 					}
 				]
@@ -459,6 +481,7 @@ describe('unallocated pseudo-project', () => {
 	it('returns empty rows and zero summaries without matching transactions', async () => {
 		for (const included of [false, true])
 			expect(await getUnallocatedDetails(included)).toEqual({
+				transfer_cents: 0,
 				incoming_cents: 0,
 				outgoing_cents: 0,
 				total_cents: 0,

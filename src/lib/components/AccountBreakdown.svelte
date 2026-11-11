@@ -12,6 +12,7 @@
 			account_name: string | null;
 			incoming_cents: number;
 			outgoing_cents: number;
+			transfer_cents?: number;
 			amount_cents: number;
 		}[];
 		emptyMessage?: string;
@@ -28,6 +29,9 @@
 						>{item.account_name ?? item.account_id}</a
 					>
 					<div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
+						{#if item.transfer_cents}<span
+								>{m.common_transfers()}: <Amount cents={item.transfer_cents} signed={false} /></span
+							>{/if}
 						<span
 							>{m.account_incoming()}: <Amount
 								cents={item.incoming_cents}

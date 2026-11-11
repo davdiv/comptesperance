@@ -109,6 +109,11 @@ export function buildProjectPdfDefinition(
 		];
 	});
 	const summary = projectFilterSummary(state, config);
+	const showTransfers = details.by_account.some((a) => a.transfer_cents !== 0);
+	const displayedTransfers = details.allocations.reduce(
+		(sum, a) => sum + (a.transaction?.transfer_id ? a.amount_cents : 0),
+		0
+	);
 	const content: Content[] = [
 		{ text: config.app.name, fontSize: 11, color: '#57534e' },
 		{ text: details.project.name, fontSize: 23, bold: true, margin: [0, 5, 0, 6] },
@@ -134,25 +139,27 @@ export function buildProjectPdfDefinition(
 			margin: [0, 16, 0, 10]
 		},
 		{
-			text: `${m.account_incoming()}: ${formatMoney(details.incoming_cents)}   ·   ${m.account_outgoing()}: ${formatMoney(details.outgoing_cents)}`,
+			text: `${m.account_incoming()}: ${formatMoney(details.incoming_cents)}   ·   ${m.account_outgoing()}: ${formatMoney(details.outgoing_cents)}${details.transfer_cents ? `   ·   ${m.common_transfers()}: ${formatMoney(details.transfer_cents)}` : ''}`,
 			fontSize: 11
 		},
 		{ text: m.project_by_account(), style: 'section' },
 		{
 			table: {
 				headerRows: 1,
-				widths: ['*', 120, 120, 120],
+				widths: showTransfers ? ['*', 100, 100, 100, 100] : ['*', 120, 120, 120],
 				body: [
 					[
 						m.project_allocation_account(),
 						{ text: m.account_incoming(), alignment: 'right' },
 						{ text: m.account_outgoing(), alignment: 'right' },
+						...(showTransfers ? [{ text: m.common_transfers(), alignment: 'right' as const }] : []),
 						{ text: m.common_amount(), alignment: 'right' }
 					],
 					...details.by_account.map((a) => [
 						a.account_name ?? a.account_id,
 						money(a.incoming_cents),
 						money(a.outgoing_cents),
+						...(showTransfers ? [money(a.transfer_cents)] : []),
 						money(a.amount_cents)
 					])
 				]
@@ -203,7 +210,7 @@ export function buildProjectPdfDefinition(
 						}
 					} as Content,
 					{
-						text: `${m.pdf_visible_total()} — ${m.account_incoming()}: ${formatMoney(details.allocations.reduce((sum, a) => sum + Math.max(a.amount_cents, 0), 0))}   ·   ${m.account_outgoing()}: ${formatMoney(details.allocations.reduce((sum, a) => sum + Math.min(a.amount_cents, 0), 0))}`,
+						text: `${m.pdf_visible_total()} — ${m.account_incoming()}: ${formatMoney(details.allocations.reduce((sum, a) => sum + (a.transaction?.transfer_id ? 0 : Math.max(a.amount_cents, 0)), 0))}   ·   ${m.account_outgoing()}: ${formatMoney(details.allocations.reduce((sum, a) => sum + (a.transaction?.transfer_id ? 0 : Math.min(a.amount_cents, 0)), 0))}${displayedTransfers ? `   ·   ${m.common_transfers()}: ${formatMoney(displayedTransfers)}` : ''}`,
 						margin: [0, 8, 0, 0]
 					} as Content
 				]

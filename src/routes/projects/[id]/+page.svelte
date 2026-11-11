@@ -45,6 +45,7 @@
 		total={data.total_cents}
 		incoming={data.incoming_cents}
 		outgoing={data.outgoing_cents}
+		transfers={data.transfer_cents}
 		totalLabel={m.project_total()}
 	/>
 	<AccountBreakdown accounts={data.by_account} />

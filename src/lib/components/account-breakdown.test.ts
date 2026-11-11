@@ -13,6 +13,7 @@ it('shows account income, expenses and net with shared styling, including net-ze
 					account_name: 'Cash',
 					incoming_cents: 10000,
 					outgoing_cents: -10000,
+					transfer_cents: 500,
 					amount_cents: 0
 				}
 			]
@@ -23,6 +24,8 @@ it('shows account income, expenses and net with shared styling, including net-ze
 		'Cash',
 		m.account_incoming(),
 		m.account_outgoing(),
+		m.common_transfers(),
+		formatMoney(500),
 		formatMoney(10000),
 		formatMoney(-10000),
 		formatMoney(0),

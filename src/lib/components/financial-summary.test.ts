@@ -34,7 +34,16 @@ it('supports zero totals and preserves the unallocated page card order', () => {
 		}
 	}).body;
 	expect(html).toContain(formatMoney(0));
+	expect(html).not.toContain(m.common_transfers());
 	expect(html).toContain('text-brand-700');
 	expect(html.indexOf(m.account_incoming())).toBeLessThan(html.indexOf(m.account_outgoing()));
 	expect(html.indexOf(m.account_outgoing())).toBeLessThan(html.indexOf(m.unallocated_net()));
+});
+
+it('shows a non-zero optional transfer card', () => {
+	const html = render(FinancialSummary, {
+		props: { total: 500, incoming: 0, outgoing: 0, transfers: 500, totalLabel: m.project_total() }
+	}).body;
+	expect(html).toContain(m.common_transfers());
+	expect(html).toContain(formatMoney(500));
 });
