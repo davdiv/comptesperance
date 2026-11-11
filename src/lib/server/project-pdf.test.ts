@@ -172,10 +172,15 @@ describe('project PDF', () => {
 				const generatedAt = new Date('2026-10-03T12:00:00Z');
 				const text = JSON.stringify(buildProjectPdfDefinition(details, config, state, generatedAt));
 				const expected = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-GB', {
-					dateStyle: 'medium',
-					timeStyle: 'short'
+					year: 'numeric',
+					month: 'short',
+					day: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit',
+					timeZoneName: 'short'
 				}).format(generatedAt);
 				expect(expected).toContain('02:00');
+				expect(expected).toMatch(/HST|GMT-10|UTC−10/);
 				expect(text).toContain(expected);
 				expect(text).not.toContain('12:00');
 			} finally {

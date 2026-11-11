@@ -123,8 +123,12 @@ export function buildProjectPdfDefinition(
 		{
 			text: m.pdf_generated({
 				date: new Intl.DateTimeFormat(getLocale() === 'fr' ? 'fr-FR' : 'en-GB', {
-					dateStyle: 'medium',
-					timeStyle: 'short'
+					year: 'numeric',
+					month: 'short',
+					day: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit',
+					timeZoneName: 'short'
 				}).format(generatedAt)
 			}),
 			color: '#57534e'
