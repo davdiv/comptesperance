@@ -6,6 +6,12 @@ services:
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --log.level=INFO
+      - --ping=true
+    healthcheck:
+      test: ['CMD', 'traefik', 'healthcheck', '--ping']
+      interval: 2s
+      timeout: 2s
+      retries: 30
     ports:
       - '8080:80'
       - '8443:443'
