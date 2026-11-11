@@ -70,9 +70,13 @@ describe('getProjectDetails', () => {
 	it('filters transfers from allocations and totals unless explicitly included', async () => {
 		addAllocation('sale');
 		addAllocation('transfer', 'transfer-id');
+		db.exec("INSERT INTO project_allocations VALUES ('project', 'cash', 'orphan', 999, NULL)");
 		const filtered = await getProjectDetails('project');
 		expect(filtered?.allocations.map((a) => a.transaction?.id)).toEqual(['sale']);
 		expect(filtered?.total_cents).toBe(1250);
+		const [listed] = await listProjectsWithTotals();
+		expect(listed.total_cents).toBe(filtered?.total_cents);
+		expect(listed.allocation_count).toBe(filtered?.allocations.length);
 		const included = await getProjectDetails('project', true);
 		expect(included?.allocations).toHaveLength(2);
 		expect(included?.total_cents).toBe(2500);

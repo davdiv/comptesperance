@@ -127,6 +127,8 @@ const TRANSACTION_SELECT = `
 	LEFT JOIN third_parties tp ON tp.id = t.third_party_id
 `;
 
+const NON_TRANSFER_CONDITION = 't.transfer_id IS NULL';
+
 export async function listAccountsWithTotals(): Promise<AccountWithTotals[]> {
 	const db = await getDatabase();
 	const rows = db
@@ -194,7 +196,7 @@ export async function listTransactions(
 		params.push(filters.record_type);
 	}
 	if (!filters.include_transfers) {
-		where.push('t.transfer_id IS NULL');
+		where.push(NON_TRANSFER_CONDITION);
 	}
 	if (filters.search?.trim()) {
 		const search = `%${filters.search.trim()}%`;
@@ -257,7 +259,8 @@ export async function listProjectsWithTotals(): Promise<
 			`SELECT p.*, COALESCE(SUM(pa.amount_cents), 0) AS total_cents, COUNT(pa.transaction_id) AS allocation_count
 			FROM projects p
 			LEFT JOIN project_allocations pa ON pa.project_id = p.id
- AND EXISTS (SELECT 1 FROM transactions t WHERE t.account_id = pa.account_id AND t.id = pa.transaction_id)
+				AND EXISTS (SELECT 1 FROM transactions t
+					WHERE t.account_id = pa.account_id AND t.id = pa.transaction_id AND ${NON_TRANSFER_CONDITION})
 			GROUP BY p.id
 			ORDER BY p.name`
 		)
@@ -282,7 +285,7 @@ export async function getProjectDetails(
 	const projectRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as
 		Record<string, unknown> | undefined;
 	if (!projectRow) return null;
-	const transferFilter = includeTransfers ? '' : 'AND t.transfer_id IS NULL';
+	const transferFilter = includeTransfers ? '' : `AND ${NON_TRANSFER_CONDITION}`;
 	const rows = db
 		.prepare(
 			`SELECT
