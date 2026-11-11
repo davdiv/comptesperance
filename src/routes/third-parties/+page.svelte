@@ -50,8 +50,7 @@
 						<td><a class="link font-medium" href="/third-parties/{party.id}">{party.name}</a></td>
 						<td class="px-4 py-3 text-stone-600"
 							><div class="flex flex-wrap gap-1">
-								{#each party.aliases as alias (alias)}<span class="badge badge-neutral"
-										>{alias}</span
+								{#each party.aliases as alias, i (i)}<span class="badge badge-neutral">{alias}</span
 									>{:else}—{/each}
 							</div></td
 						>

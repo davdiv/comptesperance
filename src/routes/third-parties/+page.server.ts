@@ -14,10 +14,14 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		if (!name) return fail(400, { error: 'Name is required' });
-		const aliases = String(form.get('aliases') ?? '')
-			.split(/[\n,]/)
-			.map((alias) => alias.trim())
-			.filter(Boolean);
+		const aliases = [
+			...new Set(
+				String(form.get('aliases') ?? '')
+					.split(/[\n,]/)
+					.map((alias) => alias.trim())
+					.filter(Boolean)
+			)
+		];
 		const party = await createThirdParty({ name, aliases });
 		redirect(303, `/third-parties/${party.id}`);
 	}
