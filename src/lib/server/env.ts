@@ -4,7 +4,7 @@ export interface AppEnv {
 	dataRepoPath: string;
 	cacheDbPath: string;
 	authDisabled: boolean;
-	authLogoutUrl: string;
+	authLogoutUrl: string | null;
 	readwriteGroup: string;
 	readonlyGroup: string;
 	gitAuthorName: string;
@@ -19,8 +19,7 @@ export function getEnv(): AppEnv {
 		dataRepoPath: path.resolve(process.cwd(), dataRepoPath),
 		cacheDbPath: path.resolve(process.cwd(), cacheDbPath),
 		authDisabled: process.env.AUTH_DISABLED === 'true',
-		authLogoutUrl:
-			process.env.AUTH_LOGOUT_URL?.trim() || 'https://auth.comptes.localhost:8443/logout',
+		authLogoutUrl: process.env.AUTH_LOGOUT_URL?.trim() || null,
 		readwriteGroup: process.env.AUTH_READWRITE_GROUP?.trim() || 'comptes-readwrite',
 		readonlyGroup: process.env.AUTH_READONLY_GROUP?.trim() || 'comptes-readonly',
 		gitAuthorName: process.env.GIT_AUTHOR_NAME?.trim() || 'comptes app',

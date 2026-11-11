@@ -4,8 +4,14 @@ import type { LayoutServerLoad } from './$types';
 import { getEnv } from '$lib/server/env';
 import { authRedirectUrl } from '$lib/server/auth';
 
-export const load: LayoutServerLoad = async ({ locals, url }) => ({
-	user: locals.user,
-	logoutUrl: getEnv().authDisabled ? null : authRedirectUrl(getEnv().authLogoutUrl, url.origin),
-	config: await readConfig(await ensureDataRepo())
-});
+export const load: LayoutServerLoad = async ({ locals, url }) => {
+	const env = getEnv();
+	return {
+		user: locals.user,
+		logoutUrl:
+			env.authDisabled || !env.authLogoutUrl
+				? null
+				: authRedirectUrl(env.authLogoutUrl, url.origin),
+		config: await readConfig(await ensureDataRepo())
+	};
+};
