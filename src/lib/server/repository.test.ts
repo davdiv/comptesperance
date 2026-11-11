@@ -10,6 +10,12 @@ import {
 	deleteManualCheckpoint,
 	readStoredAccountById,
 	deleteProject,
+	readProject,
+	updateProject,
+	readThirdParty,
+	updateThirdParty,
+	deleteThirdParty,
+	createThirdParty,
 	setTransactionAllocations,
 	updateManualTransaction,
 	validateAllocations,
@@ -380,4 +386,25 @@ it('creates an account and initial manual checkpoint in the same commit', async 
 		)
 	).rejects.toThrow('checkpoint_invalid');
 	expect(commitAll).toHaveBeenCalledTimes(1);
+});
+
+it('rejects project and third-party ids that escape their directory', async () => {
+	await mkdir(path.join(root, 'config'), { recursive: true });
+	await mkdir(path.join(root, 'third-parties'), { recursive: true });
+	const target = path.join(root, 'config', 'app.json');
+	const original = JSON.stringify({ name: 'config', aliases: [] });
+	await writeFile(target, original);
+	for (const id of ['../config/app', '..\\config\\app', 'Bad.Id', '']) {
+		expect(await readThirdParty(id, root)).toBeNull();
+		expect(await readProject(id, root)).toBeNull();
+		await expect(updateThirdParty(id, { name: 'pwned' }, root)).rejects.toThrow();
+		await expect(updateProject(id, { name: 'pwned' }, root)).rejects.toThrow();
+		await expect(deleteThirdParty(id, root)).rejects.toThrow();
+		await expect(deleteProject(id, root)).rejects.toThrow();
+	}
+	expect(await readFile(target, 'utf8')).toBe(original);
+	expect(commitAll).not.toHaveBeenCalled();
+	const party = await createThirdParty({ name: 'Boulangerie Été' }, root);
+	expect(party.id).toBe('boulangerie-ete');
+	expect(await readThirdParty(party.id, root)).toMatchObject({ name: 'Boulangerie Été' });
 });
