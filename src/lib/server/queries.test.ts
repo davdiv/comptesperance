@@ -73,6 +73,8 @@ it('searches category and payment mode display names rather than opaque ids', as
 			transactions: [],
 			total: 0,
 			total_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0,
 			hidden_transfer_count: 0
 		});
 	}
@@ -185,6 +187,80 @@ describe('getProjectDetails', () => {
 });
 
 describe('unallocated pseudo-project', () => {
+	it('applies shared filters before project and unallocated summaries, independently of visible pages', async () => {
+		db.exec(
+			"ALTER TABLE accounts ADD COLUMN notes TEXT; ALTER TABLE accounts ADD COLUMN source TEXT DEFAULT 'manual'; CREATE TABLE balance_checkpoints (account_id TEXT);"
+		);
+		for (const [id, amount, allocated, category, transfer, excluded] of [
+			['in', 1000, 300, 'c', 'group', 0],
+			['out', -500, -200, 'c', null, 0],
+			['other', 5000, 1000, 'other', null, 0],
+			['excluded', 999, 100, 'other', null, 1]
+		] as const) {
+			db.prepare(
+				'INSERT INTO transactions (account_id,id,date,amount_cents,label,category_id,transfer_id,excluded,payment_mode_id,third_party_id) VALUES (?,?,?,?,?,?,?,?,?,?)'
+			).run('cash', id, '2026-10-03', amount, id, category, transfer, excluded, 'card', 'party');
+			db.prepare('INSERT INTO project_allocations VALUES (?,?,?,?,NULL)').run(
+				'project',
+				'cash',
+				id,
+				allocated
+			);
+		}
+		for (const included of [false, true]) {
+			const filters = {
+				category_id: 'c',
+				include_transfers: included,
+				limit: 1,
+				payment_mode_id: 'card',
+				third_party_id: 'party',
+				date_to: '2026-10-03'
+			};
+			const project = await getProjectDetails('project', filters);
+			expect((await listProjectsWithTotals(filters))[0]).toMatchObject({
+				total_cents: 100,
+				allocation_count: 2
+			});
+			expect((await listAccountsWithTotals(filters))[0]).toMatchObject({
+				incoming_cents: 1000,
+				outgoing_cents: -500,
+				transaction_count: 2,
+				current_balance_cents: 5500
+			});
+			expect(project).toMatchObject({
+				total_cents: 100,
+				transaction_count: 2,
+				by_account: [{ amount_cents: 100, count: 2 }]
+			});
+			expect(project?.allocations).toHaveLength(1);
+			const unallocated = await getUnallocatedDetails(filters);
+			expect(unallocated).toMatchObject({
+				total_cents: 400,
+				incoming_cents: 700,
+				outgoing_cents: -300,
+				transaction_count: 2,
+				by_account: [{ amount_cents: 400 }]
+			});
+			expect(unallocated.transactions).toHaveLength(1);
+			const list = await listTransactions(filters);
+			expect(list).toMatchObject({
+				total: 2,
+				total_cents: 500,
+				incoming_cents: 1000,
+				outgoing_cents: -500
+			});
+		}
+		expect((await getProjectDetails('project'))?.total_cents).toBe(1200);
+		expect((await getUnallocatedDetails()).total_cents).toBe(4400);
+		expect((await listTransactions()).total_cents).toBe(5500);
+		expect((await getProjectDetails('project', { search: 'no match' }))?.total_cents).toBe(0);
+		expect((await getUnallocatedDetails({ search: 'no match' })).transactions).toEqual([]);
+		expect(await listTransactions({ excluded: '1' })).toMatchObject({ total: 1, total_cents: 0 });
+		expect(await listTransactions({ excluded: '0' })).toMatchObject({
+			total: 3,
+			total_cents: 5500
+		});
+	});
 	it('ignores missing projects in row selection, remainders and totals', async () => {
 		for (const [id, amount, allocated, orphan, transfer] of [
 			['orphan-only', 2500, 0, 2500, null],
@@ -287,6 +363,7 @@ describe('unallocated pseudo-project', () => {
 				outgoing_cents: 0,
 				total_cents: 0,
 				transaction_count: 0,
+				hidden_transfer_count: 0,
 				by_account: [],
 				transactions: []
 			});
@@ -316,6 +393,8 @@ it('keeps transaction counts and amounts independent of transfer visibility and 
 		expect(result).toMatchObject({
 			total: 3,
 			total_cents: 1250,
+			incoming_cents: 2500,
+			outgoing_cents: -1250,
 			hidden_transfer_count: include_transfers ? 0 : 2
 		});
 		expect(result.transactions).toHaveLength(include_transfers ? 3 : 1);
@@ -325,12 +404,16 @@ it('keeps transaction counts and amounts independent of transfer visibility and 
 			transactions: [],
 			total: 3,
 			total_cents: 1250,
+			incoming_cents: 2500,
+			outgoing_cents: -1250,
 			hidden_transfer_count: include_transfers ? 0 : 2
 		});
 		expect(await listTransactions({ account_id: 'missing', include_transfers })).toEqual({
 			transactions: [],
 			total: 0,
 			total_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0,
 			hidden_transfer_count: 0
 		});
 	}
@@ -362,7 +445,7 @@ it('includes transfer members in account and third-party summaries', async () =>
 		transaction_count: 2
 	});
 	expect((await listThirdPartiesWithCounts())[0]).toMatchObject({
-		total_cents: 1250,
+		total_cents: -1250,
 		transaction_count: 2
 	});
 });
@@ -517,6 +600,8 @@ describe('transaction allocation names and filters', () => {
 			transactions: [],
 			total: 0,
 			total_cents: 0,
+			incoming_cents: 0,
+			outgoing_cents: 0,
 			hidden_transfer_count: 0
 		});
 	});
