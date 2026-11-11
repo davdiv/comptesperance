@@ -24,6 +24,7 @@ it.each([
 it('guesses SumUp sales and payouts without relying on descriptions', () => {
 	expect(guessPaymentMode({ label: '', record_type: 'vente' }, modes)).toBe('carte');
 	expect(guessPaymentMode({ label: '', record_type: 'virement' }, modes)).toBe('virement');
+	expect(guessPaymentMode({ label: '', record_type: 'fee' }, modes)).toBe('prelevement');
 });
 it('does not guess missing, archived or unknown modes or match embedded prefixes', () => {
 	expect(guessPaymentMode({ label: 'VIREMENT', record_type: 'ccp' }, [])).toBe('');
