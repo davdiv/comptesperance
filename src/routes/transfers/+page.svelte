@@ -78,6 +78,5 @@
 			filters={data.poolFilters}
 			accounts={data.accounts}
 			current={data.filterUrl + '#transfer-create'}
-			success={!!form?.ok}
 		/>{/if}
 </div>
