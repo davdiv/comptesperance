@@ -63,7 +63,7 @@
 					>{m.pagination_size()}
 					<select
 						name={limitKey}
-						class="control py-1.5"
+						class="control min-w-20 py-1.5"
 						value={page.limit}
 						onchange={(event) => event.currentTarget.form?.requestSubmit()}
 					>
