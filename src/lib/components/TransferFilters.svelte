@@ -34,7 +34,8 @@
 			current,
 			Object.fromEntries(
 				[...fields, prefix + 'limit', prefix + 'offset'].map((key) => [key, undefined])
-			)
+			),
+			prefix + 'offset'
 		)
 	);
 </script>

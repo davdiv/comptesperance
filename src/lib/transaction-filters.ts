@@ -30,9 +30,13 @@ export interface TransactionFilters {
 	offset?: number;
 }
 export type FixedFilters = Partial<TransactionFilters>;
-export function filterHref(current: string, changes: Record<string, string | number | undefined>) {
+export function filterHref(
+	current: string,
+	changes: Record<string, string | number | undefined>,
+	offsetKey = 'offset'
+) {
 	const url = new URL(current, 'http://localhost');
-	url.searchParams.delete('offset');
+	url.searchParams.delete(offsetKey);
 	for (const [key, value] of Object.entries(changes)) {
 		if (value === undefined || value === '') url.searchParams.delete(key);
 		else url.searchParams.set(key, String(value));

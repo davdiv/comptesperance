@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import TransactionFilters from './TransactionFilters.svelte';
 import FilterLink from './FilterLink.svelte';
 import TransactionPagination from './Pagination.svelte';
+import TransferFilters from './TransferFilters.svelte';
 it('collapses empty filters, opens active ones and hides fixed fields', () => {
 	expect(render(TransactionFilters).body).not.toContain(' open');
 	const html = render(TransactionFilters, {
@@ -58,4 +59,19 @@ it('shows page sizes and clamps stale pages while keeping filters and candidate 
 	expect(html).toContain('name="pool_limit"');
 	expect(html).toContain('name="offset" value="50"');
 	for (const size of [25, 50, 100]) expect(html).toContain('value="' + size + '"');
+});
+
+it('resets candidate filters without changing the main transfer page or filters', () => {
+	const html = render(TransferFilters, {
+		props: {
+			current:
+				'/transfers?tab=suggestions&offset=50&search=Group&pool_search=Bank&pool_offset=25&pool_limit=25#transfer-create',
+			filters: { search: 'Bank', balance: '', limit: 25, offset: 25 },
+			accounts: [],
+			prefix: 'pool_'
+		}
+	}).body;
+	expect(html).toContain(
+		'href="/transfers?tab=suggestions&amp;offset=50&amp;search=Group#transfer-create"'
+	);
 });
