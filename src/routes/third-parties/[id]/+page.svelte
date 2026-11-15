@@ -1,6 +1,6 @@
 <script lang="ts">
 	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
-	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
+	import Pagination from '#lib/components/Pagination.svelte';
 	import Amount from '#lib/components/Amount.svelte';
 	import StatCard from '#lib/components/StatCard.svelte';
 
@@ -64,7 +64,7 @@
 			fixedFilters={data.fixedFilters}
 		/>
 	</section>
-	<TransactionPagination
+	<Pagination
 		filters={data.filters}
 		current={data.filterUrl}
 		total={data.total}

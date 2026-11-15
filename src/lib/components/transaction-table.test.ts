@@ -10,6 +10,27 @@ const row = {
 	description: 'A long CSV description',
 	amount_cents: 1000
 };
+
+it('keeps transaction rows read-only in edit mode, including project allocation amounts and notes', () => {
+	const html = render(TransactionTable, {
+		props: {
+			transactions: [
+				{
+					...row,
+					allocation_details: [
+						{ project_id: 'p', project_name: 'Project', amount_cents: 400, note: 'Allocation note' }
+					]
+				}
+			],
+			projectId: 'p',
+			canWrite: true
+		}
+	}).body;
+	expect(html).toContain(formatMoney(400));
+	expect(html).toContain('Allocation note');
+	expect(html).toContain('href="/transactions/cash/sale"');
+	for (const tag of ['<input', '<select', '<textarea', '<form']) expect(html).not.toContain(tag);
+});
 it('wraps descriptions on desktop while retaining a mobile clamp and complete title', () => {
 	const html = render(TransactionTable, { props: { transactions: [row] } }).body;
 	expect(html).toContain('line-clamp-2');

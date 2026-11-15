@@ -1,4 +1,5 @@
 import { transactionWhere, visiblePage } from './transaction-filters';
+import { pagination } from '#lib/pagination.ts';
 import type { TransactionFilters } from '#lib/transaction-filters.ts';
 export type { TransactionFilters } from '#lib/transaction-filters.ts';
 import { summarizeTransferGroup } from './transfer-groups';
@@ -235,8 +236,10 @@ export async function listTransactions(filters: TransactionFilters = {}): Promis
 	};
 	const rowWhere = filters.include_transfers ? where : [...where, NON_TRANSFER_CONDITION];
 	const rowWhereSql = rowWhere.length ? `WHERE ${rowWhere.join(' AND ')}` : '';
-	const limit = Math.min(Math.max(filters.limit ?? 200, 1), 1000);
-	const offset = Math.max(filters.offset ?? 0, 0);
+	const { limit, offset } = pagination(
+		Number(summary.count) - (filters.include_transfers ? 0 : Number(summary.transfer_count)),
+		filters
+	);
 	const rows = db
 		.prepare(
 			`${TRANSACTION_SELECT} ${rowWhereSql} ORDER BY t.date DESC, t.account_id, t.id LIMIT ? OFFSET ?`

@@ -9,15 +9,50 @@ import {
 import { createTransferGroup, unlinkTransfer } from '#lib/server/repository.ts';
 import { suggestTransferGroups } from '#lib/server/transfer-matcher.ts';
 import { linkBalancedSuggestions } from '#lib/server/transfer-suggestions.ts';
+import {
+	matchingTransferGroup,
+	matchingTransferMembers,
+	transferFilters
+} from '#lib/server/transfer-list.ts';
+import { paginate } from '#lib/pagination.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	const [groups, pool, accounts] = await Promise.all([
 		listTransferGroups(),
 		listTransferPool(),
 		listAccountsWithTotals()
 	]);
-	return { groups, pool, accounts, suggestions: suggestTransferGroups(pool) };
+	const filters = transferFilters(url);
+	const poolFilters = transferFilters(url, 'pool_');
+	const accountNames = Object.fromEntries(accounts.map((item) => [item.account_id, item.name]));
+	const matches = (members: typeof pool) => matchingTransferMembers(members, filters, accountNames);
+	const filteredGroups = groups
+		.filter((group) => matches(group.members) && matchingTransferGroup(group, filters))
+		.sort((a, b) => {
+			const latest = (group: typeof a) =>
+				group.members.reduce((date, item) => (item.date > date ? item.date : date), '');
+			return latest(b).localeCompare(latest(a)) || a.id.localeCompare(b.id);
+		});
+	const suggestions = suggestTransferGroups(pool).filter((item) => matches(item.members));
+	const tab = url.searchParams.get('tab') === 'suggestions' ? 'suggestions' : 'groups';
+	return {
+		accounts,
+		filters,
+		poolFilters,
+		tab,
+		filterUrl: url.pathname + url.search,
+		groups: tab === 'groups' ? paginate(filteredGroups, filters).rows : [],
+		suggestions: tab === 'suggestions' ? paginate(suggestions, filters).rows : [],
+		groupCount: filteredGroups.length,
+		suggestionCount: suggestions.length,
+		pool: locals.user?.canWrite
+			? paginate(
+					pool.filter((item) => matchingTransferMembers([item], poolFilters, accountNames)),
+					poolFilters
+				)
+			: { rows: [], total: 0 }
+	};
 };
 export const actions: Actions = {
 	unlink_transfer: async ({ request, locals }) => {

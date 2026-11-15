@@ -1,7 +1,4 @@
 <script lang="ts">
-	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
-	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
-
 	import { m } from '#lib/paraglide/messages.js';
 	import { formatMoney } from '#lib/format.ts';
 	import Amount from '#lib/components/Amount.svelte';
@@ -9,16 +6,14 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import StatCard from '#lib/components/StatCard.svelte';
-	import TransactionTable from '#lib/components/TransactionTable.svelte';
 	import type { PageProps } from './$types';
 
 	const { data }: PageProps = $props();
 	const totalBalance = $derived(
 		data.accounts.reduce((sum, account) => sum + account.current_balance_cents, 0)
 	);
-	const transactionCount = $derived(data.total);
-	const accountNames = $derived(
-		Object.fromEntries(data.accounts.map((account) => [account.account_id, account.name]))
+	const transactionCount = $derived(
+		data.accounts.reduce((sum, account) => sum + account.transaction_count, 0)
 	);
 	const maxBalance = $derived(
 		Math.max(1, ...data.accounts.map((account) => Math.abs(account.current_balance_cents)))
@@ -35,7 +30,9 @@
 	/>
 	<StatCard label={m.stat_accounts()} value={data.accounts.length} />
 	<StatCard label={m.stat_projects()} value={data.projects.length} />
-	<StatCard label={m.stat_transactions()} value={transactionCount} />
+	<a href="/transactions" class="rounded-xl focus-visible:outline-2 focus-visible:outline-brand-600"
+		><StatCard label={m.stat_transactions()} value={transactionCount} /></a
+	>
 </section>
 
 <div class="grid gap-6 lg:grid-cols-5">
@@ -123,37 +120,5 @@
 		{:else}
 			<EmptyState message={m.empty_state()} icon="projects" />
 		{/if}
-	</section>
-
-	<section class="card overflow-hidden lg:col-span-5">
-		<div class="card-header">
-			<h2 class="card-title">{m.dashboard_recent()}</h2>
-			<a href="/transactions" class="link text-xs">{m.view_all()}</a>
-		</div>
-		<TransactionFilters
-			filters={data.filters}
-			options={data.filterOptions}
-			config={data.config}
-			current={data.filterUrl}
-			fixed={data.fixedFilters}
-		/>
-		<div class="px-5 py-3 text-sm">
-			{m.transactions_total()}: <Amount cents={data.total_cents} />
-		</div>
-		<div class="overflow-x-auto">
-			<TransactionTable
-				transactions={data.recent}
-				{accountNames}
-				filterUrl={data.filterUrl}
-				fixedFilters={data.fixedFilters}
-				empty={m.empty_state()}
-			/>
-		</div>
-		<TransactionPagination
-			filters={data.filters}
-			current={data.filterUrl}
-			total={data.total}
-			hidden={data.hidden_transfer_count}
-		/>
 	</section>
 </div>

@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
-	import { formatDate } from '#lib/format.ts';
+	import { filterHref } from '#lib/transaction-filters.ts';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
 	import Alert from '#lib/components/Alert.svelte';
-	import Amount from '#lib/components/Amount.svelte';
+	import Pagination from '#lib/components/Pagination.svelte';
+	import TransferFilters from '#lib/components/TransferFilters.svelte';
 	import TransferGroupCard from '#lib/components/TransferGroupCard.svelte';
 	import TransferGroupSuggestion from '#lib/components/TransferGroupSuggestion.svelte';
+	import TransferCreator from '#lib/components/TransferCreator.svelte';
 	import type { PageProps } from './$types';
 	const { data, form }: PageProps = $props();
 	const accountNames = $derived(
@@ -17,52 +19,65 @@
 <div class="space-y-6">
 	<PageHeader title={m.nav_transfers()} subtitle={m.transfers_subtitle()} />
 	{#if form?.error}<Alert tone="error">{form.error}</Alert>{/if}
-	<section class="card p-5">
-		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-			<h2 class="card-title">{m.transfers_suggested()}</h2>
-			{#if data.user.canWrite && data.suggestions.length}<form
+	<TransferFilters
+		filters={data.filters}
+		current={data.filterUrl}
+		accounts={data.accounts}
+		status={data.tab === 'groups'}
+	/>
+	<section class="card overflow-hidden">
+		<div
+			class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 sm:px-5"
+		>
+			<nav class="flex min-w-0 gap-4" aria-label={m.nav_transfers()}>
+				{#each [['groups', m.transfers_groups(), data.groupCount], ['suggestions', m.transfers_suggested(), data.suggestionCount]] as [tab, label, count] (tab)}
+					<a
+						href={filterHref(data.filterUrl, { tab })}
+						aria-current={data.tab === tab ? 'page' : undefined}
+						class="flex min-w-0 flex-wrap items-center gap-2 border-b-2 py-4 text-sm font-medium {data.tab ===
+						tab
+							? 'border-brand-600 text-brand-800'
+							: 'border-transparent text-stone-500 hover:text-stone-800'}"
+						>{label}<span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600"
+							>{count}</span
+						></a
+					>
+				{/each}
+			</nav>
+			{#if data.tab === 'suggestions' && data.user.canWrite && data.suggestions.length}<form
 					method="POST"
 					action="?/link_suggestion"
+					class="pb-3 sm:py-2"
 				>
-					<input type="hidden" name="all" value="1" /><button class="btn-secondary"
-						>{m.transfers_link_all()}</button
-					>
+					{#each data.suggestions as suggestion (suggestion.key)}<input
+							type="hidden"
+							name="suggestion_key"
+							value={suggestion.key}
+						/>{/each}<button class="btn-secondary btn-sm">{m.transfers_link_page()}</button>
 				</form>{/if}
 		</div>
-		{#if data.suggestions.length}<div class="grid gap-4 xl:grid-cols-2">
-				{#each data.suggestions as suggestion (suggestion.key)}<TransferGroupSuggestion
-						{suggestion}
-						{accountNames}
-						canWrite={data.user.canWrite}
-					/>{/each}
-			</div>{:else}<EmptyState message={m.transfers_no_suggestions()} />{/if}
+		<div class="divide-y divide-stone-200">
+			{#if data.tab === 'groups'}
+				{#each data.groups as group (group.id)}<div class="p-4 sm:px-5">
+						<TransferGroupCard {group} {accountNames} canWrite={data.user.canWrite} />
+					</div>{:else}<EmptyState message={m.empty_state()} />{/each}
+			{:else}
+				{#each data.suggestions as suggestion (suggestion.key)}<div class="p-4 sm:px-5">
+						<TransferGroupSuggestion {suggestion} {accountNames} canWrite={data.user.canWrite} />
+					</div>{:else}<EmptyState message={m.transfers_no_suggestions()} />{/each}
+			{/if}
+		</div>
 	</section>
-	<section class="space-y-4">
-		<h2 class="text-lg font-semibold">{m.transfers_groups()}</h2>
-		{#each data.groups as group (group.id)}<div class="card p-5">
-				<TransferGroupCard {group} {accountNames} canWrite={data.user.canWrite} />
-			</div>{:else}<div class="card"><EmptyState message={m.empty_state()} /></div>{/each}
-	</section>
-	{#if data.user.canWrite}<details class="card p-5">
-			<summary class="cursor-pointer font-medium">{m.transfers_create()}</summary>
-			<form method="POST" action="?/create" class="mt-4 space-y-4">
-				<p class="text-sm text-stone-500">{m.transfer_invalid()}</p>
-				<div class="max-h-96 divide-y divide-stone-100 overflow-y-auto">
-					{#each data.pool as item (item.account_id + '/' + item.id)}<label
-							class="flex items-center gap-3 py-3 text-sm"
-							><input
-								class="checkbox"
-								type="checkbox"
-								name="members"
-								value={JSON.stringify([item.account_id, item.id])}
-							/><span class="min-w-0 flex-1"
-								><span class="block text-xs text-stone-500"
-									>{accountNames[item.account_id]} · {formatDate(item.date)}</span
-								>{item.label}</span
-							><Amount cents={item.amount_cents} /></label
-						>{/each}
-				</div>
-				<button class="btn">{m.transfers_create()}</button>
-			</form>
-		</details>{/if}
+	<Pagination
+		filters={data.filters}
+		current={data.filterUrl}
+		total={data.tab === 'groups' ? data.groupCount : data.suggestionCount}
+	/>
+	{#if data.user.canWrite}<TransferCreator
+			pool={data.pool}
+			filters={data.poolFilters}
+			accounts={data.accounts}
+			current={data.filterUrl + '#transfer-create'}
+			success={!!form?.ok}
+		/>{/if}
 </div>

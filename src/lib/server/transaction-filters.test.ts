@@ -40,7 +40,7 @@ it('parses shared filters, clamps pagination and enforces fixed dimensions', () 
 		offset: 20
 	});
 	expect(parseTransactionFilters(new URL('http://localhost/'))).toMatchObject({
-		limit: 500,
+		limit: 50,
 		offset: 0
 	});
 	expect(
@@ -49,7 +49,7 @@ it('parses shared filters, clamps pagination and enforces fixed dimensions', () 
 				'http://localhost/?date_from=2026-99-99&date_to=2026-02-30&allocation_status=bad&excluded=bad&limit=NaN&offset=-1'
 			)
 		)
-	).toEqual({ limit: 500, offset: 0 });
+	).toEqual({ limit: 50, offset: 0 });
 	expect(
 		parseTransactionFilters(
 			new URL('http://localhost/?project_id=p&allocation_status=allocated&excluded=1'),

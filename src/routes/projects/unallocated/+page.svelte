@@ -1,6 +1,6 @@
 <script lang="ts">
 	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
-	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
+	import Pagination from '#lib/components/Pagination.svelte';
 	import TransactionTable from '#lib/components/TransactionTable.svelte';
 
 	import { m } from '#lib/paraglide/messages.js';
@@ -57,7 +57,7 @@
 			canWrite={data.user.canWrite}
 		/>
 	</section>
-	<TransactionPagination
+	<Pagination
 		filters={data.filters}
 		current={data.filterUrl}
 		total={data.transaction_count}

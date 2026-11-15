@@ -3,7 +3,6 @@
 	import { formatDate, formatMoney } from '#lib/format.ts';
 	import type { FixedFilters } from '#lib/transaction-filters.ts';
 	import FilterLink from './FilterLink.svelte';
-	import AllocationEditor from './AllocationEditor.svelte';
 	import Amount from './Amount.svelte';
 	import EmptyState from './EmptyState.svelte';
 	import Icon from './Icon.svelte';
@@ -189,17 +188,11 @@
 								>{@render payment(tx)}</td
 							>{/if}
 						<td class="num font-medium">
-							{#if projectId && allocation && canWrite}<AllocationEditor
-									accountId={tx.account_id}
-									transactionId={tx.id}
-									{projectId}
-									amount={allocation.amount_cents}
-									note={allocation.note}
-								/>{:else}<Amount
-									cents={projectId ? (allocation?.amount_cents ?? 0) : tx.amount_cents}
-								/>{#if projectId && allocation?.note}<p class="text-xs text-stone-500">
-										{allocation.note}
-									</p>{/if}{/if}
+							<Amount
+								cents={projectId ? (allocation?.amount_cents ?? 0) : tx.amount_cents}
+							/>{#if projectId && allocation?.note}<p class="text-xs text-stone-500">
+									{allocation.note}
+								</p>{/if}
 						</td>
 						{#if unallocated}<td class="num"><Amount cents={tx.unallocated_cents ?? 0} /></td
 							>{#if canWrite}<td

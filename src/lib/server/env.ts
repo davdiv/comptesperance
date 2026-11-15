@@ -5,6 +5,7 @@ export interface AppEnv {
 	cacheDbPath: string;
 	authDisabled: boolean;
 	authLogoutUrl: string | null;
+	authProfileUrl: string | null;
 	readwriteGroup: string;
 	readonlyGroup: string;
 	gitAuthorName: string;
@@ -20,6 +21,7 @@ export function getEnv(): AppEnv {
 		cacheDbPath: path.resolve(process.cwd(), cacheDbPath),
 		authDisabled: process.env.AUTH_DISABLED === 'true',
 		authLogoutUrl: process.env.AUTH_LOGOUT_URL?.trim() || null,
+		authProfileUrl: process.env.AUTH_PROFILE_URL?.trim() || null,
 		readwriteGroup: process.env.AUTH_READWRITE_GROUP?.trim() || 'comptes-readwrite',
 		readonlyGroup: process.env.AUTH_READONLY_GROUP?.trim() || 'comptes-readonly',
 		gitAuthorName: process.env.GIT_AUTHOR_NAME?.trim() || 'comptes app',

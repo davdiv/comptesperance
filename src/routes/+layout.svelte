@@ -130,6 +130,9 @@
 				{/each}
 			</div>
 			{@render editToggle()}
+			{#if data.profileUrl}<a class="link block text-center text-xs" href={data.profileUrl}
+					>{m.auth_profile()}</a
+				>{/if}
 			{#if data.logoutUrl}<a class="link block text-center text-xs" href={data.logoutUrl}
 					>{m.auth_sign_out()}</a
 				>{/if}

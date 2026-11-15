@@ -1,4 +1,12 @@
 {
+	"auth_profile": "Profil et sécurité",
+	"pagination_size": "Par page",
+	"transfer_status": "État de l’équilibre",
+	"transfer_moved": "Montant transféré",
+	"transfer_net": "Solde net",
+	"transfers_link_page": "Lier les suggestions de cette page",
+	"transfers_selected": "{count} transactions sélectionnées",
+	"transfer_deselect": "Désélectionner {label}",
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"app_title": "Comptes d’espérance",
 	"pdf_export": "Exporter en PDF",

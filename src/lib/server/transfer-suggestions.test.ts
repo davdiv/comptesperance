@@ -15,16 +15,19 @@ beforeEach(() => {
 	vi.resetAllMocks();
 	vi.mocked(listTransferPool).mockResolvedValue(pool as never);
 });
-async function submit(values: Record<string, string>) {
+async function submit(values: Record<string, string | string[]>) {
 	const form = new FormData();
-	for (const [key, value] of Object.entries(values)) form.set(key, value);
+	for (const [key, value] of Object.entries(values))
+		for (const item of [value].flat()) form.append(key, item);
 	return linkBalancedSuggestions({
 		request: new Request('http://localhost/transfers', { method: 'POST', body: form }),
 		locals: { user: { canWrite: true, canEdit: true, editMode: true } }
 	} as never);
 }
 it('bulk-links disjoint balanced suggestions in one repository call', async () => {
-	expect(await submit({ all: '1' })).toEqual({ ok: true });
+	expect(
+		await submit({ suggestion_key: suggestTransferGroups(pool).map((item) => item.key) })
+	).toEqual({ ok: true });
 	expect(createTransferGroups).toHaveBeenCalledExactlyOnceWith([
 		[
 			{ account_id: 'a', transaction_id: 'out' },
@@ -42,6 +45,18 @@ it('links a selected fresh suggestion and rejects stale or empty suggestions', a
 	vi.mocked(createTransferGroups).mockClear();
 	expect(await submit({ suggestion_key: 'invalid' })).toMatchObject({ status: 400 });
 	vi.mocked(listTransferPool).mockResolvedValue([]);
+	expect(await submit({ all: '1' })).toMatchObject({ status: 400 });
+	expect(createTransferGroups).not.toHaveBeenCalled();
+});
+
+it('only links explicitly submitted visible keys and rejects a partially stale selection atomically', async () => {
+	const [suggestion] = suggestTransferGroups(pool);
+	expect(await submit({ suggestion_key: [suggestion.key] })).toEqual({ ok: true });
+	expect(vi.mocked(createTransferGroups).mock.calls[0][0]).toHaveLength(1);
+	vi.mocked(createTransferGroups).mockClear();
+	expect(await submit({ suggestion_key: [suggestion.key, 'stale'] })).toMatchObject({
+		status: 400
+	});
 	expect(await submit({ all: '1' })).toMatchObject({ status: 400 });
 	expect(createTransferGroups).not.toHaveBeenCalled();
 });
