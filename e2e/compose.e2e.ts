@@ -242,7 +242,7 @@ test('transaction pagination and internal-transfer selections, allocation moveme
 	const bank = await createAccount(page, 'E2E pagination bank', 'manual');
 	for (const [account, count, amount, date] of [
 		[cash, 26, '10.00', '2026-11-01'],
-		[bank, 1, '-10.00', '2026-11-02']
+		[bank, 2, '-10.00', '2026-11-02']
 	] as const) {
 		for (let index = 0; index < count; index++) {
 			const response = await page.request.post(account + '?/add_transaction', {
@@ -275,7 +275,7 @@ test('transaction pagination and internal-transfer selections, allocation moveme
 		.check();
 	await expect(creator).toContainText('1 selected transactions');
 	await creator.getByRole('link', { name: 'Next', exact: true }).click();
-	await expect(creator.getByRole('checkbox')).toHaveCount(2);
+	await expect(creator.getByRole('checkbox')).toHaveCount(3);
 	await expect(creator).toContainText('1 selected transactions');
 	await creator.getByRole('checkbox').first().check();
 	await expect(creator).toContainText('2 selected transactions');
@@ -317,4 +317,22 @@ test('transaction pagination and internal-transfer selections, allocation moveme
 	);
 	await expect(allocationRow).toBeVisible();
 	await page.screenshot({ path: testInfo.outputPath('transfers-mobile.png'), fullPage: true });
+	await creator.locator(':scope > summary').click();
+	await creator
+		.locator('label')
+		.filter({ hasText: 'E2E pagination bank 1' })
+		.getByRole('checkbox')
+		.check();
+	await creator
+		.locator('label')
+		.filter({ hasText: 'E2E pagination cash' })
+		.getByRole('checkbox')
+		.first()
+		.check();
+	await expect(creator).toContainText('2 selected transactions');
+	await creator
+		.getByRole('button', { name: 'Create an internal transfer group', exact: true })
+		.click();
+	await expect(creator).toContainText('0 selected transactions');
+	await expect(page.locator('section').getByText('Balanced', { exact: true })).toHaveCount(2);
 });

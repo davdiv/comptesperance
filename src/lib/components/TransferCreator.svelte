@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { TransactionView } from '#lib/server/queries.ts';
 	import type { TransferFilters as TransferFilterState } from '#lib/transfer-filters.ts';
@@ -11,14 +11,12 @@
 		pool,
 		filters,
 		accounts,
-		current,
-		success = false
+		current
 	}: {
 		pool: { rows: TransactionView[]; total: number };
 		filters: TransferFilterState;
 		accounts: { account_id: string; name: string }[];
 		current: string;
-		success?: boolean;
 	} = $props();
 	let selected = $state<Record<string, TransactionView>>({});
 	const members = $derived(Object.entries(selected));
@@ -27,9 +25,12 @@
 	);
 	const balance = $derived(members.reduce((sum, [, item]) => sum + item.amount_cents, 0));
 	const valid = $derived(new Set(members.map(([, item]) => item.account_id)).size >= 2);
-	$effect(() => {
-		if (success) selected = {};
-	});
+	const create: SubmitFunction =
+		() =>
+		async ({ result, update }) => {
+			await update();
+			if (result.type === 'success') selected = {};
+		};
 	function toggle(key: string, item?: TransactionView) {
 		const next = { ...selected };
 		if (item) next[key] = item;
@@ -70,7 +71,7 @@
 		<form
 			method="POST"
 			action="?/create"
-			use:enhance
+			use:enhance={create}
 			class="space-y-3 border-t border-stone-200 pt-4"
 		>
 			<div class="flex flex-wrap items-center justify-between gap-2 text-sm">
