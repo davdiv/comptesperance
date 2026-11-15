@@ -58,7 +58,7 @@
 		</div>
 		<div class="divide-y divide-stone-200">
 			{#if data.tab === 'groups'}
-				{#each data.groups as group (group.id)}<div class="p-4 sm:px-5">
+				{#each data.groups as group (group.id)}<div id="transfer-{group.id}" class="p-4 sm:px-5">
 						<TransferGroupCard {group} {accountNames} canWrite={data.user.canWrite} />
 					</div>{:else}<EmptyState message={m.empty_state()} />{/each}
 			{:else}

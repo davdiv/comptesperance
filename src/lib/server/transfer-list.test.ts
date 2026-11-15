@@ -7,6 +7,7 @@ const members = [
 	{
 		id: 'out',
 		account_id: 'a',
+		transfer_id: 'group-unique',
 		date: '2026-10-01T23:00:00',
 		label: 'Outgoing',
 		notes: 'Donation',
@@ -48,6 +49,7 @@ it('matches complete groups by a member, including account/project names, notes 
 		'search=BANK',
 		'search=Donation',
 		'search=concert',
+		'search=group-unique',
 		'date_from=2026-10-01&date_to=2026-10-01&account_id=a'
 	])
 		expect(matchingTransferMembers(members, filters(query), names)).toBe(true);

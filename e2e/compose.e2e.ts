@@ -336,3 +336,83 @@ test('transaction pagination and internal-transfer selections, allocation moveme
 	await expect(creator).toContainText('0 selected transactions');
 	await expect(page.locator('section').getByText('Balanced', { exact: true })).toHaveCount(2);
 });
+
+test('checkpoint history is collapsed and warning links reveal the affected checkpoint', async ({
+	page
+}, testInfo) => {
+	await signIn(page, 'alice');
+	await page.getByRole('button', { name: 'Switch to edit mode', exact: true }).click();
+	const accountUrl = await createAccount(page, 'E2E checkpoint warnings', 'manual');
+	const panel = page.locator('#checkpoints');
+	for (const [date, balance] of [
+		['2026-11-01', '90'],
+		['2026-11-02', '100']
+	]) {
+		await panel.locator('details:has(form) > summary').click();
+		const form = panel.locator('form:has([name="balance"])');
+		await form.locator('[name="date"]').fill(date);
+		await form.locator('[name="balance"]').fill(balance);
+		await form.getByRole('button', { name: 'Add checkpoint', exact: true }).click();
+		await expect(panel.locator('tbody tr:visible')).toHaveCount(1);
+	}
+	const history = panel.locator('details:has(table)');
+	await expect(history).not.toHaveAttribute('open', '');
+	await expect(panel.locator('tbody tr:visible')).toContainText('2 Nov 2026');
+	await page.getByRole('link', { name: 'Warnings', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Warnings', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Warnings', exact: true })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	const warning = page.locator('article').filter({ hasText: 'E2E checkpoint warnings' });
+	await expect(warning).toHaveCount(1);
+	await expect(warning).toContainText('1 Nov 2026');
+	await expect(warning).toContainText('10.00');
+	await page.screenshot({
+		path: testInfo.outputPath('warnings-desktop.png'),
+		fullPage: true,
+		animations: 'disabled'
+	});
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+		true
+	);
+	await page.screenshot({
+		path: testInfo.outputPath('warnings-mobile.png'),
+		fullPage: true,
+		animations: 'disabled'
+	});
+	await warning.getByRole('link', { name: 'Checkpoint mismatch', exact: true }).click();
+	await expect(page).toHaveURL(new RegExp(accountUrl));
+	await expect(history).toHaveAttribute('open', '');
+	await expect(panel.locator('tbody tr:visible')).toHaveCount(2);
+	await page.goto(accountUrl);
+	await expect(history).not.toHaveAttribute('open', '');
+	await expect(panel.locator('tbody tr:visible')).toHaveCount(1);
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await page.screenshot({
+		path: testInfo.outputPath('checkpoints-desktop.png'),
+		fullPage: true,
+		animations: 'disabled'
+	});
+});
+
+test.describe('browser language', () => {
+	test.use({ locale: 'fr-CH' });
+	test('defaults to French from the browser and persists an explicit English choice', async ({
+		page
+	}) => {
+		await signIn(page, 'bob');
+		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+		await expect(page.getByRole('heading', { name: 'Comptes', exact: true })).toBeVisible();
+		await page.getByRole('link', { name: 'Avertissements', exact: true }).click();
+		await expect(page.getByRole('heading', { name: 'Avertissements', exact: true })).toBeVisible();
+		await page.getByRole('button', { name: 'English', exact: true }).click();
+		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+		await expect(page.getByRole('heading', { name: 'Warnings', exact: true })).toBeVisible();
+		await page.reload();
+		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+		await page.goto('/accounts');
+		await expect(page.getByRole('heading', { name: 'Accounts', exact: true })).toBeVisible();
+	});
+});

@@ -53,23 +53,29 @@
 </FinancialSummary>
 
 {#if data.issues.length || account.mismatch_count}
-	<Alert tone="warning">
-		<p class="font-medium">{m.account_issues()}</p>
-		<ul class="mt-1 list-disc pl-4">
-			{#each data.issues as issue (issue.id)}<li>{issue.message}</li>{/each}
-			{#each account.checkpoints.filter((checkpoint) => !checkpoint.ignored && checkpoint.difference_cents !== 0) as checkpoint (checkpoint.id)}
-				<li>
-					{m.checkpoint_issue({
-						date: formatDate(checkpoint.date),
-						difference: formatMoney(checkpoint.difference_cents)
-					})}
-				</li>
-			{/each}
-		</ul>
-	</Alert>
+	<div id="account-issues">
+		<Alert tone="warning">
+			<p class="font-medium">{m.account_issues()}</p>
+			<ul class="mt-1 list-disc pl-4">
+				{#each data.issues as issue (issue.id)}<li>{issue.message}</li>{/each}
+				{#each account.checkpoints.filter((checkpoint) => !checkpoint.ignored && checkpoint.difference_cents !== 0) as checkpoint (checkpoint.id)}
+					<li>
+						{m.checkpoint_issue({
+							date: formatDate(checkpoint.date),
+							difference: formatMoney(checkpoint.difference_cents)
+						})}
+					</li>
+				{/each}
+			</ul>
+		</Alert>
+	</div>
 {/if}
 
-<CheckpointPanel checkpoints={account.checkpoints} canWrite={data.user.canWrite} />
+<CheckpointPanel
+	checkpoints={account.checkpoints}
+	canWrite={data.user.canWrite}
+	selectedId={data.checkpointId}
+/>
 
 {#if data.user.canWrite}
 	{#if account.source === 'manual'}

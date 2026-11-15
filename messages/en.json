@@ -251,5 +251,14 @@
 	"filters_page_range": "{start}–{end} of {total}",
 	"filters_previous": "Previous",
 	"filters_next": "Next",
-	"third_party_perspective": "Amounts from the third party’s point of view."
+	"third_party_perspective": "Amounts from the third party’s point of view.",
+	"nav_warnings": "Warnings",
+	"warnings_subtitle": "Transfer imbalances, checkpoint mismatches and import issues to review.",
+	"warnings_import": "Import issue",
+	"warnings_transfer_balance": "Unbalanced internal transfer",
+	"warnings_transfer_allocations": "Unbalanced transfer allocations",
+	"warnings_checkpoint": "Checkpoint mismatch",
+	"warnings_difference": "Recorded − computed",
+	"warnings_empty": "No warnings found.",
+	"checkpoint_history": "Earlier checkpoints ({count})"
 }

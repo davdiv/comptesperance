@@ -518,12 +518,9 @@ export async function listIssues(accountId?: string): Promise<IssueRow[]> {
 	const db = await getDatabase();
 	const rows = accountId
 		? (db
-				.prepare('SELECT * FROM issues WHERE account_id = ? ORDER BY id DESC LIMIT 100')
+				.prepare('SELECT * FROM issues WHERE account_id = ? ORDER BY id DESC')
 				.all(accountId) as Record<string, unknown>[])
-		: (db.prepare('SELECT * FROM issues ORDER BY id DESC LIMIT 100').all() as Record<
-				string,
-				unknown
-			>[]);
+		: (db.prepare('SELECT * FROM issues ORDER BY id DESC').all() as Record<string, unknown>[]);
 	return rows.map((row) => ({
 		id: Number(row.id),
 		account_id: stringOrNull(row.account_id),

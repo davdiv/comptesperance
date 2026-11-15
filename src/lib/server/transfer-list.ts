@@ -38,6 +38,7 @@ export function matchingTransferMembers(
 					member.label,
 					member.description,
 					member.notes,
+					member.transfer_id,
 					accountNames[member.account_id],
 					...member.allocation_details.map((a) => a.project_name)
 				].some((value) => value?.toLocaleLowerCase().includes(search)))

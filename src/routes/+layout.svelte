@@ -12,7 +12,10 @@
 	let menuOpen = $state(false);
 
 	const sections: { href: string; label: () => string; icon: IconName }[][] = [
-		[{ href: '/', label: m.nav_dashboard, icon: 'dashboard' }],
+		[
+			{ href: '/', label: m.nav_dashboard, icon: 'dashboard' },
+			{ href: '/warnings', label: m.nav_warnings, icon: 'alert' }
+		],
 		[
 			{ href: '/accounts', label: m.nav_accounts, icon: 'accounts' },
 			{ href: '/transactions', label: m.nav_transactions, icon: 'transactions' },

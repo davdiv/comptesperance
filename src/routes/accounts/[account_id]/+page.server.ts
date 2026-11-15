@@ -25,7 +25,13 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		listTransactions(state.filters),
 		listIssues(account.account_id)
 	]);
-	return { ...state, ...transactions, account, issues };
+	return {
+		...state,
+		...transactions,
+		account,
+		issues,
+		checkpointId: url.searchParams.get('checkpoint')
+	};
 };
 
 export const actions: Actions = {
