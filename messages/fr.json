@@ -251,5 +251,14 @@
 	"filters_page_range": "{start}–{end} sur {total}",
 	"filters_previous": "Précédent",
 	"filters_next": "Suivant",
-	"third_party_perspective": "Montants du point de vue du tiers."
+	"third_party_perspective": "Montants du point de vue du tiers.",
+	"nav_warnings": "Avertissements",
+	"warnings_subtitle": "Transferts déséquilibrés, écarts de soldes de contrôle et problèmes d’import à vérifier.",
+	"warnings_import": "Problème d’import",
+	"warnings_transfer_balance": "Transfert interne déséquilibré",
+	"warnings_transfer_allocations": "Allocations de transfert déséquilibrées",
+	"warnings_checkpoint": "Écart de solde de contrôle",
+	"warnings_difference": "Solde enregistré − calculé",
+	"warnings_empty": "Aucun avertissement détecté.",
+	"checkpoint_history": "Soldes de contrôle antérieurs ({count})"
 }

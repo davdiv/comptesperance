@@ -7,7 +7,8 @@
 		total = 0,
 		hidden = 0,
 		offsetKey = 'offset',
-		limitKey = 'limit'
+		limitKey = 'limit',
+		label = m.filters_pagination()
 	}: {
 		filters?: PageOptions;
 		current?: string;
@@ -15,6 +16,7 @@
 		hidden?: number;
 		offsetKey?: string;
 		limitKey?: string;
+		label?: string;
 	} = $props();
 	const count = $derived(Math.max(0, total - hidden));
 	const page = $derived(pagination(count, filters));
@@ -30,10 +32,7 @@
 </script>
 
 {#if count > 0 || (filters.offset ?? 0) > 0}
-	<nav
-		class="flex flex-wrap items-center justify-between gap-3 text-sm"
-		aria-label={m.filters_pagination()}
-	>
+	<nav class="flex flex-wrap items-center justify-between gap-3 text-sm" aria-label={label}>
 		<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-stone-500">
 			<span
 				>{m.filters_page_range({

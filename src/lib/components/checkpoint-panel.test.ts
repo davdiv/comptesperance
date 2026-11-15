@@ -50,3 +50,24 @@ it('shows an empty state without checkpoints', () => {
 	expect(html).not.toContain('<table');
 	expect(html).not.toContain('<form');
 });
+
+it('keeps only the latest checkpoint outside collapsed history and opens a warning target', () => {
+	const html = render(CheckpointPanel, { props: { checkpoints, canWrite: true } }).body;
+	const history = html.indexOf('<details');
+	expect(html.slice(0, history)).toContain('file.csv');
+	expect(html.slice(0, history)).not.toContain('value="manual"');
+	expect(html).toContain('Earlier checkpoints (1)');
+	expect(html.match(/<details[^>]*\sopen(?:=|\s|>)/g)).toBeNull();
+	const targeted = render(CheckpointPanel, {
+		props: { checkpoints, canWrite: false, selectedId: 'manual' }
+	}).body;
+	expect(targeted).toMatch(/<details[^>]*\sopen(?:=|\s|>)/);
+	const latest = render(CheckpointPanel, {
+		props: { checkpoints, canWrite: false, selectedId: checkpoints[0].id }
+	}).body;
+	expect(latest).not.toMatch(/<details[^>]*\sopen(?:=|\s|>)/);
+	const single = render(CheckpointPanel, {
+		props: { checkpoints: checkpoints.slice(0, 1), canWrite: false }
+	}).body;
+	expect(single).not.toContain('<details');
+});

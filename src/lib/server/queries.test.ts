@@ -10,7 +10,8 @@ import {
 	listThirdPartiesWithCounts,
 	listProjectsWithTotals,
 	listTransactions,
-	listDocumentsWithLinks
+	listDocumentsWithLinks,
+	listIssues
 } from './queries';
 
 vi.mock('./repository', () => ({ listDocuments: vi.fn() }));
@@ -42,6 +43,15 @@ beforeEach(() => {
 });
 
 afterEach(() => db.close());
+
+it('does not silently truncate warnings after 100 import issues', async () => {
+	db.exec('CREATE TABLE issues (id INTEGER, account_id TEXT, source_file TEXT, message TEXT)');
+	const insert = db.prepare("INSERT INTO issues VALUES (?, ?, 'statement.csv', 'Invalid row')");
+	for (let id = 0; id < 130; id++) insert.run(id, id < 105 ? 'cash' : 'bank');
+	expect(await listIssues()).toHaveLength(130);
+	expect(await listIssues('cash')).toHaveLength(105);
+	expect((await listIssues())[0].id).toBe(129);
+});
 
 function addAllocation(id: string, transferId: string | null = null) {
 	db.prepare('INSERT INTO project_allocations VALUES (?, ?, ?, ?, NULL)').run(

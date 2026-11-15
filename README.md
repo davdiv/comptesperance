@@ -128,6 +128,17 @@ Transfer details show net allocation balances alongside amounts moved: matched
 incoming/outgoing amounts counted once, not their zero net or a doubled total.
 Unbalanced transfers also show incoming and outgoing amounts for reconciliation.
 
+The **Warnings** page gathers unbalanced transfers, per-project transfer allocation
+imbalances, non-ignored checkpoint mismatches, and CSV/import issues, with shared
+pagination and links to the affected records. Ignored checkpoints are not warnings.
+Account pages show only the latest checkpoint by default; earlier checkpoints and
+the checkpoint creation form are collapsible. Warning links reveal older affected
+checkpoints automatically.
+
+The initial language follows the browser's preferred supported language (English
+or French, including regional variants), falling back to English. An explicit
+language selection takes precedence and is remembered in the locale cookie.
+
 Authelia uses `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET` for its
 reset-password token secret (not the deprecated `AUTHELIA_JWT_SECRET`). Its binary
 starts directly because the mounted configuration files are deliberately read-only;
