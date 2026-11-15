@@ -2,7 +2,7 @@ import { render } from 'svelte/server';
 import { expect, it } from 'vitest';
 import TransactionFilters from './TransactionFilters.svelte';
 import FilterLink from './FilterLink.svelte';
-import TransactionPagination from './TransactionPagination.svelte';
+import TransactionPagination from './Pagination.svelte';
 it('collapses empty filters, opens active ones and hides fixed fields', () => {
 	expect(render(TransactionFilters).body).not.toContain(' open');
 	const html = render(TransactionFilters, {
@@ -39,4 +39,23 @@ it('preserves active filters in pagination and omits empty page controls', () =>
 		props: { current: '/transactions?category_id=c', filters: { limit: 2 }, total: 5, hidden: 1 }
 	}).body;
 	expect(html).toContain('category_id=c&amp;offset=2');
+});
+
+it('shows page sizes and clamps stale pages while keeping filters and candidate pagination separate', () => {
+	const html = render(TransactionPagination, {
+		props: {
+			current:
+				'/transfers?tab=suggestions&search=Bank&offset=50&pool_offset=100&pool_limit=25#transfer-create',
+			filters: { limit: 25, offset: 999 },
+			total: 56,
+			offsetKey: 'pool_offset',
+			limitKey: 'pool_limit'
+		}
+	}).body;
+	expect(html).toContain('51–56 of 56');
+	expect(html).toContain('Page 3 / 3');
+	expect(html).toContain('offset=50&amp;pool_offset=25&amp;pool_limit=25#transfer-create');
+	expect(html).toContain('name="pool_limit"');
+	expect(html).toContain('name="offset" value="50"');
+	for (const size of [25, 50, 100]) expect(html).toContain('value="' + size + '"');
 });

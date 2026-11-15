@@ -1,4 +1,5 @@
 import { filterFields, type TransactionFilters } from '#lib/transaction-filters.ts';
+import { PAGE_SIZE, paginate } from '#lib/pagination.ts';
 export function parseTransactionFilters(
 	url: URL,
 	fixed: Partial<TransactionFilters> = {},
@@ -28,7 +29,7 @@ export function parseTransactionFilters(
 		const n = Number(url.searchParams.get(key) ?? fallback);
 		return Number.isSafeInteger(n) && n >= 0 ? Math.min(n, max) : fallback;
 	};
-	filters.limit = Math.max(1, integer('limit', defaults.limit ?? 500, 1000));
+	filters.limit = Math.max(1, integer('limit', defaults.limit ?? PAGE_SIZE, 1000));
 	filters.offset = integer('offset', 0, Number.MAX_SAFE_INTEGER);
 	return { ...filters, ...fixed };
 }
@@ -88,10 +89,8 @@ export function visiblePage<T>(
 ) {
 	const visible = filters.include_transfers ? items : items.filter((item) => !transfer(item));
 	return {
-		rows: visible.slice(
-			filters.offset ?? 0,
-			(filters.offset ?? 0) + (filters.limit ?? visible.length)
-		),
+		rows: paginate(visible, { ...filters, limit: filters.limit ?? Math.max(1, visible.length) })
+			.rows,
 		hidden_transfer_count: items.length - visible.length
 	};
 }

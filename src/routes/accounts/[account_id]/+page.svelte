@@ -1,6 +1,6 @@
 <script lang="ts">
 	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
-	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
+	import Pagination from '#lib/components/Pagination.svelte';
 
 	import { m } from '#lib/paraglide/messages.js';
 	import { formatMoney, formatDate } from '#lib/format.ts';
@@ -133,7 +133,7 @@
 		transactions={data.transactions}
 		filterUrl={data.filterUrl}
 		fixedFilters={data.fixedFilters}
-	/><TransactionPagination
+	/><Pagination
 		filters={data.filters}
 		current={data.filterUrl}
 		total={data.total}

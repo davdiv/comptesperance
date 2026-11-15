@@ -4,6 +4,8 @@ import type { TransactionView } from '#lib/server/queries.ts';
 import { summarizeTransferGroup } from '#lib/server/transfer-groups.ts';
 import TransferGroupCard from './TransferGroupCard.svelte';
 import TransferGroupSuggestion from './TransferGroupSuggestion.svelte';
+import { formatMoney } from '#lib/format.ts';
+import { m } from '#lib/paraglide/messages.js';
 const members = [
 	{
 		id: 'sale',
@@ -50,4 +52,21 @@ it('renders every suggested group member with writer-only one-click linking', ()
 	expect(writer).toContain('/transactions/b/credit');
 	expect(writer).toContain('PID9000007');
 	expect(writer).toContain('name="suggestion_key"');
+});
+
+it('shows nonzero moved amounts for balanced group and project allocations alongside zero net balances', () => {
+	const group = summarizeTransferGroup(
+		'balanced',
+		members.map((member, i) => ({
+			...member,
+			allocations: [{ project_id: 'p', amount_cents: i ? 50 : -50 }]
+		}))
+	);
+	const html = render(TransferGroupCard, { props: { group, accountNames: {} } }).body;
+	expect(html).toContain(m.transfer_moved());
+	expect(html).toContain(m.transfer_net());
+	expect(html).toContain(formatMoney(100));
+	expect(html).toContain(formatMoney(50));
+	expect(html).toContain(formatMoney(0));
+	expect(html).not.toContain('NaN');
 });

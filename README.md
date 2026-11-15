@@ -104,6 +104,30 @@ group; it does not redirect to sign-in. The sidebar/mobile menu Sign out link us
 above. Deployments using other domains must also update Authelia's cookie domain,
 portal/default redirect URLs and access rules, and Traefik's host rules.
 
+Set `AUTH_PROFILE_URL` to your Authelia settings URL (for example,
+`https://auth.example.org/settings/security`) to show the sidebar/mobile-menu
+**Profile & security** link. Compose configures it for the local Authelia portal.
+The link is hidden when auth is disabled or no URL is configured. Authelia controls
+the available settings; display name and email are read-only in its current UI.
+
+### Browsing transactions and internal transfers
+
+Transaction lists use 50 rows per page by default, with 25/50/100-row choices.
+Filters and pagination are reflected in the URL. Financial summaries cover all
+matching transactions, independently of the page and internal-transfer visibility;
+project PDF exports include all matching rows, not just the current page.
+Edit a transaction or its allocations from its detail page, not inline in lists.
+
+Internal transfers have Groups and Suggestions views with search, account/date
+filters and whole-group pagination. Groups can also be filtered by balance or
+allocation imbalance. A matching member keeps the entire group visible. Bulk
+linking applies only to the suggestions explicitly shown on the current page.
+The separate manual-creation panel retains selected candidates while browsing
+its pages/filters. Its selections are local to the page, not saved across reloads.
+Transfer details show net allocation balances alongside amounts moved: matched
+incoming/outgoing amounts counted once, not their zero net or a doubled total.
+Unbalanced transfers also show incoming and outgoing amounts for reconciliation.
+
 Authelia uses `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET` for its
 reset-password token secret (not the deprecated `AUTHELIA_JWT_SECRET`). Its binary
 starts directly because the mounted configuration files are deliberately read-only;

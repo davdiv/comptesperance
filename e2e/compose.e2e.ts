@@ -95,6 +95,13 @@ test('signed-out redirect, read-only authorization and sign-out', async ({ page,
 			return response.status;
 		})
 	).toBe(403);
+	const profile = page.getByRole('link', { name: 'Profile & security', exact: true });
+	await expect(profile).toHaveAttribute(
+		'href',
+		'https://auth.comptes.localhost:8443/settings/security'
+	);
+	await profile.click();
+	await expect(page).toHaveURL('https://auth.comptes.localhost:8443/settings/security');
 	await page.goto('/projects');
 	await expect(
 		page.getByRole('heading', { level: 1, name: 'Projects', exact: true })
@@ -146,9 +153,12 @@ test('writer edit mode, account, transaction, allocation, large evidence and CSV
 	).toBeVisible();
 	await page.goto(projectUrl);
 	await expect(page.getByRole('link', { name: 'E2E donation', exact: true })).toBeVisible();
-	await expect(
-		page.locator('tbody tr').filter({ hasText: 'E2E donation' }).locator('input[name="amount"]')
-	).toHaveValue('12.34');
+	const projectRow = page.locator('tbody tr').filter({ hasText: 'E2E donation' });
+	await expect(projectRow).toContainText('€12.34');
+	await expect(projectRow.locator('input, select, textarea, form')).toHaveCount(0);
+	await page.goto('/');
+	await expect(page.locator('table, input[name="search"]')).toHaveCount(0);
+	await expect(page.getByRole('link', { name: /Transactions/ })).toHaveCount(2);
 
 	await page.goto(transactionUrl);
 	const evidence = Buffer.alloc(2 * 1024 * 1024, ' ');
@@ -211,4 +221,100 @@ test('writer edit mode, account, transaction, allocation, large evidence and CSV
 	await expect(page.locator('form[action="?/add_transaction"]')).toHaveCount(0);
 	expect(await refusedAccountWrite(page)).toBe(403);
 	await signOut(page);
+});
+
+test('transaction pagination and internal-transfer selections, allocation movement and responsive layout', async ({
+	page,
+	baseURL
+}, testInfo) => {
+	await signIn(page, 'alice');
+	await page.getByRole('button', { name: 'Switch to edit mode', exact: true }).click();
+	await page.goto('/projects');
+	await page.locator('details:has(input[name="name"]) > summary').click();
+	const projectForm = page.locator('form:has(input[name="name"])');
+	await projectForm.locator('[name="name"]').fill('E2E transfer allocation');
+	await projectForm.getByRole('button', { name: 'New project', exact: true }).click();
+	await expect(
+		page.getByRole('heading', { level: 1, name: 'E2E transfer allocation' })
+	).toBeVisible();
+	const projectId = new URL(page.url()).pathname.split('/').at(-1)!;
+	const cash = await createAccount(page, 'E2E pagination cash', 'manual');
+	const bank = await createAccount(page, 'E2E pagination bank', 'manual');
+	for (const [account, count, amount, date] of [
+		[cash, 26, '10.00', '2026-11-01'],
+		[bank, 1, '-10.00', '2026-11-02']
+	] as const) {
+		for (let index = 0; index < count; index++) {
+			const response = await page.request.post(account + '?/add_transaction', {
+				headers: { origin: baseURL! },
+				form: {
+					date,
+					amount,
+					label: `E2E pagination ${account === bank ? 'bank' : 'cash'} ${index}`
+				}
+			});
+			expect(response.ok()).toBe(true);
+		}
+	}
+	await page.goto(cash + '?limit=25');
+	const rows = page.locator('tbody tr:has(a[href^="/transactions/"])');
+	await expect(rows).toHaveCount(25);
+	const pager = page.getByRole('navigation', { name: 'Transaction pages' });
+	await pager.getByRole('link', { name: 'Next', exact: true }).click();
+	await expect(rows).toHaveCount(1);
+	await pager.getByRole('combobox').selectOption('50');
+	await expect(rows).toHaveCount(26);
+	expect(new URL(page.url()).searchParams.has('offset')).toBe(false);
+	await page.goto('/transfers?pool_search=E2E+pagination&pool_limit=25');
+	const creator = page.locator('#transfer-create');
+	await creator.locator(':scope > summary').click();
+	await creator
+		.locator('label')
+		.filter({ hasText: 'E2E pagination bank 0' })
+		.getByRole('checkbox')
+		.check();
+	await expect(creator).toContainText('1 selected transactions');
+	await creator.getByRole('link', { name: 'Next', exact: true }).click();
+	await expect(creator.getByRole('checkbox')).toHaveCount(2);
+	await expect(creator).toContainText('1 selected transactions');
+	await creator.getByRole('checkbox').first().check();
+	await expect(creator).toContainText('2 selected transactions');
+	const refs = await creator
+		.locator('input[name="members"]')
+		.evaluateAll((inputs) =>
+			inputs.map((input) => JSON.parse((input as HTMLInputElement).value) as [string, string])
+		);
+	for (const [account, id] of refs) {
+		const response = await page.request.post(
+			`/transactions/${account}/${id}?/add_project_allocation`,
+			{
+				headers: { origin: baseURL! },
+				form: {
+					project_id: projectId,
+					amount: account === bank.split('/').at(-1) ? '-10.00' : '10.00'
+				}
+			}
+		);
+		expect(response.ok()).toBe(true);
+	}
+	await creator
+		.getByRole('button', { name: 'Create an internal transfer group', exact: true })
+		.click();
+	await expect(
+		page.locator('section').filter({ hasText: 'Internal transfer groups' })
+	).toContainText('Amount moved');
+	await page.locator('section details > summary').click();
+	const allocationRow = page.locator('tbody tr').filter({ hasText: 'E2E transfer allocation' });
+	await expect(allocationRow).toContainText('€10.00');
+	await expect(allocationRow).toContainText('€0.00');
+	await expect(creator).toContainText('0 selected transactions');
+	await creator.locator(':scope > summary').click();
+	await page.screenshot({ path: testInfo.outputPath('transfers-desktop.png'), fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(page.locator('aside')).not.toBeInViewport();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+		true
+	);
+	await expect(allocationRow).toBeVisible();
+	await page.screenshot({ path: testInfo.outputPath('transfers-mobile.png'), fullPage: true });
 });

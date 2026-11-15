@@ -8,6 +8,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const env = getEnv();
 	return {
 		user: locals.user,
+		profileUrl: env.authDisabled ? null : env.authProfileUrl,
 		logoutUrl:
 			env.authDisabled || !env.authLogoutUrl
 				? null

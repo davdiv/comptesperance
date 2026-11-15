@@ -1,7 +1,7 @@
 <script lang="ts">
 	import TransactionFilters from '#lib/components/TransactionFilters.svelte';
 	import Icon from '#lib/components/Icon.svelte';
-	import TransactionPagination from '#lib/components/TransactionPagination.svelte';
+	import Pagination from '#lib/components/Pagination.svelte';
 	import TransactionTable from '#lib/components/TransactionTable.svelte';
 
 	import { m } from '#lib/paraglide/messages.js';
@@ -53,18 +53,16 @@
 	<section class="table-wrap">
 		<h2 class="card-header card-title">{m.project_allocations()}</h2>
 		<TransactionTable
-			transactions={data.transactions ??
-				data.allocations.flatMap((a) => (a.transaction ? [a.transaction] : []))}
+			transactions={data.transactions}
 			accountNames={Object.fromEntries(
 				data.filterOptions?.accounts.map((a) => [a.account_id, a.name]) ?? []
 			)}
 			filterUrl={data.filterUrl}
 			fixedFilters={data.fixedFilters}
 			projectId={data.project.id}
-			canWrite={data.user.canWrite}
 		/>
 	</section>
-	<TransactionPagination
+	<Pagination
 		filters={data.filters}
 		current={data.filterUrl}
 		total={data.transaction_count}

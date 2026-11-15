@@ -521,10 +521,16 @@ it('keeps transaction counts and amounts independent of transfer visibility and 
 			hidden_transfer_count: include_transfers ? 0 : 2
 		});
 		expect(result.transactions).toHaveLength(include_transfers ? 3 : 1);
-		expect(
-			await listTransactions({ account_id: 'cash', include_transfers, limit: 1, offset: 3 })
-		).toEqual({
-			transactions: [],
+		const stalePage = await listTransactions({
+			account_id: 'cash',
+			include_transfers,
+			limit: 1,
+			offset: 3
+		});
+		expect(stalePage.transactions.map((item) => item.id)).toEqual(
+			include_transfers ? ['transfer'] : ['sale']
+		);
+		expect(stalePage).toMatchObject({
 			total: 3,
 			total_cents: 1250,
 			incoming_cents: 2500,
@@ -540,6 +546,27 @@ it('keeps transaction counts and amounts independent of transfer visibility and 
 			hidden_transfer_count: 0
 		});
 	}
+});
+
+it('paginates transaction, project and unallocated lists without paginating their summaries', async () => {
+	for (let index = 0; index < 106; index++) addAllocation('sale-' + String(index).padStart(3, '0'));
+	db.exec('UPDATE transactions SET excluded = 0');
+	const first = await listTransactions();
+	const second = await listTransactions({ offset: 50 });
+	expect(first.transactions).toHaveLength(50);
+	expect(second.transactions).toHaveLength(50);
+	expect(first.transactions.some((a) => second.transactions.some((b) => a.id === b.id))).toBe(
+		false
+	);
+	for (const page of [first, second, await listTransactions({ limit: 25, offset: 10000 })])
+		expect(page).toMatchObject({ total: 106, total_cents: 265000 });
+	expect((await listTransactions({ limit: 25, offset: 10000 })).transactions).toHaveLength(6);
+	const project = await getProjectDetails('project', { limit: 25, offset: 10000 });
+	expect(project?.allocations).toHaveLength(6);
+	expect(project).toMatchObject({ transaction_count: 106, total_cents: 132500 });
+	const unallocated = await getUnallocatedDetails({ limit: 25, offset: 10000 });
+	expect(unallocated.transactions).toHaveLength(6);
+	expect(unallocated).toMatchObject({ transaction_count: 106, total_cents: 132500 });
 });
 
 it('includes transfer members in account and third-party summaries', async () => {
