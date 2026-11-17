@@ -47,6 +47,13 @@ IANA time zone such as `UTC` using `docker run -e TZ=UTC` or the Compose service
 `TZ` is set in the shell (e.g. `TZ=Europe/Paris npm run dev`); `.env` does not
 set it for the Node process.
 
+### Publishing the image
+
+The `Publish container image` workflow is manual-only. Run it from GitHub Actions
+with an image tag (default `latest`) to build the Dockerfile with Podman and push
+`ghcr.io/davdiv/comptesperance:<tag>`. The first publish creates the GHCR package;
+set its visibility in GitHub Packages if needed.
+
 ### Non-root runtime and existing volumes
 
 The app image runs as `node` (UID/GID 1000:1000), not root. Its defaults are
