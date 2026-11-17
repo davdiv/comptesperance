@@ -1,0 +1,32 @@
+name: Publish container image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to publish
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}:${{ inputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: podman build --format docker --tag "$IMAGE" .
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Push image
+        run: podman push "$IMAGE"
