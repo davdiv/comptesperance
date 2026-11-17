@@ -4,9 +4,10 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+const composeEngine = process.env.E2E_COMPOSE_ENGINE ?? 'docker';
 
 async function expectWriterCommit() {
-	const { stdout } = await execFileAsync('docker', [
+	const { stdout } = await execFileAsync(composeEngine, [
 		'compose',
 		'exec',
 		'-T',
