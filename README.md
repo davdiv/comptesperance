@@ -50,12 +50,11 @@ set it for the Node process.
 ### Publishing the image
 
 The `Publish container image` workflow is manual-only. Run it from GitHub Actions
-with an optional tag: the tag is created on the current commit and pushed to the
+with a tag: the tag is created on the current commit and pushed to the
 repository, and the image is built with Podman and pushed as
 `ghcr.io/davdiv/comptesperance:<tag>`. The `update_latest` checkbox (on by
-default) also tags and pushes the image as `latest`. Run it without a tag to
-publish only `latest`. The first publish creates the GHCR package; set its
-visibility in GitHub Packages if needed.
+default) also tags and pushes the image as `latest`. The first publish creates
+the GHCR package; set its visibility in GitHub Packages if needed.
 
 ### Non-root runtime and existing volumes
 
