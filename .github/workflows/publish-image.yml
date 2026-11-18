@@ -23,6 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build image
+        env:
+          TAG: ${{ inputs.tag }}
+        run: podman build --format docker --tag "$IMAGE_REPO:$TAG" .
+
       - name: Tag the repository
         env:
           TAG: ${{ inputs.tag }}
@@ -39,11 +44,6 @@ jobs:
           fi
           git tag "$TAG"
           git push origin "refs/tags/$TAG"
-
-      - name: Build image
-        env:
-          TAG: ${{ inputs.tag }}
-        run: podman build --format docker --tag "$IMAGE_REPO:$TAG" .
 
       - name: Log in to GHCR
         env:
