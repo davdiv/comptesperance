@@ -3,9 +3,11 @@ import adapter from '@sveltejs/adapter-node';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
+import { loadEnvFiles } from './vite-env-files.ts';
 
 export default defineConfig({
 	plugins: [
+		loadEnvFiles(),
 		paraglideVitePlugin({
 			project: './project.inlang',
 			outdir: './src/lib/paraglide',
