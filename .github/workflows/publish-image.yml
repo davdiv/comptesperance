@@ -28,6 +28,11 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: podman build --format docker --tag "$IMAGE_REPO:$TAG" .
 
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
       - name: Tag the repository
         env:
           TAG: ${{ inputs.tag }}
@@ -44,11 +49,6 @@ jobs:
           fi
           git tag "$TAG"
           git push origin "refs/tags/$TAG"
-
-      - name: Log in to GHCR
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-        run: echo "$GHCR_TOKEN" | podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
 
       - name: Push image
         env:
