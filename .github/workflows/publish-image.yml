@@ -3,30 +3,75 @@ name: Publish container image
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: Image tag to publish
-        required: true
-        default: latest
+      tag:
+        description: Tag for the git repository and the container image (optional)
+        required: false
+      update_latest:
+        description: Also update the latest image tag
+        type: boolean
+        default: true
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      IMAGE: ghcr.io/${{ github.repository }}:${{ inputs.image_tag }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate inputs
+        env:
+          TAG: ${{ inputs.tag }}
+          UPDATE_LATEST: ${{ inputs.update_latest }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAG" ] && [ "$UPDATE_LATEST" != "true" ]; then
+            echo "Provide a tag or enable update_latest; nothing would be published." >&2
+            exit 1
+          fi
+          if [ -n "$TAG" ]; then
+            if ! printf '%s' "$TAG" | grep -qE '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'; then
+              echo "Tag '$TAG' is not a valid container image tag." >&2
+              exit 1
+            fi
+            git check-ref-format "refs/tags/$TAG"
+          fi
+
+      - name: Tag the repository
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git check-ref-format "refs/tags/$TAG"
+          if git ls-remote --tags origin | cut -f2 | grep -qxF "refs/tags/$TAG"; then
+            echo "Tag $TAG already exists on the remote; refusing to move it." >&2
+            exit 1
+          fi
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+
       - name: Build image
-        run: podman build --format docker --tag "$IMAGE" .
+        run: podman build --format docker --tag comptesperance:publish .
 
       - name: Log in to GHCR
         env:
           GHCR_TOKEN: ${{ github.token }}
         run: echo "$GHCR_TOKEN" | podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
 
-      - name: Push image
-        run: podman push "$IMAGE"
+      - name: Push image tags
+        env:
+          IMAGE_REPO: ghcr.io/${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          UPDATE_LATEST: ${{ inputs.update_latest }}
+        run: |
+          set -euo pipefail
+          tags=()
+          if [ -n "$TAG" ]; then tags+=("$TAG"); fi
+          if [ "$UPDATE_LATEST" = "true" ]; then tags+=("latest"); fi
+          for tag in $(printf '%s\n' "${tags[@]}" | awk '!seen[$0]++'); do
+            podman tag comptesperance:publish "$IMAGE_REPO:$tag"
+            podman push "$IMAGE_REPO:$tag"
+          done
