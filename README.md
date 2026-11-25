@@ -50,9 +50,10 @@ set it for the Node process.
 ### Publishing the image
 
 The `Publish container image` workflow is manual-only. Run it from GitHub Actions
-with an image tag (default `latest`) to build the Dockerfile with Podman and push
-`ghcr.io/davdiv/comptesperance:<tag>`. The first publish creates the GHCR package;
-set its visibility in GitHub Packages if needed.
+with a version tag such as `v1.2.3` to build the Dockerfile with Podman and push
+`ghcr.io/davdiv/comptesperance:<tag>`. The `latest` tag is reserved for the image
+alias, which is updated when `update_latest` is enabled (the default). The first
+publish creates the GHCR package; set its visibility in GitHub Packages if needed.
 
 ### Non-root runtime and existing volumes
 
